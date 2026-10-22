@@ -1,0 +1,1495 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>De e_vigo al TRPPD-H₃</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ---------- Sistema visual ----------
+   ámbar  = mercancía a (entregas)
+   verde azulado = mercancía b (recogidas)
+   violeta = tiempo · Gurobi                */
+:root{
+  --bg:#0E1115;--l1:#161B21;--l2:#1F262E;--l3:#2C353F;--edge:#07090B;
+  --ink:#F2EDE3;--ink2:#B4BCC6;--mute:#6C7783;
+  --a:#F4A63C;--a2:#F8CB86;--a-d:#4A3215;
+  --b:#2EC4AE;--b2:#93E2D5;--b-d:#103F38;
+  --t:#A493FF;--t-d:#2E2861;
+  --dark:#15110A;
+  --fd:'Big Shoulders Display','Arial Narrow',Impact,sans-serif;
+  --fs:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --fm:'IBM Plex Mono',ui-monospace,Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);overflow:hidden}
+body{color:var(--ink);font-family:var(--fs);-webkit-font-smoothing:antialiased}
+.stage{position:absolute;left:50%;top:50%;width:1600px;height:900px;transform:translate(-50%,-50%) scale(var(--k,1));overflow:hidden;background:var(--bg)}
+.slide{position:absolute;left:0;top:0;width:1600px;height:836px;padding:60px 96px 0;transform:translateX(100%);transition:transform .85s cubic-bezier(.77,0,.18,1)}
+.slide.is-past{transform:translateX(-100%)}
+.slide.is-active{transform:none}
+.slide.still{transition:none}
+
+/* ---------- Tipografía ---------- */
+.tag{display:inline-flex;align-items:center;gap:.5em;height:40px;padding:0 22px 0 38px;background:var(--l2);color:var(--ink2);font:600 15px/1 var(--fm);letter-spacing:.12em;text-transform:uppercase;clip-path:polygon(16px 0,100% 0,100% 100%,16px 100%,0 50%);position:relative}
+.tag::before{content:"";position:absolute;left:20px;top:16px;width:8px;height:8px;border-radius:50%;background:var(--bg)}
+.tag .k1{color:var(--ink)} .tag .k2{color:var(--t)}
+.h{font:800 78px/1 var(--fd);letter-spacing:.005em;margin-top:18px}
+.h-xl{font:900 172px/.9 var(--fd);letter-spacing:.005em}
+.h em,.h-xl em{font-style:normal;color:var(--t)}
+.lead{font:400 26px/1.45 var(--fs);color:var(--ink2)}
+.foot{font:400 19px/1.45 var(--fs);color:var(--mute)}
+.ca{color:var(--a)} .cb{color:var(--b)} .ct{color:var(--t)} .mute{color:var(--mute)} .ink{color:var(--ink)}
+sub{font-size:.66em;vertical-align:-.28em;line-height:0}
+.card{background:var(--l1);border-radius:16px;box-shadow:10px 10px 0 var(--edge);padding:26px 30px}
+.ck{font:600 15px/1.2 var(--fm);letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
+.fx{font:500 34px/1.2 var(--fm);margin:16px 0 12px}
+.fxbig{font:500 34px/1.2 var(--fm);margin-top:22px}
+.sw{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:8px;vertical-align:-1px}
+.sw.a{background:var(--a)} .sw.b{background:var(--b)} .sw.t{background:var(--t)}
+svg text{font-family:var(--fs)}
+.f-ink{fill:var(--ink)} .f-ink2{fill:var(--ink2)} .f-mute{fill:var(--mute)} .f-l1{fill:var(--l1)} .f-l2{fill:var(--l2)} .f-l3{fill:var(--l3)} .f-bg{fill:var(--bg)} .f-a{fill:var(--a)} .f-b{fill:var(--b)} .f-t{fill:var(--t)}
+.bx-a{fill:var(--a)} .bx-b{fill:var(--b)} .bx-new{stroke:var(--ink);stroke-width:2.5;stroke-dasharray:5 3}
+.gridl{stroke:var(--l2);stroke-width:1.5}
+.axl{font:500 15px var(--fm);fill:var(--mute)}
+.barv{font:500 14px var(--fm);fill:var(--ink2)}
+
+/* ---------- Animaciones de entrada ---------- */
+@keyframes rv{from{opacity:0;transform:translateY(26px)}to{opacity:1;transform:none}}
+@keyframes pop{0%{opacity:0;transform:scale(.3)}70%{opacity:1;transform:scale(1.08)}100%{opacity:1;transform:scale(1)}}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+@keyframes gy{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+@keyframes gx{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes draw{to{stroke-dashoffset:0}}
+@keyframes wordUp{from{transform:translateY(115%)}to{transform:none}}
+@keyframes dim{to{opacity:.16}}
+.rv,.pop,.fd{opacity:0}
+.pop{transform-box:fill-box;transform-origin:center}
+.gy{transform:scaleY(0);transform-box:fill-box;transform-origin:50% 100%}
+.gx{transform:scaleX(0);transform-box:fill-box;transform-origin:0 50%}
+.draw{stroke-dasharray:1;stroke-dashoffset:1}
+.is-active .rv{animation:rv .7s cubic-bezier(.2,.8,.2,1) var(--d,0ms) both}
+.is-active .pop{animation:pop .55s cubic-bezier(.2,.8,.2,1) var(--d,0ms) both}
+.is-active .fd{animation:fade .6s ease var(--d,0ms) both}
+.is-active .gy{animation:gy .8s cubic-bezier(.2,.8,.2,1) var(--d,0ms) both}
+.is-active .gx{animation:gx .8s cubic-bezier(.2,.8,.2,1) var(--d,0ms) both}
+.is-active .draw{animation:draw var(--dur,1.2s) cubic-bezier(.6,0,.3,1) var(--d,0ms) forwards}
+.is-active .dimmer{animation:pop .55s cubic-bezier(.2,.8,.2,1) var(--d,0ms) both,dim .8s ease 2000ms forwards}
+.is-leaving .rv,.is-leaving .pop,.is-leaving .fd{opacity:1}
+.is-leaving .dimmer{opacity:.16}
+.is-leaving .gy,.is-leaving .gx{transform:none}
+.is-leaving .draw{stroke-dashoffset:0}
+/* títulos palabra por palabra */
+.ww .w{display:inline-block;overflow:hidden;vertical-align:bottom;padding:0 .02em .16em;margin-bottom:-.16em}
+.ww .w>span{display:inline-block;transform:translateY(115%)}
+.is-active .ww .w>span{animation:wordUp .75s cubic-bezier(.2,.85,.25,1) both;animation-delay:calc(var(--i)*80ms + 120ms)}
+.is-leaving .ww .w>span{transform:none}
+
+/* ---------- Barra inferior: la ruta de la presentación ---------- */
+.hud{position:absolute;left:0;right:0;bottom:0;height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 40px;border-top:1px solid var(--l2);background:var(--bg);z-index:5}
+.hud-leg{display:flex;gap:22px;font:500 14px var(--fm);color:var(--mute)}
+.hud-road{position:relative;width:560px;height:30px}
+.hud-line{position:absolute;left:0;right:0;top:14px;height:3px;background:repeating-linear-gradient(90deg,var(--l3) 0 14px,transparent 14px 24px)}
+.hud.driving .hud-line{animation:dash .85s linear}
+@keyframes dash{to{background-position:-48px 0}}
+.hud-stops i{position:absolute;top:11px;width:9px;height:9px;margin-left:-4.5px;border-radius:50%;background:var(--l3)}
+.hud-stops i.past{background:var(--ink2)} .hud-stops i.cur{background:var(--t)}
+.hud-truck{position:absolute;top:-3px;width:40px;height:24px;margin-left:-20px;transition:left .85s cubic-bezier(.77,0,.18,1)}
+.hud-truck svg{display:block;transition:transform .3s}
+.hud-truck.rev svg{transform:scaleX(-1)}
+.hud-ctl{display:flex;align-items:center;gap:10px;font:600 15px var(--fm);color:var(--ink2)}
+.hud-ctl button{width:36px;height:36px;border-radius:8px;border:0;background:var(--l2);color:var(--ink);font:600 18px var(--fs);cursor:pointer}
+.hud-ctl button:hover{background:var(--l3)}
+.hud-ctl button:focus-visible{outline:2px solid var(--t);outline-offset:2px}
+
+/* ---------- 1 · Portada ---------- */
+.s1 .legend{display:flex;gap:24px;font:500 17px var(--fm);color:var(--ink2);margin-top:30px}
+.s1 .legend .sw{width:16px;height:16px}
+.cover-truck{position:absolute;right:-16px;bottom:46px;width:760px;height:300px}
+.truck{transform:translateX(820px)}
+.is-active .truck{animation:drive 2s cubic-bezier(.16,.8,.24,1) .25s both}
+.is-leaving .truck{transform:none}
+@keyframes drive{from{transform:translateX(820px)}to{transform:none}}
+.wheel{transform-box:fill-box;transform-origin:center}
+.is-active .wheel{animation:spin .5s linear .25s 4}
+@keyframes spin{to{transform:rotate(-360deg)}}
+.cover-road{position:absolute;left:0;right:0;bottom:54px;height:6px;background:repeating-linear-gradient(90deg,var(--l3) 0 60px,transparent 60px 100px)}
+.hint{position:absolute;left:96px;bottom:84px;font:500 15px var(--fm);color:var(--mute)}
+
+/* ---------- 2 · Camión ---------- */
+.s2-grid{display:grid;grid-template-columns:540px 1fr;gap:44px;margin-top:44px;align-items:start}
+.pts{list-style:none;display:flex;flex-direction:column;gap:24px}
+.pts li{display:flex;gap:18px;align-items:flex-start;font:400 23px/1.42 var(--fs);color:var(--ink2)}
+.pn{flex:none;width:40px;height:40px;border-radius:8px;background:var(--l2);display:grid;place-items:center;font:600 18px var(--fm);color:var(--ink)}
+.s2-svg{width:100%;height:auto;display:block}
+.s2-svg .lbl{font:600 17px var(--fm);fill:var(--ink2)}
+.s2-svg .lbl-s{font:400 17px var(--fs);fill:var(--mute)}
+.s2-svg .ttl{font:700 19px var(--fs);fill:var(--ink)}
+.brk{fill:none;stroke:var(--mute);stroke-width:2}
+.bay-o{fill:var(--l1);stroke:var(--l3);stroke-width:3}
+
+/* ---------- 3 · Objetivo ---------- */
+.s3-cards{display:grid;grid-template-columns:1fr 1fr;gap:44px;margin-top:32px}
+.s3-cards .card p{font:400 21px/1.4 var(--fs);color:var(--ink2)}
+.card.hi{background:var(--l2);box-shadow:10px 10px 0 var(--t-d)}
+.s3-sum{margin-top:30px;text-align:right;font:500 26px var(--fm);color:var(--ink2)}
+.s3-sum b{font:700 52px var(--fm);color:var(--t);margin-left:10px}
+.s3-tl{width:1408px;height:270px;display:block;margin-top:-34px}
+.tl-axis{stroke:var(--l3);stroke-width:6;stroke-linecap:round}
+.tl-prog{stroke:var(--t);stroke-width:6;stroke-linecap:round}
+.tl-ret{fill:none;stroke:var(--ink2);stroke-width:3}
+.tl-s{font:500 16px var(--fm);fill:var(--mute)}
+.mult{font:600 24px var(--fm);fill:var(--t);opacity:0;transition:opacity .4s}
+.mult.on{opacity:1}
+.stop{opacity:.28;transition:opacity .4s}
+.stop.on{opacity:1}
+.stop-c{fill:var(--l2);stroke:var(--ink2);stroke-width:3;transition:fill .3s,stroke .3s}
+.stop.on .stop-c{fill:var(--a);stroke:var(--a)}
+.stop-n{font:700 21px var(--fs);fill:var(--ink)}
+.stop-d{font:500 17px var(--fm);fill:var(--ink2)}
+
+/* ---------- 4 · Hoja de ruta ---------- */
+.s4-svg{width:1408px;height:560px;display:block;margin-top:6px}
+.road{fill:none;stroke:var(--l2);stroke-width:44;stroke-linecap:round}
+.road-c{fill:none;stroke:var(--l3);stroke-width:3;stroke-dasharray:18 16}
+.s4-leg{position:absolute;top:80px;right:96px;display:flex;gap:24px;font:500 15px var(--fm);color:var(--ink2)}
+.bd{display:inline-block;width:14px;height:14px;border-radius:50%;margin-right:8px;vertical-align:-2px}
+.bd.same{border:2px solid var(--ink2)} .bd.adapt{background:var(--t)} .bd.new{border:3px solid var(--t)}
+.r7c{fill:var(--l1);stroke:var(--l3);stroke-width:3;transition:fill .4s,stroke .4s}
+.r7n{font:600 20px var(--fm);fill:var(--mute);transition:fill .4s}
+.r7l{font:700 26px var(--fs);fill:var(--ink);opacity:.22;transition:opacity .5s}
+.r7b{font:600 14px var(--fm);letter-spacing:.1em;fill:var(--mute);opacity:.22;transition:opacity .5s}
+.r7s.on .r7c{fill:var(--ink);stroke:var(--ink)} .r7s.on .r7n{fill:var(--bg)}
+.r7s.k-adapt.on .r7c{fill:var(--t);stroke:var(--t)}
+.r7s.k-new.on .r7c{fill:var(--bg);stroke:var(--t);stroke-width:5} .r7s.k-new.on .r7n{fill:var(--t)}
+.r7s.on .r7l,.r7s.on .r7b{opacity:1}
+.r7s.k-adapt .r7b,.r7s.k-new .r7b{fill:var(--t)}
+
+/* ---------- 5 · Archivos ---------- */
+.files{display:grid;grid-template-columns:1fr 1fr;gap:44px;margin-top:34px}
+.file{position:relative;background:var(--l1);border-radius:14px 34px 14px 14px;box-shadow:10px 10px 0 var(--edge);padding:24px 28px 22px}
+.file::after{content:"";position:absolute;right:0;top:0;width:34px;height:34px;background:linear-gradient(225deg,var(--bg) 50%,var(--l3) 50%);border-radius:0 0 0 8px}
+.file-h{display:flex;align-items:baseline;gap:14px;margin-bottom:16px}
+.fname{font:700 30px var(--fm);color:var(--ink)}
+.fsub{font:500 15px var(--fm);color:var(--mute);letter-spacing:.1em;text-transform:uppercase}
+.code{font:500 22px/1.55 var(--fm);color:var(--ink2);background:var(--bg);border-radius:10px;padding:14px 16px}
+.ln{white-space:pre;position:relative;z-index:0}
+.ln.cm{color:var(--l3)} .ln.ann{color:var(--t)}
+.row-d::after{content:"";position:absolute;left:12px;right:6px;top:52%;height:3px;background:var(--ink2);transform:scaleX(0);transform-origin:left}
+.is-active .row-d::after{animation:gx .6s cubic-bezier(.6,0,.3,1) 1500ms both}
+.is-active .row-d{animation:toMute .5s 1500ms forwards}
+.row-p::before{content:"";position:absolute;left:4px;right:-6px;top:2px;bottom:2px;background:var(--b-d);border-radius:4px;transform:scaleX(0);transform-origin:left;z-index:-1}
+.is-active .row-p::before{animation:gx .6s cubic-bezier(.6,0,.3,1) 2000ms both}
+.is-active .row-p{animation:toB .4s 2000ms forwards}
+.diag{border-radius:4px}
+.is-active .diag{animation:diagOn .5s 2000ms forwards}
+@keyframes toMute{to{color:var(--mute)}} @keyframes toB{to{color:var(--b)}}
+@keyframes diagOn{to{box-shadow:0 0 0 2px var(--t);color:var(--t)}}
+.is-leaving .row-d::after,.is-leaving .row-p::before{transform:none}
+.is-leaving .row-d{color:var(--mute)} .is-leaving .row-p{color:var(--b)}
+.is-leaving .diag{box-shadow:0 0 0 2px var(--t);color:var(--t)}
+.fn{font:400 19px var(--fs);color:var(--ink2);margin-top:14px}
+.fn b{font:600 17px var(--fm);color:var(--ink);margin-right:10px}
+.chips3{display:grid;grid-template-columns:repeat(3,1fr);gap:30px;margin-top:32px}
+.chip{background:var(--l1);border-radius:14px;padding:18px 24px;display:flex;gap:20px;align-items:center;box-shadow:8px 8px 0 var(--edge)}
+.chip b{font:800 60px/1 var(--fd);color:var(--ink);min-width:80px}
+.chip>span{font:400 18px/1.35 var(--fs);color:var(--ink2)}
+
+/* ---------- 6 · Recorte ---------- */
+.s6{display:grid;grid-template-columns:600px 1fr;gap:48px;margin-top:14px}
+#map51{width:600px;height:560px;display:block}
+.maplbl{font:700 20px var(--fm);fill:var(--ink)}
+.cap{font:400 16px var(--fs);color:var(--mute);margin-top:-8px}
+.s6-r{display:flex;flex-direction:column;gap:30px;padding-top:26px}
+.s6-mx{display:flex;align-items:center;gap:14px}
+.mx{width:190px;height:190px;flex:none} .mx-bg{fill:var(--l1);stroke:var(--l3);stroke-width:2} .mx-t{font:700 30px var(--fm);fill:var(--mute)} .mx-hl{fill:var(--t)}
+.mx-arrow{width:64px;height:40px;flex:none} .mx-arrow path{fill:none;stroke:var(--ink2);stroke-width:3}
+.ctab{border-collapse:collapse;font:500 19px var(--fm);color:var(--ink2)}
+.ctab td,.ctab th{width:56px;height:38px;text-align:center}
+.ctab th{color:var(--mute);font-weight:500}
+.ctab td{background:var(--l1);border:2px solid var(--bg)}
+.ctab td.dg{color:var(--l3)} .ctab td.m{color:var(--bg);background:var(--t);font-weight:700}
+.ctab caption{caption-side:bottom;text-align:right;font:500 16px var(--fm);color:var(--t);padding-top:8px}
+.pvec{display:flex;align-items:center;gap:6px;font:500 18px var(--fm);color:var(--mute)}
+.pvec .pl{margin-right:8px;color:var(--ink2)}
+.pvec i{font-style:normal;min-width:46px;height:38px;display:grid;place-items:center;border-radius:6px;background:var(--b-d);color:var(--b)}
+.pvec i.x{background:var(--l1);color:var(--mute)}
+.is-active .pvec i.x{animation:dim .6s 2900ms forwards}
+.is-leaving .pvec i.x{opacity:.16}
+.note{font:400 20px/1.45 var(--fs);color:var(--ink2)}
+
+/* ---------- 7 · Escalar ---------- */
+.s7{display:grid;grid-template-columns:1fr 400px;gap:50px;margin-top:24px;align-items:end}
+.pcols{display:flex;gap:20px;align-items:flex-end;height:430px}
+.pcol{width:170px;display:flex;flex-direction:column;align-items:center}
+.pval{font:500 18px var(--fm);color:var(--ink2);height:64px;display:flex;align-items:flex-end;white-space:nowrap}
+.pval b{font:800 46px/1 var(--fd);color:var(--ink);margin-left:8px}
+.pstack{position:relative;width:86px;height:250px;margin-top:10px}
+.pghost{position:absolute;left:0;right:0;bottom:0;border:2px dashed var(--l3);border-bottom:0;border-radius:8px 8px 0 0;opacity:0;transition:opacity .5s}
+.pbar{position:absolute;left:0;right:0;bottom:0;background:var(--ink2);border-radius:8px 8px 0 0;transition:height .9s cubic-bezier(.6,0,.2,1),background .5s}
+.pbar.notr{transition:none}
+.pcol.done .pbar{background:var(--ink)} .pcol.done .pghost{opacity:1}
+.pi{margin-top:14px;font:600 18px var(--fm);color:var(--mute);border-top:3px solid var(--l3);padding-top:10px;width:100%;text-align:center}
+.s7-side h3{font:800 36px var(--fd);margin-bottom:6px}
+.s7-side p{font:400 20px/1.45 var(--fs);color:var(--ink2);margin-top:10px}
+
+/* ---------- 8 · Regla (79) ---------- */
+.fxrow{display:flex;gap:70px}
+.fxrow .fxbig{margin-top:20px}
+.rrows{display:flex;flex-direction:column;gap:16px;margin-top:34px}
+.rrow{display:grid;grid-template-columns:330px 660px 1fr;align-items:center;gap:20px}
+.rl b{display:block;font:700 22px var(--fs)} .rl span{font:500 16px var(--fm);color:var(--mute)}
+.units{display:flex;gap:5px}
+.u{width:30px;height:38px;border-radius:5px;background:var(--l2);transition:background .25s}
+.u.ua{background:var(--a)} .u.ub{background:var(--b)}
+.rres{display:flex;gap:22px;font:600 24px var(--fm);opacity:0;transition:opacity .4s}
+.rrow.done .rres{opacity:1}
+.rtot{display:flex;gap:40px;align-items:baseline;margin-top:28px;font:700 30px var(--fm);opacity:0;transition:opacity .5s}
+.rtot.show{opacity:1}
+.rnote{font:400 19px/1.4 var(--fs);color:var(--mute);max-width:700px}
+
+/* ---------- 9 · Capacidad ---------- */
+.s9{display:grid;grid-template-columns:380px 1fr;gap:40px;margin-top:16px}
+#qsum{width:380px;height:500px;display:block} #qload{width:100%;height:auto;display:block}
+.ql-t{font:600 18px var(--fm);fill:var(--ink2)} .ql-s{font:500 16px var(--fm);fill:var(--mute)}
+.ql-o{font:700 22px var(--fm);fill:var(--ink)} .ql-in{font:700 18px var(--fm);fill:var(--dark)} .ql-h{font:600 15px var(--fm);letter-spacing:.08em;fill:var(--mute)}
+.qline{stroke:var(--ink);stroke-width:2.5;stroke-dasharray:10 7}
+.sep{stroke:var(--l3);stroke-width:2}
+.ghost-a{fill:var(--a-d);stroke:var(--a);stroke-width:2;stroke-dasharray:6 4}
+.ghost-b{fill:var(--b-d);stroke:var(--b);stroke-width:2;stroke-dasharray:6 4}
+.over{fill:url(#stripes)}
+
+/* ---------- 10 · h → u, ℓ ---------- */
+.s10-top{display:grid;grid-template-columns:1fr 480px;gap:44px;margin-top:30px;align-items:center}
+.hsplit{display:flex;flex-direction:column;gap:22px}
+.hrow{display:flex;align-items:center;gap:26px}
+.hl{width:200px} .hl b{display:block;font:700 23px var(--fs)} .hl span{font:500 16px var(--fm);color:var(--mute)}
+.hbar{position:relative;width:640px;height:74px}
+.hh,.hfull{position:absolute;top:0;height:74px;border-radius:10px;color:var(--dark)}
+.hfull{left:0;right:0;display:grid;place-items:center;font:600 28px var(--fm);opacity:0}
+.hh{width:308px;display:flex;flex-direction:column;justify-content:center;padding-left:20px;opacity:0}
+.hh span{font:600 25px var(--fm)} .hh small{font:500 15px var(--fm);opacity:.75}
+.hl1{left:0;--from:12px} .hr1{right:0;--from:-12px}
+.ra .hh,.ra .hfull{background:var(--a)} .rb .hh,.rb .hfull{background:var(--b)}
+.is-active .hfull{animation:rv .6s cubic-bezier(.2,.8,.2,1) var(--d) both,out .35s ease calc(var(--d) + 1100ms) forwards}
+.is-active .hh{animation:halfIn .7s cubic-bezier(.2,.8,.2,1) calc(var(--d) + 1100ms) both}
+@keyframes out{to{opacity:0}}
+@keyframes halfIn{0%{opacity:0;transform:translateX(var(--from))}6%{opacity:1;transform:translateX(var(--from))}100%{opacity:1;transform:none}}
+.is-leaving .hfull{opacity:0} .is-leaving .hh{opacity:1}
+.s10-why p{font:400 20px/1.45 var(--fs);color:var(--ink2)} .s10-why p+p{margin-top:12px}
+.t3{margin-top:40px}
+.t3-g{display:grid;grid-template-columns:215px 205px 80px 225px 245px 225px 80px;gap:12px}
+.t3-br{margin-bottom:10px}
+.t3-br span{font:500 16px var(--fm);color:var(--ink2);border-bottom:2px solid var(--l3);padding-bottom:8px;text-align:center}
+.br1{grid-column:1 / 3} .br2{grid-column:4 / 7}
+.blk{height:96px;border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;justify-content:space-between}
+.blk b{font:600 19px var(--fm);color:var(--dark)} .blk span{font:500 14px/1.25 var(--fs);color:var(--dark);opacity:.8}
+.blk.a{background:var(--a)} .blk.b{background:var(--b)}
+.blk.p2{background:transparent;border:3px dashed var(--a)} .blk.p2 b{color:var(--a)} .blk.p2 span{color:var(--ink2);opacity:1}
+.mk{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px}
+.mk i{width:22px;height:22px;background:var(--t);transform:rotate(45deg)} .mk b{font:700 24px var(--fm);color:var(--t)}
+.mk.f i{border-radius:50%;transform:none;background:var(--ink)} .mk.f b{color:var(--ink)}
+.hvals{display:flex;gap:30px;margin-top:30px;font:500 19px var(--fm);color:var(--ink2)} .hvals b{color:var(--t)}
+
+/* ---------- 11 · Cliente 4 ---------- */
+.clock{position:absolute;top:56px;right:96px;text-align:right}
+.clock small{display:block;font:600 14px var(--fm);letter-spacing:.12em;text-transform:uppercase;color:var(--mute)}
+.clock b{font:600 64px/1 var(--fm);color:var(--t)}
+.sub{font:500 18px var(--fm);color:var(--ink2);margin-top:14px}
+.yard{position:relative;width:1408px;height:286px;margin-top:18px}
+.bay{position:absolute;left:0;top:20px;width:840px;height:64px;background:var(--l1);border:3px solid var(--l3);border-right:0;border-radius:12px 0 0 12px}
+.door{position:absolute;left:838px;top:12px;width:7px;height:80px;background:var(--ink);border-radius:3px}
+.ylab{position:absolute;font:600 14px var(--fm);letter-spacing:.1em;text-transform:uppercase;color:var(--mute);white-space:nowrap}
+.house{position:absolute;width:70px;height:62px}
+.bx{position:absolute;width:22px;height:22px;border-radius:4px}
+.bx.a{background:var(--a)} .bx.b{background:var(--b)}
+.yard.anim .bx{transition:left .6s cubic-bezier(.5,0,.2,1),top .6s cubic-bezier(.5,0,.2,1)}
+.pat{position:absolute;left:0;top:104px;font:600 18px var(--fm);color:var(--ink2);opacity:0;transition:opacity .5s}
+.pat.show{opacity:1}
+.stepcap{display:flex;align-items:baseline;gap:18px;height:48px;margin-top:4px}
+.stepcap.flip{animation:rv .45s cubic-bezier(.2,.8,.2,1)}
+.sn{font:800 40px/1 var(--fd);color:var(--t);min-width:24px}
+.st{font:600 26px var(--fs)} .sv{font:500 22px var(--fm);color:var(--ink2)}
+.tl4{position:relative;width:1300px;height:150px;margin-top:20px}
+.tl4 .track{position:absolute;left:0;right:0;top:44px;height:26px;background:var(--l1);border-radius:6px}
+.sg{position:absolute;top:44px;height:26px}
+.sg .sf{position:absolute;inset:0;transform:scaleX(0);transform-origin:left;transition:transform .7s cubic-bezier(.5,0,.2,1)}
+.sg.on .sf{transform:none}
+.sg.a .sf{background:var(--a)} .sg.b .sf{background:var(--b)}
+.sg.p2 .sf{background:repeating-linear-gradient(135deg,var(--a) 0 8px,var(--a-d) 8px 14px)}
+.sg small{position:absolute;top:36px;left:-20px;right:-20px;text-align:center;font:500 15px var(--fm);color:var(--ink2);white-space:nowrap;opacity:0;transition:opacity .4s}
+.sg.on small{opacity:1}
+.tmk{position:absolute;top:0;transform:translateX(-50%);font:600 16px var(--fm);color:var(--ink2);white-space:nowrap;opacity:0;transition:opacity .4s}
+.tmk::after{content:"";position:absolute;left:50%;top:26px;width:2px;height:48px;background:currentColor}
+.tmk.on{opacity:1} .tmk.d{color:var(--t)} .tmk.f{color:var(--ink)}
+.q4{position:absolute;right:0;top:118px;font:500 16px var(--fm);color:var(--a);opacity:0;transition:opacity .4s}
+.q4.on{opacity:1}
+
+/* ---------- 12 · U ---------- */
+#ubar{width:1408px;height:230px;display:block;margin-top:16px}
+.ub-t{font:600 18px var(--fm);fill:var(--ink)} .ub-tl{font:600 17px var(--fm);fill:var(--dark)} .ub-s{font:500 15px var(--fm);fill:var(--mute)}
+.zoom{fill:var(--l1)} .ua2{fill:var(--a2)} .ub2{fill:var(--b2)}
+.uterms{display:grid;grid-template-columns:repeat(5,1fr);gap:22px;margin-top:4px}
+.ut{background:var(--l1);border-radius:12px;padding:16px 18px;border-top:5px solid var(--l3);box-shadow:8px 8px 0 var(--edge)}
+.ut.t{border-top-color:var(--t)} .ut.a{border-top-color:var(--a)} .ut.b{border-top-color:var(--b)}
+.ut h4{font:600 19px var(--fm);color:var(--ink)} .ut .v{font:800 32px/1.1 var(--fd);margin:8px 0} .ut p{font:400 15.5px/1.35 var(--fs);color:var(--ink2)}
+.utot{display:flex;align-items:baseline;gap:22px;margin-top:20px;font:600 30px var(--fm)}
+.utot b{font:700 52px var(--fm);color:var(--t)} .utot>span{font:400 18px var(--fs);color:var(--mute)}
+
+/* ---------- 13 · M ---------- */
+.s13{display:grid;grid-template-columns:1fr 640px;gap:50px;margin-top:6px}
+.sw-card{margin-top:26px;position:relative;height:310px}
+.fx13{font:500 30px var(--fm)}
+.swrow{display:flex;align-items:center;gap:18px;margin-top:24px;font:600 26px var(--fm)}
+.swt{width:86px;height:44px;border-radius:22px;background:var(--t);position:relative;transition:background .3s}
+.swt i{position:absolute;top:5px;left:47px;width:34px;height:34px;border-radius:50%;background:var(--ink);transition:left .35s cubic-bezier(.5,0,.2,1)}
+.swt.off{background:var(--l3)} .swt.off i{left:5px}
+.st13{position:absolute;left:30px;right:30px;top:178px;opacity:0;transition:opacity .3s}
+.st13.show{opacity:1;transition:opacity .35s .3s}
+.st13 b{display:block;font:700 22px var(--fs)} .st13 span{display:block;font:500 23px var(--fm);color:var(--t);margin:6px 0} .st13 em{font:400 18px var(--fs);font-style:normal;color:var(--ink2)}
+#umchart{width:640px;height:520px;display:block}
+.um-c{fill:var(--t-d);stroke:var(--t);stroke-width:1.5}
+.umv{font:500 15px var(--fm);fill:var(--ink2)}
+
+/* ---------- 14 · Resumen ---------- */
+.sum4{display:grid;grid-template-columns:1.25fr 1.2fr .9fr .9fr;gap:26px;margin-top:36px}
+.col h3{font:800 36px var(--fd);margin-bottom:14px}
+.col ul{list-style:none;display:flex;flex-direction:column;gap:12px}
+.col li{font:400 19px/1.35 var(--fs);color:var(--ink2);padding-left:20px;position:relative}
+.col li::before{content:"";position:absolute;left:0;top:9px;width:9px;height:9px;border-radius:2px;background:var(--ink2)}
+.col.adapt{box-shadow:10px 10px 0 var(--t-d)} .col.adapt h3{color:var(--t)} .col.adapt li::before{background:var(--t)}
+.col.new{outline:3px dashed var(--t);outline-offset:-3px} .col.new h3{color:var(--t)} .col.new li::before{background:none;border:2px solid var(--t)}
+.col.drop li{color:var(--mute);text-decoration:line-through;text-decoration-color:var(--l3)} .col.drop li::before{background:var(--l3)}
+.check{display:flex;align-items:center;gap:22px;margin-top:34px;background:var(--l2);border-radius:14px;padding:18px 26px;box-shadow:8px 8px 0 var(--edge)}
+.check b{font:900 64px/1 var(--fd);color:var(--t);white-space:nowrap} .check>span{font:400 20px/1.4 var(--fs);color:var(--ink2)}
+
+/* ---------- 15 · Código ---------- */
+.codecard{margin-top:24px;padding:0;overflow:hidden}
+.cc-h{display:flex;justify-content:space-between;padding:14px 24px;background:var(--l2);font:500 16px var(--fm);color:var(--ink2)}
+.cc{padding:14px 0}
+.cl{display:grid;grid-template-columns:1fr 170px;align-items:center;padding:3px 24px;font:500 17px/1.5 var(--fm);color:var(--ink2)}
+.cl code{font:inherit;white-space:pre}
+.cl em{font-style:normal;font-weight:600;color:var(--mute);text-align:right}
+.pa{color:var(--a)} .pb{color:var(--b)} .pt{color:var(--t)} .pk{color:var(--ink);font-weight:600}
+.stats3{display:grid;grid-template-columns:repeat(3,1fr);gap:26px;margin-top:26px}
+.stat{background:var(--l1);border-radius:14px;padding:18px 24px;box-shadow:8px 8px 0 var(--edge)}
+.stat b{display:block;font:800 46px/1.05 var(--fd);color:var(--ink)} .stat>span{font:400 17px/1.35 var(--fs);color:var(--ink2)}
+
+/* ---------- 16 · Flujo ---------- */
+#pipe{width:1408px;height:320px;display:block;margin-top:28px}
+.pn-r{fill:var(--l1);stroke:var(--l3);stroke-width:2}
+.pn-r.hl{stroke:var(--t)}
+.pn-t{font:600 18px var(--fm);fill:var(--ink)} .pn-s{font:400 15px var(--fs);fill:var(--mute)}
+.pc{fill:none;stroke:var(--ink2);stroke-width:2.5}
+.pc-d{fill:none;stroke:var(--t);stroke-width:2.5;stroke-dasharray:7 6}
+.pc-l{font:600 15px var(--fm);fill:var(--t)}
+.packet{opacity:0}
+.is-active .packet{animation:pk 3.6s cubic-bezier(.55,0,.45,1) 2200ms both}
+@keyframes pk{0%{opacity:0;transform:translateX(0)}6%{opacity:1}94%{opacity:1}100%{opacity:0;transform:translateX(1080px)}}
+.vals3{display:grid;grid-template-columns:repeat(3,1fr);gap:26px;margin-top:22px}
+.val{background:var(--l1);border-radius:14px;padding:20px 26px;box-shadow:8px 8px 0 var(--edge);display:flex;gap:20px;align-items:center}
+.val b{font:900 66px/1 var(--fd);color:var(--t);white-space:nowrap} .val>span{font:400 18px/1.35 var(--fs);color:var(--ink2)}
+
+/* ---------- 17 · Tiempos ---------- */
+.s17{display:grid;grid-template-columns:980px 1fr;gap:40px;margin-top:10px}
+#times{width:980px;height:560px;display:block}
+.hb0{fill:#5B4DB5} .hb1{fill:#8473EE} .hb2{fill:#C9C0FF}
+.mean{stroke:var(--ink);stroke-width:2;stroke-dasharray:8 6}
+.s17-r{display:flex;flex-direction:column;gap:14px;padding-top:16px}
+.s17-r .stat{padding:14px 20px}
+.s17-r .stat b{font-size:40px}
+.leg3{display:flex;flex-wrap:wrap;gap:10px 18px;font:500 15px var(--fm);color:var(--ink2)}
+.leg3 i{display:inline-block;width:14px;height:14px;border-radius:3px;margin-right:6px;vertical-align:-2px}
+.leg3 i.ml{width:22px;height:0;border-radius:0;border-top:2px dashed var(--ink);vertical-align:4px}
+.stat.nt{background:var(--l2)}
+
+/* ---------- 18 · Nodos ---------- */
+.s18{display:grid;grid-template-columns:1fr 560px;gap:60px;margin-top:20px}
+#heat{width:560px;height:560px;display:block}
+.hc-h{font:600 17px var(--fm);fill:var(--ink2)} .hc-v{font:600 17px var(--fm);fill:var(--ink)} .hc-v.dk{fill:var(--dark)} .hc-a{font:700 19px var(--fm);fill:var(--t)}
+.avg3{display:flex;gap:24px;margin:34px 0}
+.avg3 div{background:var(--l1);border-radius:12px;padding:16px 22px;box-shadow:8px 8px 0 var(--edge);min-width:150px}
+.avg3 small{display:block;font:500 15px var(--fm);color:var(--mute)} .avg3 b{font:800 54px/1.1 var(--fd);color:var(--t)}
+
+/* ---------- 19 · Latencia ---------- */
+.s19{display:grid;grid-template-columns:820px 1fr;gap:44px;margin-top:12px}
+#dumb{width:820px;height:534px;display:block}
+.dl-line{fill:none;stroke:var(--t);stroke-width:4;stroke-linecap:round}
+.big3{display:flex;flex-direction:column;gap:20px;padding-top:24px}
+.bg{background:var(--l1);border-radius:14px;padding:20px 26px;box-shadow:8px 8px 0 var(--edge)}
+.bg small{display:block;font:600 14px var(--fm);letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
+.bg b{display:block;font:800 42px/1.1 var(--fd);margin-top:6px;white-space:nowrap}
+.bg p{font:400 16px/1.35 var(--fs);color:var(--ink2);margin-top:4px}
+
+/* ---------- 20 · Rutas ---------- */
+.s20-leg{position:absolute;top:80px;right:96px;display:flex;gap:20px;align-items:center;font:500 15px var(--fm);color:var(--ink2)}
+.s20-leg i{display:inline-block;width:14px;height:14px;margin-right:7px;vertical-align:-2px}
+.grid10{display:grid;grid-template-columns:repeat(5,1fr);gap:20px;margin-top:26px}
+.mcard{background:var(--l1);border-radius:14px;padding:10px 14px 14px;box-shadow:8px 8px 0 var(--edge)}
+.mcard svg{width:100%;height:auto;display:block}
+.mc-h{display:flex;justify-content:space-between;align-items:baseline;margin-top:2px}
+.mc-h b{font:800 30px var(--fd)} .mc-h span{font:600 16px var(--fm);color:var(--t)}
+.mc-s{font:500 15px var(--fm);color:var(--ink2)}
+.mc-p{display:flex;gap:4px;margin-top:8px}
+.mc-p i{font:600 12px var(--fm);font-style:normal;width:34px;height:22px;display:grid;place-items:center;border-radius:4px;border:2px solid var(--l3);color:var(--ink2)}
+.mc-p i.p2{background:var(--b);border-color:var(--b);color:#062A24}
+.rt{fill:none;stroke:var(--t);stroke-width:3;stroke-linejoin:round;stroke-linecap:round}
+.nd1{fill:var(--l1);stroke:var(--ink);stroke-width:2.5} .nd2{fill:var(--b);stroke:var(--b);stroke-width:2.5}
+.ndl{font:600 13px var(--fm);fill:var(--ink2)}
+
+/* ---------- 21 · Comparación ---------- */
+.s21{display:grid;grid-template-columns:620px 1fr;gap:50px;margin-top:10px}
+#cmp{width:620px;height:560px;display:block}
+.rb-path{fill:none;stroke:var(--ink2);stroke-width:3;stroke-dasharray:10 8;stroke-linejoin:round}
+.rt2{fill:none;stroke:var(--t);stroke-width:5;stroke-linejoin:round;stroke-linecap:round}
+.cl21{font:700 22px var(--fm);fill:var(--ink)} .arc-l{font:600 16px var(--fm)}
+.cmp-t{width:100%;border-collapse:collapse;font:500 20px var(--fm);color:var(--ink2);margin-top:16px}
+.cmp-t th{font:600 15px var(--fm);letter-spacing:.1em;text-transform:uppercase;color:var(--mute);text-align:left;padding:10px 12px;border-bottom:2px solid var(--l3)}
+.cmp-t td{padding:12px;border-bottom:1px solid var(--l2)}
+.cmp-t td:first-child{font:400 19px var(--fs)}
+.cmp-t .win{color:var(--t);font-weight:700}
+.leg21{display:flex;gap:26px;font:500 16px var(--fm);color:var(--ink2)}
+.leg21 i{display:inline-block;width:34px;height:0;margin-right:8px;vertical-align:4px}
+
+/* ---------- 22 · Cierre ---------- */
+.concl{display:grid;grid-template-columns:1fr 1fr;gap:26px;margin-top:36px}
+.cc4{background:var(--l1);border-radius:14px;padding:24px 28px;box-shadow:10px 10px 0 var(--edge);display:flex;gap:22px;align-items:flex-start}
+.cc4 b.n{font:900 64px/.9 var(--fd);color:var(--t)}
+.cc4 p{font:400 21px/1.45 var(--fs);color:var(--ink2)}
+.cc4 p strong{color:var(--ink);font-weight:600}
+.files-f{margin-top:34px;font:500 17px var(--fm);color:var(--mute)}
+.end-truck{position:absolute;right:-16px;bottom:-10px;width:570px;height:225px}
+.end-road{position:absolute;left:0;right:0;bottom:0;height:6px;background:repeating-linear-gradient(90deg,var(--l3) 0 60px,transparent 60px 100px)}
+
+@media (prefers-reduced-motion: reduce){
+  .slide,.hud-truck{transition:none}
+  .rv,.pop,.fd{animation:none!important;opacity:1!important}
+  .dimmer{animation:none!important;opacity:.16!important}
+  .gy,.gx{animation:none!important;transform:none!important}
+  .draw{animation:none!important;stroke-dashoffset:0!important}
+  .ww .w>span,.truck,.wheel{animation:none!important;transform:none!important}
+  .hfull{animation:none!important;opacity:0!important} .hh{animation:none!important;opacity:1!important}
+  .bx,.pbar,.sf,.yard.anim .bx{transition:none!important}
+  .packet{animation:none!important}
+}
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+
+<!-- 1 · PORTADA -->
+<section class="slide s1">
+  <div class="tag rv">Taller de investigación · Octubre 2026</div>
+  <h1 class="h-xl ww" style="margin-top:40px">De e_vigo<br>al <em>TRPPD-H₃</em></h1>
+  <p class="lead rv" data-d="1100" style="margin-top:30px;max-width:760px">Cómo los parámetros que Battarra et al. (2010) usaron en el TSPPD-H se convierten, paso a paso, en instancias del problema del reparador con recogidas, entregas y manipulación, y cómo responde Gurobi.</p>
+  <div class="legend rv" data-d="1500">
+    <span><i class="sw a"></i>mercancía a · entregas</span>
+    <span><i class="sw b"></i>mercancía b · recogidas</span>
+    <span><i class="sw t"></i>tiempo · Gurobi</span>
+  </div>
+  <svg class="cover-truck" viewBox="0 0 760 300" aria-hidden="true">
+    <g class="truck">
+      <rect x="40" y="226" width="616" height="14" class="f-l3"/>
+      <path d="M226 226V96q0-12-12-12h-96q-14 0-22 12l-50 64q-6 8-6 20v46z" class="f-ink2"/>
+      <path d="M118 102h-12l-44 58h56z" class="f-bg"/>
+      <rect x="30" y="212" width="36" height="16" rx="4" class="f-l3"/>
+      <rect x="236" y="50" width="420" height="176" rx="12" class="f-l2"/>
+      <rect x="640" y="50" width="16" height="176" rx="5" class="f-l3"/>
+      <rect x="256" y="70" width="366" height="136" rx="6" class="f-bg"/>
+      <g id="coverBoxes"></g>
+      <g class="wheel"><circle cx="106" cy="256" r="30" fill="#07090B"/><circle cx="106" cy="256" r="12" class="f-l3"/><circle cx="106" cy="238" r="3.5" class="f-mute"/><circle cx="121" cy="265" r="3.5" class="f-mute"/><circle cx="91" cy="265" r="3.5" class="f-mute"/></g>
+      <g class="wheel"><circle cx="336" cy="256" r="30" fill="#07090B"/><circle cx="336" cy="256" r="12" class="f-l3"/><circle cx="336" cy="238" r="3.5" class="f-mute"/><circle cx="351" cy="265" r="3.5" class="f-mute"/><circle cx="321" cy="265" r="3.5" class="f-mute"/></g>
+      <g class="wheel"><circle cx="556" cy="256" r="30" fill="#07090B"/><circle cx="556" cy="256" r="12" class="f-l3"/><circle cx="556" cy="238" r="3.5" class="f-mute"/><circle cx="571" cy="265" r="3.5" class="f-mute"/><circle cx="541" cy="265" r="3.5" class="f-mute"/></g>
+    </g>
+  </svg>
+  <div class="cover-road"></div>
+  <div class="hint rv" data-d="2400">→ o espacio para avanzar · R repite la animación · F pantalla completa</div>
+</section>
+
+<!-- 2 · CAMIÓN -->
+<section class="slide">
+  <div class="tag rv">Contexto · Política 3 de Battarra et al. (2010)</div>
+  <h2 class="h ww">Un camión con una sola puerta</h2>
+  <div class="s2-grid">
+    <ol class="pts">
+      <li class="rv" data-d="500"><span class="pn">1</span><p>Carga trasera: solo se accede por la puerta, así que lo último que entra es lo primero que sale (LIFO).</p></li>
+      <li class="rv" data-d="700"><span class="pn">2</span><p>Sale del depósito con todas las entregas <b class="ca">a</b> y vuelve con todas las recogidas <b class="cb">b</b>.</p></li>
+      <li class="rv" data-d="900"><span class="pn">3</span><p>En cada arco (i, j) la carga sigue el patrón (F, b…b, a…a, b…b, R), es decir (w<sub>ij</sub>, y<sub>ij</sub>, z<sub>ij</sub>).</p></li>
+      <li class="rv" data-d="1100"><span class="pn">4</span><p>Política 3: en cada cliente se elige la Política 1 o la 2 con la variable binaria s<sub>i</sub>.</p></li>
+    </ol>
+    <svg class="s2-svg" viewBox="0 0 864 430" aria-label="Patrón de carga y efecto de cada política">
+      <rect class="bay-o fd" x="70" y="40" width="730" height="90" rx="12" style="--d:300ms"/>
+      <rect class="f-l3 fd" x="40" y="52" width="30" height="66" rx="6" style="--d:300ms"/>
+      <text class="lbl fd" x="55" y="92" text-anchor="middle" style="--d:300ms">F</text>
+      <rect class="f-ink fd" x="797" y="34" width="7" height="102" rx="3" style="--d:300ms"/>
+      <text class="lbl fd" x="826" y="92" text-anchor="middle" style="--d:300ms">R</text>
+      <text class="lbl-s fd" x="70" y="26" style="--d:300ms">frente</text>
+      <text class="lbl-s fd" x="800" y="26" text-anchor="end" style="--d:300ms">puerta</text>
+      <g id="s2g"></g>
+      <path class="brk fd" d="M84 146v8h178v-8" style="--d:1300ms"/>
+      <path class="brk fd" d="M268 146v8h362v-8" style="--d:1400ms"/>
+      <path class="brk fd" d="M636 146v8h132v-8" style="--d:1500ms"/>
+      <text class="lbl fd" x="173" y="182" text-anchor="middle" style="--d:1300ms">w · al fondo</text>
+      <text class="lbl fd" x="449" y="182" text-anchor="middle" style="--d:1400ms">y · entregas pendientes</text>
+      <text class="lbl fd" x="702" y="182" text-anchor="middle" style="--d:1500ms">z · en la puerta</text>
+      <text class="ttl fd" x="70" y="236" style="--d:2000ms">Llega a un cliente con α = 3 y β = 2:</text>
+      <text class="lbl fd" x="70" y="266" style="--d:2200ms">Política 1 · s = 1</text>
+      <text class="lbl-s fd" x="520" y="292" style="--d:2600ms">Las recogidas nuevas quedan en la puerta:</text>
+      <text class="lbl-s fd" x="520" y="314" style="--d:2600ms">estorban en los clientes siguientes.</text>
+      <text class="lbl fd" x="70" y="358" style="--d:2800ms">Política 2 · s = 0</text>
+      <text class="lbl-s fd" x="520" y="384" style="--d:3200ms">Todo b pasa al fondo; antes se retiran</text>
+      <text class="lbl-s fd" x="520" y="406" style="--d:3200ms">y recargan las entregas (costo q).</text>
+    </svg>
+  </div>
+</section>
+
+<!-- 3 · OBJETIVO -->
+<section class="slide" data-enter="objetivo">
+  <div class="tag rv">Contexto · función objetivo</div>
+  <h2 class="h ww">Mismos datos, otra pregunta</h2>
+  <div class="s3-cards">
+    <div class="card rv" data-d="500"><div class="ck">TSPPD-H₃ · Battarra et al. (2010)</div><div class="fx">min Σ c<sub>ij</sub>x<sub>ij</sub> + Σ h<sub>b</sub>z<sub>ij</sub> + Σ q<sub>i</sub></div><p>Tiempo total del vehículo: viaje más manipulación adicional.</p></div>
+    <div class="card hi rv" data-d="750"><div class="ck ct">TRPPD-H₃</div><div class="fx">min Σ D<sub>i</sub></div><p>Suma de los instantes en que cada cliente termina de recibir su entrega.</p></div>
+  </div>
+  <div class="s3-sum rv" data-d="900">Σ D<sub>i</sub> = <b id="sumD">0,00</b></div>
+  <svg id="tl" class="s3-tl" viewBox="0 0 1408 270" aria-label="Línea de tiempo de la ruta óptima"></svg>
+  <p class="foot rv" data-d="1000" style="margin-top:16px">Instancia 1 · n = 5 · h = 0,1 · ruta óptima 0-2-1-5-4-3-0. Cada viaje se cuenta tantas veces como clientes siguen esperando, y el regreso no pesa.</p>
+</section>
+
+<!-- 4 · HOJA DE RUTA -->
+<section class="slide" data-enter="ruta7">
+  <div class="tag rv">Hoja de ruta</div>
+  <h2 class="h ww">Siete paradas hasta la instancia</h2>
+  <div class="s4-leg rv" data-d="500"><span><i class="bd same"></i>igual que Battarra</span><span><i class="bd adapt"></i>adaptado al TRP</span><span><i class="bd new"></i>nuevo</span></div>
+  <svg id="road7" class="s4-svg" viewBox="0 0 1408 560" aria-label="Los siete pasos de la transformación">
+    <path id="road7-path" class="road fd" style="--d:200ms" d="M40 430C200 430 200 150 380 150S560 430 720 430S900 150 1060 150S1220 430 1370 430"/>
+    <path class="road-c fd" style="--d:200ms" d="M40 430C200 430 200 150 380 150S560 430 720 430S900 150 1060 150S1220 430 1370 430"/>
+    <g id="r7stops"></g>
+    <g id="r7truck"><rect x="-34" y="-13" width="42" height="26" rx="4" class="f-ink2"/><rect x="10" y="-11" width="20" height="22" rx="5" class="f-ink"/><rect x="22" y="-8" width="5" height="16" rx="1.5" class="f-bg"/></g>
+  </svg>
+</section>
+
+<!-- 5 · PASO 1 -->
+<section class="slide">
+  <div class="tag rv">Paso 1 de 7 · <span class="k1">igual que Battarra</span></div>
+  <h2 class="h ww">Leer los dos archivos de e_vigo</h2>
+  <div class="files">
+    <div class="file rv" data-d="400">
+      <div class="file-h"><span class="fname">edati.dat</span><span class="fsub">demandas</span></div>
+      <div class="code">
+        <div class="ln cm">---------------------</div>
+        <div class="ln">&nbsp;0.     50    1     2722</div>
+        <div class="ln ann">&nbsp;clase  n     id    Σd</div>
+        <div class="ln row-d">&nbsp;58 46 26 11 47 88 34 59 100 25 …</div>
+        <div class="ln row-p">&nbsp;58 46 26 11 47 88 34 59 100 25 …</div>
+      </div>
+      <div class="fn rv" data-d="1600"><b>fila 1 · d<sub>i</sub> entregas</b>no se usa</div>
+      <div class="fn rv" data-d="2100"><b>fila 2 · p<sub>i</sub> recogidas</b>de aquí salen α y β</div>
+    </div>
+    <div class="file rv" data-d="650">
+      <div class="file-h"><span class="fname">ecosti.dat</span><span class="fsub">tiempos de viaje</span></div>
+      <div class="code">
+        <div class="ln cm">---------------------</div>
+        <div class="ln">&nbsp;0.     50    1     2722</div>
+        <div class="ln ann">&nbsp;clase  n     id    Σd</div>
+        <div class="ln">&nbsp;<span class="diag">10000000</span>  67  35  83  31  91 …</div>
+        <div class="ln">&nbsp;67  <span class="diag">10000000</span>  33 114  81  44 …</div>
+      </div>
+      <div class="fn rv" data-d="1600"><b>matriz 51 × 51</b>el nodo 0 es el depósito</div>
+      <div class="fn rv" data-d="2100"><b>10⁷ en la diagonal</b>no existe el arco (i, i)</div>
+    </div>
+  </div>
+  <div class="chips3">
+    <div class="chip rv" data-d="2600"><b data-count="300" data-d="2600">0</b><span>bloques de demanda<br>5 clases × 6 tamaños × 10 ids</span></div>
+    <div class="chip rv" data-d="2750"><b data-count="60" data-d="2750">0</b><span>matrices de tiempo<br>no dependen de la clase</span></div>
+    <div class="chip rv" data-d="2900"><b data-count="10" data-d="2900">0</b><span>instancias usadas: las de<br>50 clientes, como Battarra</span></div>
+  </div>
+</section>
+
+<!-- 6 · PASO 2 -->
+<section class="slide">
+  <div class="tag rv">Paso 2 de 7 · <span class="k1">igual que Battarra</span></div>
+  <h2 class="h ww">Quedarse con los primeros n clientes</h2>
+  <div class="s6">
+    <div>
+      <svg id="map51" viewBox="0 0 600 560" aria-label="Los 50 clientes de la instancia 1 y los 5 primeros"></svg>
+      <div class="cap rv" data-d="2800">Instancia 1. El mapa se reconstruye desde la matriz: e_vigo no trae coordenadas.</div>
+    </div>
+    <div class="s6-r">
+      <div class="s6-mx">
+        <svg class="mx" viewBox="0 0 250 250"><rect class="mx-bg fd" x="1" y="1" width="248" height="248" rx="6" style="--d:900ms"/><text class="mx-t fd" x="125" y="140" text-anchor="middle" style="--d:900ms">51 × 51</text><rect class="mx-hl pop" x="1" y="1" width="30" height="30" rx="3" style="--d:1500ms"/></svg>
+        <svg class="mx-arrow" viewBox="0 0 90 40"><path class="draw" d="M4 20H80M68 8l14 12-14 12" pathLength="1" style="--d:1800ms;--dur:.6s"/></svg>
+        <table class="ctab rv" data-d="2000">
+          <tr><th></th><th>0</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th></tr>
+          <tr><th>0</th><td class="dg">–</td><td>67</td><td>35</td><td>83</td><td>31</td><td>91</td></tr>
+          <tr><th>1</th><td>67</td><td class="dg">–</td><td>33</td><td class="m">114</td><td>81</td><td>44</td></tr>
+          <tr><th>2</th><td>35</td><td>33</td><td class="dg">–</td><td>90</td><td>50</td><td>59</td></tr>
+          <tr><th>3</th><td>83</td><td class="m">114</td><td>90</td><td class="dg">–</td><td>52</td><td>100</td></tr>
+          <tr><th>4</th><td>31</td><td>81</td><td>50</td><td>52</td><td class="dg">–</td><td>89</td></tr>
+          <tr><th>5</th><td>91</td><td>44</td><td>59</td><td>100</td><td>89</td><td class="dg">–</td></tr>
+          <caption>c<sub>max</sub> = 114 (arco 1–3)</caption>
+        </table>
+      </div>
+      <div class="pvec rv" data-d="2400"><span class="pl">p</span><i>58</i><i>46</i><i>26</i><i>11</i><i>47</i><i class="x">88</i><i class="x">34</i><i class="x">59</i><i class="x">100</i><i class="x">25</i><span>… 40 más</span></div>
+      <div class="card note rv" data-d="3100">Las instancias quedan anidadas: los primeros 5 clientes son los mismos con n = 5, 10, 15, 20 y 25.</div>
+    </div>
+  </div>
+</section>
+
+<!-- 7 · PASO 3 -->
+<section class="slide" data-enter="paso3">
+  <div class="tag rv">Paso 3 de 7 · <span class="k1">igual que Battarra</span></div>
+  <h2 class="h ww">Escalar las recogidas</h2>
+  <div class="fxbig rv" data-d="500">p′<sub>i</sub> = max{1, p<sub>i</sub> mod 20}</div>
+  <div class="s7">
+    <div class="pcols rv" data-d="600">
+      <div class="pcol" data-p="58" data-pp="18"><div class="pval"></div><div class="pstack"><div class="pghost" style="height:232px"></div><div class="pbar"></div></div><div class="pi">cliente 1</div></div>
+      <div class="pcol" data-p="46" data-pp="6"><div class="pval"></div><div class="pstack"><div class="pghost" style="height:184px"></div><div class="pbar"></div></div><div class="pi">cliente 2</div></div>
+      <div class="pcol" data-p="26" data-pp="6"><div class="pval"></div><div class="pstack"><div class="pghost" style="height:104px"></div><div class="pbar"></div></div><div class="pi">cliente 3</div></div>
+      <div class="pcol" data-p="11" data-pp="11"><div class="pval"></div><div class="pstack"><div class="pghost" style="height:44px"></div><div class="pbar"></div></div><div class="pi">cliente 4</div></div>
+      <div class="pcol" data-p="47" data-pp="7"><div class="pval"></div><div class="pstack"><div class="pghost" style="height:188px"></div><div class="pbar"></div></div><div class="pi">cliente 5</div></div>
+    </div>
+    <div class="card s7-side rv" data-d="900">
+      <h3>¿Por qué?</h3>
+      <p>Battarra et al. reducen las demandas para que la manipulación sea moderada frente al ruteo: cada cliente queda con entre 1 y 19 unidades.</p>
+      <p>El max{1, ·} evita clientes sin carga cuando p es múltiplo de 20.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 8 · PASO 4 -->
+<section class="slide" data-enter="paso4">
+  <div class="tag rv">Paso 4 de 7 · <span class="k1">igual que Battarra</span></div>
+  <h2 class="h ww">Regla (79): repartir en α y β</h2>
+  <div class="fxrow rv" data-d="500"><span class="fxbig cb">β<sub>i</sub> = ⌊ p′<sub>i</sub> · (i mod 5) / 5 ⌋</span><span class="fxbig ca">α<sub>i</sub> = p′<sub>i</sub> − β<sub>i</sub></span></div>
+  <div class="rrows rv" data-d="700">
+    <div class="rrow" data-a="15" data-b="3"><div class="rl"><b>cliente 1</b><span>⌊18 · 1/5⌋ = 3</span></div><div class="units"></div><div class="rres"><span class="ca">α = 15</span><span class="cb">β = 3</span></div></div>
+    <div class="rrow" data-a="4" data-b="2"><div class="rl"><b>cliente 2</b><span>⌊6 · 2/5⌋ = 2</span></div><div class="units"></div><div class="rres"><span class="ca">α = 4</span><span class="cb">β = 2</span></div></div>
+    <div class="rrow" data-a="3" data-b="3"><div class="rl"><b>cliente 3</b><span>⌊6 · 3/5⌋ = 3</span></div><div class="units"></div><div class="rres"><span class="ca">α = 3</span><span class="cb">β = 3</span></div></div>
+    <div class="rrow" data-a="3" data-b="8"><div class="rl"><b>cliente 4</b><span>⌊11 · 4/5⌋ = 8</span></div><div class="units"></div><div class="rres"><span class="ca">α = 3</span><span class="cb">β = 8</span></div></div>
+    <div class="rrow" data-a="7" data-b="0"><div class="rl"><b>cliente 5</b><span>5 mod 5 = 0 → β = 0</span></div><div class="units"></div><div class="rres"><span class="ca">α = 7</span><span class="cb">β = 0</span></div></div>
+  </div>
+  <div class="rtot"><span class="ca">Σα = 32</span><span class="cb">Σβ = 16</span><span class="rnote">α<sub>i</sub> ≥ 1 siempre, porque β<sub>i</sub> ≤ 0,8·p′<sub>i</sub>: la formulación lo exige. El cliente 5 solo recibe entregas.</span></div>
+</section>
+
+<!-- 9 · PASO 5 -->
+<section class="slide">
+  <div class="tag rv">Paso 5 de 7 · <span class="k1">igual que Battarra</span></div>
+  <h2 class="h ww">Capacidad: Q = max{Σα, Σβ}</h2>
+  <div class="s9">
+    <svg id="qsum" viewBox="0 0 380 500" aria-label="Suma de entregas y recogidas"></svg>
+    <div>
+      <svg id="qload" viewBox="0 0 920 470" aria-label="Carga en cada arco de la ruta óptima"></svg>
+      <p class="foot rv" data-d="2700">Carga en un arco = lo ya recogido + lo que falta entregar. Q no sirve para cualquier orden de visita: la capacidad (7) descarta rutas.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 10 · PASO 6 -->
+<section class="slide">
+  <div class="tag rv">Paso 6 de 7 · <span class="k2">adaptado al TRP</span></div>
+  <h2 class="h ww">h se divide en descarga y carga</h2>
+  <div class="s10-top">
+    <div class="hsplit">
+      <div class="hrow ra" style="--d:600ms"><div class="hl rv"><b>mercancía a</b><span>entregas</span></div><div class="hbar"><div class="hh hl1"><span>u<sub>a</sub> = h/2</span><small>descargar</small></div><div class="hh hr1"><span>ℓ<sub>a</sub> = h/2</span><small>cargar</small></div><div class="hfull">h<sub>a</sub> = h</div></div></div>
+      <div class="hrow rb" style="--d:900ms"><div class="hl rv"><b>mercancía b</b><span>recogidas</span></div><div class="hbar"><div class="hh hl1"><span>u<sub>b</sub> = h/2</span><small>descargar</small></div><div class="hh hr1"><span>ℓ<sub>b</sub> = h/2</span><small>cargar</small></div><div class="hfull">h<sub>b</sub> = h</div></div></div>
+    </div>
+    <div class="card s10-why rv" data-d="700"><p>En Battarra, una operación adicional (descargar y volver a cargar una unidad) dura h, y basta con el total.</p><p>En el TRP importa <b class="ink">cuándo</b> termina la entrega D<sub>i</sub>, y eso ocurre a mitad de las operaciones.</p></div>
+  </div>
+  <div class="t3">
+    <div class="t3-g t3-br rv" data-d="2900"><span class="br1">antes de D<sub>i</sub>: retrasa a i y a los siguientes</span><span class="br2">después de D<sub>i</sub>: solo retrasa a los siguientes</span></div>
+    <div class="t3-g">
+      <div class="blk b rv" data-d="2100"><b>u<sub>b</sub> · Σz<sub>ji</sub></b><span>retirar recogidas de la puerta</span></div>
+      <div class="blk a rv" data-d="2250"><b>u<sub>a</sub> · α<sub>i</sub></b><span>descargar al cliente</span></div>
+      <div class="mk rv" data-d="2400"><i></i><b>D<sub>i</sub></b></div>
+      <div class="blk a p2 rv" data-d="2550"><b>u<sub>a</sub> · Σy<sub>ij</sub></b><span>retirar entregas · solo P2</span></div>
+      <div class="blk b rv" data-d="2700"><b>ℓ<sub>b</sub> · (Σz<sub>ji</sub> + β<sub>i</sub>)</b><span>cargar recogidas</span></div>
+      <div class="blk a p2 rv" data-d="2850"><b>ℓ<sub>a</sub> · Σy<sub>ij</sub></b><span>recargar entregas · solo P2</span></div>
+      <div class="mk f rv" data-d="3000"><i></i><b>F<sub>i</sub></b></div>
+    </div>
+  </div>
+  <div class="hvals rv" data-d="3300"><span>h = 0,1 → u = ℓ = <b>0,05</b></span><span>h = 0,5 → <b>0,25</b></span><span>h = 1 → <b>0,5</b></span><span class="mute">o tiempos distintos con --ua --la --ub --lb</span></div>
+</section>
+
+<!-- 11 · CLIENTE 4 -->
+<section class="slide" data-enter="cliente4">
+  <div class="tag rv">Paso 6 de 7 · <span class="k2">ejemplo</span></div>
+  <h2 class="h ww">Cliente 4, Política 2, en números</h2>
+  <div class="clock rv" data-d="300"><small>instante</small><b id="clk">203,25</b></div>
+  <p class="sub rv" data-d="500">Instancia 1 · h = 0,1 → u = ℓ = 0,05 · llega con 6 entregas y 5 recogidas en la puerta · α₄ = 3, β₄ = 8</p>
+  <div class="yard rv" data-d="600" id="yard">
+    <div class="bay"></div><div class="door"></div>
+    <div class="ylab" style="left:0;top:-2px">F · frente</div>
+    <div class="ylab" style="left:722px;top:-2px">R · puerta</div>
+    <div class="ylab" style="left:892px;top:-2px">andén</div>
+    <svg class="house" style="left:1192px;top:112px" viewBox="0 0 70 62"><path d="M35 4 4 30h9v28h44V30h9z" class="f-l2"/><rect x="29" y="38" width="12" height="20" class="f-l3"/></svg>
+    <div class="ylab" style="left:1272px;top:136px;color:var(--ink2)">cliente 4</div>
+    <div class="ylab" style="left:1150px;top:258px">por recoger</div>
+    <div class="ylab" style="left:1290px;top:258px">entregadas</div>
+    <div class="pat" id="pat">F | b × 13 | a × 3 | R  →  w = 13, y = 3, z = 0, la carga del arco 4→3</div>
+  </div>
+  <div class="stepcap" id="cap4"><span class="sn">·</span><span class="st">Llega al cliente 4</span><span class="sv"></span></div>
+  <div class="tl4" id="tl4">
+    <div class="track"></div>
+    <div class="sg b" style="left:0;width:239px"><div class="sf"></div><small>u<sub>b</sub>·5 = 0,25</small></div>
+    <div class="sg a" style="left:241px;width:142px"><div class="sf"></div><small>u<sub>a</sub>·3 = 0,15</small></div>
+    <div class="sg p2" style="left:387px;width:142px"><div class="sf"></div><small>u<sub>a</sub>·3 = 0,15</small></div>
+    <div class="sg b" style="left:531px;width:624px"><div class="sf"></div><small>ℓ<sub>b</sub>·13 = 0,65</small></div>
+    <div class="sg p2" style="left:1157px;width:143px"><div class="sf"></div><small>ℓ<sub>a</sub>·3 = 0,15</small></div>
+    <div class="tmk" style="left:0">T₄ = 203,25</div>
+    <div class="tmk d" style="left:385px">D₄ = 203,65</div>
+    <div class="tmk f" style="left:1300px">F₄ = 204,60</div>
+    <div class="q4" id="q4">q₄ = 0,15 + 0,15 = 0,30 (Política 2)</div>
+  </div>
+</section>
+
+<!-- 12 · PASO 7 · U -->
+<section class="slide">
+  <div class="tag rv">Paso 7 de 7 · <span class="k2">nuevo</span></div>
+  <h2 class="h ww">U: lo más tarde que termina una entrega</h2>
+  <div class="fxbig rv" data-d="500">U = n·<span class="ct">c<sub>max</sub></span> + (u<sub>a</sub> + n·h<sub>a</sub>)·<span class="ca">Σα</span> + (ℓ<sub>b</sub> + n·h<sub>b</sub>)·<span class="cb">Σβ</span></div>
+  <svg id="ubar" viewBox="0 0 1408 230" aria-label="Composición de U">
+    <text class="ub-s fd" x="54" y="12" style="--d:600ms">viaje</text>
+    <text class="ub-s fd" x="1354" y="12" text-anchor="end" style="--d:900ms">manipulación: 26,4</text>
+    <rect class="gx f-l3" x="54" y="20" width="1242.45" height="50" rx="6" style="--d:600ms"/>
+    <text class="ub-t fd" x="80" y="53" style="--d:1000ms">n · c<tspan baseline-shift="sub" font-size="12">max</tspan> = 5 · 114 = 570</text>
+    <rect class="gx f-a" x="1296.45" y="20" width="38.37" height="50" style="--d:900ms"/>
+    <rect class="gx f-b" x="1334.82" y="20" width="19.18" height="50" style="--d:1000ms"/>
+    <polygon class="zoom fd" points="1296.45,72 1354,72 1354,138 54,138" style="--d:1300ms"/>
+    <rect class="gx f-a" x="54" y="140" width="78.79" height="50" style="--d:1500ms"/>
+    <rect class="gx ua2" x="132.79" y="140" width="787.88" height="50" style="--d:1700ms"/>
+    <rect class="gx f-b" x="920.67" y="140" width="39.39" height="50" style="--d:1900ms"/>
+    <rect class="gx ub2" x="960.06" y="140" width="393.94" height="50" style="--d:2100ms"/>
+    <text class="ub-tl fd" x="93.4" y="172" text-anchor="middle" style="--d:1800ms">1,6</text>
+    <text class="ub-tl fd" x="526.7" y="172" text-anchor="middle" style="--d:2000ms">16</text>
+    <text class="ub-tl fd" x="940.4" y="172" text-anchor="middle" style="--d:2200ms">0,8</text>
+    <text class="ub-tl fd" x="1157" y="172" text-anchor="middle" style="--d:2400ms">8</text>
+    <text class="ub-s fd" x="54" y="218" style="--d:2400ms">color pleno: operaciones obligatorias · color claro: manipulación adicional (a lo más, en cada uno de los n clientes)</text>
+  </svg>
+  <div class="uterms">
+    <div class="ut t rv" data-d="2600"><h4>n · c<sub>max</sub></h4><div class="v">5 · 114 = 570</div><p>a lo más n arcos antes de la última entrega</p></div>
+    <div class="ut a rv" data-d="2750"><h4>u<sub>a</sub> · Σα</h4><div class="v">0,05 · 32 = 1,6</div><p>descargar todas las entregas</p></div>
+    <div class="ut a rv" data-d="2900"><h4>n · h<sub>a</sub> · Σα</h4><div class="v">5 · 0,1 · 32 = 16</div><p>en cada cliente, a lo más retirar y recargar todas las entregas</p></div>
+    <div class="ut b rv" data-d="3050"><h4>ℓ<sub>b</sub> · Σβ</h4><div class="v">0,05 · 16 = 0,8</div><p>cargar todas las recogidas</p></div>
+    <div class="ut b rv" data-d="3200"><h4>n · h<sub>b</sub> · Σβ</h4><div class="v">5 · 0,1 · 16 = 8</div><p>en cada cliente, a lo más sacar y recargar las recogidas de la puerta</p></div>
+  </div>
+  <div class="utot rv" data-d="3500">U = <b data-count="596.4" data-dec="1" data-d="3500">0</b><span>En el óptimo la última entrega termina en 256,75: U es una cota holgada.</span></div>
+</section>
+
+<!-- 13 · PASO 7 · M -->
+<section class="slide" data-enter="interruptor">
+  <div class="tag rv">Paso 7 de 7 · <span class="k2">nuevo</span></div>
+  <h2 class="h ww">M: el interruptor de la restricción (13)</h2>
+  <div class="s13">
+    <div>
+      <div class="fxbig rv" data-d="400">M = U + c<sub>max</sub> = 596,4 + 114 = <b class="ct">710,4</b></div>
+      <div class="card sw-card rv" data-d="700">
+        <div class="fx13">T<sub>j</sub> ≥ F<sub>i</sub> + c<sub>ij</sub> − M·(1 − x<sub>ij</sub>)</div>
+        <div class="swrow"><div class="swt" id="swt"><i></i></div><span id="swlbl">x<sub>ij</sub> = 1</span></div>
+        <div class="st13 show" id="st1"><b>El vehículo usa el arco (2, 1)</b><span>T₁ ≥ 35,30 + 33 = 68,30</span><em>la llegada respeta la salida más el viaje</em></div>
+        <div class="st13" id="st0"><b>No usa el arco</b><span>F<sub>i</sub> + c<sub>ij</sub> − 710,4 ≤ 596,4 + 114 − 710,4 = 0</span><em>queda T<sub>j</sub> ≥ algo ≤ 0: no restringe nada</em></div>
+      </div>
+      <p class="foot rv" data-d="1000" style="margin-top:26px">(13) también elimina los subciclos, así que reemplaza a la restricción (38) de Battarra.</p>
+    </div>
+    <div>
+      <div class="ck rv" data-d="900">U y M de las 10 instancias (n = 5, h = 0,1)</div>
+      <svg id="umchart" viewBox="0 0 640 520" aria-label="U y M por instancia"></svg>
+    </div>
+  </div>
+</section>
+
+<!-- 14 · RESUMEN -->
+<section class="slide">
+  <div class="tag rv">Resumen de la adaptación</div>
+  <h2 class="h ww">Qué se queda, qué cambia, qué es nuevo</h2>
+  <div class="sum4">
+    <div class="card col rv" data-d="400"><h3>Se queda</h3><ul>
+      <li>10 instancias de 50 clientes, recortadas a n</li><li>c<sub>ij</sub> de ecosti.dat</li><li>p<sub>i</sub> de edati.dat</li><li>regla (79) → α<sub>i</sub>, β<sub>i</sub></li><li>Q = max{Σα, Σβ}</li><li>h ∈ {0,1; 0,5; 1}</li></ul></div>
+    <div class="card col adapt rv" data-d="650"><h3>Se adapta</h3><ul>
+      <li>h → u<sub>a</sub>, ℓ<sub>a</sub>, u<sub>b</sub>, ℓ<sub>b</sub> = h/2</li><li>c<sub>ij</sub> se lee como tiempo</li><li>u<sub>a</sub>·α<sub>i</sub> y ℓ<sub>b</sub>·β<sub>i</sub> entran al modelo: ya no son constantes</li></ul></div>
+    <div class="card col new rv" data-d="900"><h3>Nuevo</h3><ul>
+      <li>U, cota de los instantes</li><li>M = U + c<sub>max</sub> para (13), que reemplaza a (38)</li></ul></div>
+    <div class="card col drop rv" data-d="1150"><h3>Se descarta</h3><ul>
+      <li>fila d<sub>i</sub></li><li>Σd de la cabecera</li><li>clase −99</li><li>diagonal 10⁷</li></ul></div>
+  </div>
+  <div class="check rv" data-d="1600"><b><span data-count="40" data-d="1600">0</span>/40</b><span>valores de Battarra et al. reproducidos con estos datos para n = 5: z<sub>R</sub> de la Tabla 1 y la Política 3 de las Tablas 2, 3 y 4.</span></div>
+</section>
+
+<!-- 15 · CÓDIGO -->
+<section class="slide">
+  <div class="tag rv">Implementación · Gurobi 13.0.3</div>
+  <h2 class="h ww">El modelo (1)–(19) en gurobipy</h2>
+  <div class="card codecard rv" data-d="300">
+    <div class="cc-h"><span>notebooks/modelo_trppdh3.py</span><span class="mute">extracto, sin los name=</span></div>
+    <div class="cc">
+      <div class="cl rv" data-d="600"><code>x = m.addVars(A, vtype=GRB.BINARY)</code><em>(15) ruta</em></div>
+      <div class="cl rv" data-d="700"><code>s = m.addVars(Vc, vtype=GRB.BINARY)</code><em>(16) política</em></div>
+      <div class="cl rv" data-d="800"><code>m.setObjective(<span class="pt">D</span>.sum(), GRB.MINIMIZE)</code><em class="pt">(1)</em></div>
+      <div class="cl rv" data-d="900"><code>m.addConstrs(x.sum(i, "*") == 1 for i in V)</code><em>(2)</em></div>
+      <div class="cl rv" data-d="1000"><code>m.addConstrs(y.sum("*", i) - y.sum(i, "*") == <span class="pa">alpha[i]</span> for i in Vc)</code><em class="pa">(4)</em></div>
+      <div class="cl rv" data-d="1100"><code>m.addConstrs(w.sum(i, "*") + z.sum(i, "*") - w.sum("*", i) - z.sum("*", i) == <span class="pb">beta[i]</span> for i in Vc)</code><em class="pb">(5)</em></div>
+      <div class="cl rv" data-d="1200"><code>m.addConstrs(w.sum(i, "*") - w.sum("*", i) &lt;= (1 - s[i]) * <span class="pb">suma_beta</span> for i in Vc)</code><em class="pb">(6)</em></div>
+      <div class="cl rv" data-d="1300"><code>m.addConstrs(w[i, j] + y[i, j] + z[i, j] &lt;= <span class="pk">Q</span> * x[i, j] for i, j in A)</code><em>(7)</em></div>
+      <div class="cl rv" data-d="1400"><code>m.addConstrs(<span class="pa">ha</span> * y.sum(i, "*") == p[i] + q[i] for i in Vc)</code><em class="pa">(8)</em></div>
+      <div class="cl rv" data-d="1500"><code>m.addConstrs(<span class="pt">D[i]</span> == <span class="pt">T[i]</span> + <span class="pb">ub</span> * z.sum("*", i) + <span class="pa">ua</span> * <span class="pa">alpha[i]</span> for i in Vc)</code><em class="pt">(11)</em></div>
+      <div class="cl rv" data-d="1600"><code>m.addConstrs(<span class="pt">F[i]</span> == <span class="pt">D[i]</span> + <span class="pb">lb</span> * (z.sum("*", i) + <span class="pb">beta[i]</span>) + q[i] for i in Vc)</code><em class="pt">(12)</em></div>
+      <div class="cl rv" data-d="1700"><code>m.addConstrs(<span class="pt">T[j]</span> &gt;= <span class="pt">F[i]</span> + <span class="pt">c[i][j]</span> - <span class="pt">M</span> * (1 - x[i, j]) for i, j in A if j != 0)</code><em class="pt">(13)</em></div>
+    </div>
+  </div>
+  <div class="stats3">
+    <div class="stat rv" data-d="2000"><b><span data-count="152" data-d="2000">0</span> variables</b><span>35 binarias (x, s) para n = 5</span></div>
+    <div class="stat rv" data-d="2150"><b><span data-count="109" data-d="2150">0</span> restricciones</b><span>ecuaciones (2)–(14)</span></div>
+    <div class="stat rv" data-d="2300"><b>182 · 165</b><span>variables y restricciones si se agregan (24)–(29)</span></div>
+  </div>
+</section>
+
+<!-- 16 · FLUJO Y VALIDACIÓN -->
+<section class="slide">
+  <div class="tag rv">Implementación · scripts y validación</div>
+  <h2 class="h ww">Del archivo a la solución</h2>
+  <svg id="pipe" viewBox="0 0 1408 320" aria-label="Flujo de los scripts">
+    <g class="pop" style="--d:300ms"><rect class="pn-r" x="0" y="40" width="170" height="86" rx="12"/><text class="pn-t" x="85" y="78" text-anchor="middle">e_vigo/</text><text class="pn-s" x="85" y="103" text-anchor="middle">edati · ecosti</text></g>
+    <g class="pop" style="--d:500ms"><rect class="pn-r hl" x="216" y="40" width="220" height="86" rx="12"/><text class="pn-t" x="326" y="78" text-anchor="middle">instancias_vigo.py</text><text class="pn-s" x="326" y="103" text-anchor="middle">pasos 1 a 7</text></g>
+    <g class="pop" style="--d:700ms"><rect class="pn-r hl" x="482" y="40" width="220" height="86" rx="12"/><text class="pn-t" x="592" y="78" text-anchor="middle">modelo_trppdh3.py</text><text class="pn-s" x="592" y="103" text-anchor="middle">(1)–(19) en Gurobi</text></g>
+    <g class="pop" style="--d:900ms"><rect class="pn-r" x="748" y="40" width="210" height="86" rx="12"/><text class="pn-t" x="853" y="78" text-anchor="middle">correr_trppdh3.py</text><text class="pn-s" x="853" y="103" text-anchor="middle">lotes n × id × h</text></g>
+    <g class="pop" style="--d:1100ms"><rect class="pn-r" x="1004" y="40" width="180" height="86" rx="12"/><text class="pn-t" x="1094" y="78" text-anchor="middle">Outputs/</text><text class="pn-s" x="1094" y="103" text-anchor="middle">un JSON por instancia</text></g>
+    <g class="pop" style="--d:1300ms"><rect class="pn-r" x="1230" y="40" width="178" height="86" rx="12"/><text class="pn-t" x="1319" y="78" text-anchor="middle">visualizador</text><text class="pn-s" x="1319" y="103" text-anchor="middle">Pagina Web 1</text></g>
+    <path class="pc draw" pathLength="1" d="M170 83h40" style="--d:500ms;--dur:.4s"/><path class="f-ink2 pop" d="M206 76l10 7-10 7z" style="--d:800ms"/>
+    <path class="pc draw" pathLength="1" d="M436 83h40" style="--d:700ms;--dur:.4s"/><path class="f-ink2 pop" d="M472 76l10 7-10 7z" style="--d:1000ms"/>
+    <path class="pc draw" pathLength="1" d="M702 83h40" style="--d:900ms;--dur:.4s"/><path class="f-ink2 pop" d="M738 76l10 7-10 7z" style="--d:1200ms"/>
+    <path class="pc draw" pathLength="1" d="M958 83h40" style="--d:1100ms;--dur:.4s"/><path class="f-ink2 pop" d="M994 76l10 7-10 7z" style="--d:1400ms"/>
+    <path class="pc draw" pathLength="1" d="M1184 83h40" style="--d:1300ms;--dur:.4s"/><path class="f-ink2 pop" d="M1220 76l10 7-10 7z" style="--d:1600ms"/>
+    <g class="pop" style="--d:1700ms"><rect class="pn-r" x="216" y="214" width="220" height="80" rx="12"/><text class="pn-t" x="326" y="249" text-anchor="middle">enumeracion.py</text><text class="pn-s" x="326" y="274" text-anchor="middle">n!·2ⁿ rutas y políticas</text></g>
+    <g class="pop" style="--d:1900ms"><rect class="pn-r" x="482" y="214" width="220" height="80" rx="12"/><text class="pn-t" x="592" y="249" text-anchor="middle">validar.py</text><text class="pn-s" x="592" y="274" text-anchor="middle">compara los óptimos</text></g>
+    <path class="pc draw" pathLength="1" d="M326 126v82" style="--d:1600ms;--dur:.4s"/>
+    <path class="pc draw" pathLength="1" d="M436 254h40" style="--d:1900ms;--dur:.4s"/>
+    <path class="pc-d fd" d="M592 214v-82" style="--d:2100ms"/>
+    <text class="pc-l fd" x="606" y="178" style="--d:2100ms">mismo óptimo</text>
+    <g class="packet"><rect x="150" y="71" width="12" height="12" rx="2" class="f-a"/><rect x="164" y="71" width="12" height="12" rx="2" class="f-b"/><rect x="150" y="85" width="26" height="6" rx="2" class="f-t"/></g>
+  </svg>
+  <div class="vals3">
+    <div class="val rv" data-d="2400"><b><span data-count="40" data-d="2400">0</span>/40</b><span>valores de Battarra et al. reproducidos (n = 5)</span></div>
+    <div class="val rv" data-d="2600"><b><span data-count="60" data-d="2600">0</span>/60</b><span>óptimos de Gurobi iguales a la enumeración (n = 5 y 6)</span></div>
+    <div class="val rv" data-d="2800"><b><span data-count="30" data-d="2800">0</span>/30</b><span>instancias con n = 5 resueltas al óptimo (gap 0 %)</span></div>
+  </div>
+</section>
+
+<!-- 17 · TIEMPOS -->
+<section class="slide">
+  <div class="tag rv">Resultados · n = 5 · 10 ids × 3 valores de h</div>
+  <h2 class="h ww">Tiempo de respuesta por ID</h2>
+  <div class="s17">
+    <svg id="times" viewBox="0 0 980 560" aria-label="Tiempo de Gurobi por instancia"></svg>
+    <div class="s17-r">
+      <div class="leg3 rv" data-d="300"><span><i style="background:#5B4DB5"></i>h = 0,1</span><span><i style="background:#8473EE"></i>h = 0,5</span><span><i style="background:#C9C0FF"></i>h = 1</span><span><i class="ml"></i>promedio</span></div>
+      <div class="stat rv" data-d="1600"><b><span id="k-mean" data-count="0" data-dec="1" data-d="1600">0</span> ms</b><span>promedio de las 30 instancias (modelo (1)–(19))</span></div>
+      <div class="stat rv" data-d="1800"><b><span id="k-min">0</span>–<span id="k-max">0</span> ms</b><span>mínimo y máximo; cada barra es la mediana de 7 corridas</span></div>
+      <div class="stat rv" data-d="2000"><b>30 / 30</b><span>óptimas, con gap 0 %</span></div>
+      <div class="stat nt rv" data-d="2300"><b><span id="k-te">0</span> ms</b><span>enumeración en Python (3.840 combinaciones); con n = 10 serían ≈ 3.716 millones</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- 18 · NODOS -->
+<section class="slide">
+  <div class="tag rv">Resultados · n = 5</div>
+  <h2 class="h ww">Más manipulación, más nodos</h2>
+  <div class="s18">
+    <div>
+      <p class="lead rv" data-d="400" style="margin-top:20px">Nodos de branch-and-bound que explora Gurobi con el modelo (1)–(19), por instancia y valor de h.</p>
+      <div class="avg3 rv" data-d="800">
+        <div><small>h = 0,1</small><b id="k-nd0" data-count="0" data-dec="1" data-d="800">0</b></div>
+        <div><small>h = 0,5</small><b id="k-nd1" data-count="0" data-dec="1" data-d="900">0</b></div>
+        <div><small>h = 1</small><b id="k-nd2" data-count="0" data-dec="1" data-d="1000">0</b></div>
+      </div>
+      <p class="foot rv" data-d="1400" style="font-size:20px">Promedio de nodos. Al subir h pesa más la manipulación y el árbol crece, aunque el tiempo casi no cambia (<span id="k-th0"></span> → <span id="k-th2"></span> ms). La id 2 con h = 0,5 se resolvió en el nodo raíz.</p>
+    </div>
+    <svg id="heat" viewBox="0 0 560 560" aria-label="Nodos por instancia"></svg>
+  </div>
+</section>
+
+<!-- 19 · LATENCIA -->
+<section class="slide">
+  <div class="tag rv">Resultados · desigualdad válida de latencia</div>
+  <h2 class="h ww">Con (24)–(29), 3,3× más rápido</h2>
+  <div class="s19">
+    <svg id="dumb" viewBox="0 0 860 560" aria-label="Tiempo promedio por id con y sin la desigualdad"></svg>
+    <div class="big3">
+      <div class="bg rv" data-d="1800"><small>tiempo promedio</small><b><span id="k-mean2"></span> → <span class="ct" id="k-tl"></span> ms</b></div>
+      <div class="bg rv" data-d="2000"><small>nodos promedio</small><b><span id="k-nd"></span> → <span class="ct">1</span></b><p>con (24)–(29) todas se resuelven en el nodo raíz</p></div>
+      <div class="bg rv" data-d="2200"><small>brecha de la relajación lineal</small><b><span id="k-gb"></span> → <span class="ct" id="k-gl"></span></b><p>mismo óptimo en las 30 instancias</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 20 · RUTAS -->
+<section class="slide">
+  <div class="tag rv">Resultados · n = 5 · h = 0,1</div>
+  <h2 class="h ww">Las 10 rutas óptimas</h2>
+  <div class="s20-leg rv" data-d="400"><span><i style="border:2.5px solid var(--ink);border-radius:50%"></i>Política 1</span><span><i style="background:var(--b);border-radius:50%"></i>Política 2</span><span><i style="background:var(--ink)"></i>depósito</span></div>
+  <div class="grid10" id="grid10"></div>
+  <p class="foot rv" data-d="1800" style="margin-top:14px">En el último cliente la política da igual: ya no quedan entregas (q = 0).</p>
+</section>
+
+<!-- 21 · COMPARACIÓN -->
+<section class="slide">
+  <div class="tag rv">Resultados · instancia 1 · h = 0,1</div>
+  <h2 class="h ww">Mismos datos, otra ruta óptima</h2>
+  <div class="s21">
+    <svg id="cmp" viewBox="0 0 620 560" aria-label="Rutas óptimas del TSPPD-H3 y del TRPPD-H3"></svg>
+    <div>
+      <div class="leg21 rv" data-d="400"><span><i style="border-top:3px dashed var(--ink2)"></i>TSPPD-H₃</span><span><i style="border-top:5px solid var(--t)"></i>TRPPD-H₃</span></div>
+      <table class="cmp-t rv" data-d="700">
+        <tr><th></th><th>TSPPD-H₃</th><th>TRPPD-H₃</th></tr>
+        <tr><td>Ruta</td><td>0-2-1-5-3-4-0</td><td>0-2-1-5-4-3-0</td></tr>
+        <tr><td>Viaje total</td><td class="win">295</td><td>336</td></tr>
+        <tr><td>Manipulación adicional</td><td>1,5</td><td>1,5</td></tr>
+        <tr><td>Objetivo (31) de Battarra</td><td class="win">296,5</td><td>337,5</td></tr>
+        <tr><td>Σ D<sub>i</sub></td><td>700,5</td><td class="win">678,75</td></tr>
+      </table>
+      <p class="lead rv" data-d="2800" style="font-size:21px;margin-top:22px">El TRP va de 5 a 4 (89) antes que de 5 a 3 (100), aunque después vuelva desde 3 (83 contra 31). El regreso no pesa: ya no queda nadie esperando.</p>
+      <div class="check rv" data-d="3200" style="margin-top:22px"><b id="k-diff">0</b><span>de las 30 instancias con n = 5 cambian de ruta óptima al pasar del TSPPD-H₃ al TRPPD-H₃.</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- 22 · CIERRE -->
+<section class="slide">
+  <div class="tag rv">Cierre</div>
+  <h2 class="h ww">En resumen</h2>
+  <div class="concl">
+    <div class="cc4 rv" data-d="400"><b class="n">1</b><p><strong>Los datos de e_vigo se usan igual que en Battarra.</strong> Con ellos se reproducen exactamente los 40 valores del artículo para n = 5.</p></div>
+    <div class="cc4 rv" data-d="650"><b class="n">2</b><p><strong>La adaptación central es dividir h</strong> en descarga u y carga ℓ (h/2), porque D<sub>i</sub> ocurre a mitad de las operaciones. U y M son nuevos, para la restricción (13).</p></div>
+    <div class="cc4 rv" data-d="900"><b class="n">3</b><p><strong>Gurobi resuelve las 30 instancias con n = 5 al óptimo</strong> en <span id="k-rng"></span> ms, y la enumeración exhaustiva confirma cada óptimo.</p></div>
+    <div class="cc4 rv" data-d="1150"><b class="n">4</b><p><strong>Siguiente paso: n ≥ 10 con (24)–(29).</strong> Con n = 15 (id 1) el modelo todavía no cierra en 3 minutos: queda con un gap de 21 a 48 %.</p></div>
+  </div>
+  <p class="files-f rv" data-d="1600">notebooks/ · Outputs/ · Visualizaciones HTML/presentacion_evigo_trppdh3.html</p>
+  <svg class="end-truck" id="endTruck" viewBox="0 0 760 300" aria-hidden="true"></svg>
+  <div class="end-road"></div>
+</section>
+
+<!-- Barra inferior -->
+<div class="hud" id="hud">
+  <div class="hud-leg"><span><i class="sw a"></i>a · entregas</span><span><i class="sw b"></i>b · recogidas</span><span><i class="sw t"></i>tiempo · Gurobi</span></div>
+  <div class="hud-road"><div class="hud-line"></div><div class="hud-stops" id="hudStops"></div>
+    <div class="hud-truck" id="hudTruck"><svg viewBox="0 0 40 24" width="40" height="24"><rect x="1" y="3" width="25" height="15" rx="2" fill="#B4BCC6"/><path d="M27 7h7l5 6v5H27z" fill="#F2EDE3"/><circle cx="9" cy="20" r="3.2" fill="#6C7783"/><circle cx="32" cy="20" r="3.2" fill="#6C7783"/></svg></div>
+  </div>
+  <div class="hud-ctl"><button id="bPrev" aria-label="Diapositiva anterior">‹</button><span id="hudN">01 / 22</span><button id="bNext" aria-label="Diapositiva siguiente">›</button><button id="bRep" aria-label="Repetir la animación">↺</button></div>
+</div>
+</div>
+
+<script>
+const D = {"ids":{"1":{"p":[58,46,26,11,47],"pp":[18,6,6,11,7],"a":[15,4,3,3,7],"b":[3,2,3,8,0],"Q":32,"cmax":114.0,"xy":[[21.26,35.48],[-44.77,21.79],[-11.77,23.62],[49.13,-42.64],[35.3,7.49],[-48.84,-22.2]],"UM":{"0.1":[596.4,710.4],"0.5":[702.0,816.0],"1.0":[834.0,948.0]}},"2":{"p":[70,38,44,59,23],"pp":[10,18,4,19,3],"a":[8,11,2,4,3],"b":[2,7,2,15,0],"Q":28,"cmax":102.0,"xy":[[-23.99,19.3],[18.98,-42.94],[-14.73,-17.61],[29.28,-21.94],[4.18,58.5],[-39.96,21.87]],"UM":{"0.1":[539.6999999999999,641.6999999999999],"0.5":[658.5,760.5],"1.0":[807.0,909.0]}},"3":{"p":[82,30,62,7,99],"pp":[2,10,2,7,19],"a":[2,6,1,2,19],"b":[0,4,1,5,0],"Q":30,"cmax":105.0,"xy":[[-36.23,18.98],[-13.08,20.74],[31.4,-35.91],[19.84,-15.13],[27.74,54.86],[-6.81,-43.84]],"UM":{"0.1":[547.0,652.0],"0.5":[635.0,740.0],"1.0":[745.0,850.0]}},"4":{"p":[94,22,80,55,75],"pp":[14,2,1,15,15],"a":[12,2,1,3,15],"b":[2,0,0,12,0],"Q":33,"cmax":101.0,"xy":[[-40.51,-27.19],[-1.07,-38.93],[22.75,51.99],[-30.48,-1.95],[-27.29,20.37],[-10.56,4.9]],"UM":{"0.1":[530.85,631.85],"0.5":[634.25,735.25],"1.0":[763.5,864.5]}},"5":{"p":[6,14,98,3,51],"pp":[6,14,18,3,11],"a":[5,9,8,1,11],"b":[1,5,10,2,0],"Q":34,"cmax":76.0,"xy":[[17.09,-44.71],[-16.74,-7.97],[35.68,-9.28],[21.91,-9.85],[8.09,11.4],[-38.57,-23.81]],"UM":{"0.1":[408.59999999999997,484.59999999999997],"0.5":[523.0,599.0],"1.0":[666.0,742.0]}},"6":{"p":[18,6,16,51,27],"pp":[18,6,16,11,7],"a":[15,4,7,3,7],"b":[3,2,9,8,0],"Q":36,"cmax":80.0,"xy":[[2.98,-23.59],[-1.82,-31.16],[31.1,12.61],[-13.8,-53.62],[23.93,-23.62],[38.43,-18.18]],"UM":{"0.1":[431.90000000000003,511.90000000000003],"0.5":[559.5,639.5],"1.0":[719.0,799.0]}},"7":{"p":[30,98,34,99,3],"pp":[10,18,14,19,3],"a":[8,11,6,4,3],"b":[2,7,8,15,0],"Q":32,"cmax":83.0,"xy":[[20.87,16.16],[-21.4,-44.32],[-11.09,-43.57],[-53.86,20.3],[-41.84,-10.19],[21.86,-15.05]],"UM":{"0.1":[450.20000000000005,533.2],"0.5":[591.0,674.0],"1.0":[767.0,850.0]}},"8":{"p":[42,90,52,47,79],"pp":[2,10,12,7,19],"a":[2,6,5,2,19],"b":[0,4,7,5,0],"Q":34,"cmax":78.0,"xy":[[-34.57,16.72],[-43.18,-1.02],[28.19,-24.43],[26.3,-20.66],[34.18,-8.08],[-32.01,-15.54]],"UM":{"0.1":[417.5,495.5],"0.5":[527.5,605.5],"1.0":[665.0,743.0]}},"9":{"p":[54,82,70,95,55],"pp":[14,2,10,15,15],"a":[12,2,4,3,15],"b":[2,0,6,12,0],"Q":36,"cmax":98.0,"xy":[[48.25,19.96],[-30.72,50.7],[-6.75,39.97],[-39.57,-11.16],[41.32,11.85],[5.41,-40.19]],"UM":{"0.1":[520.8,618.8],"0.5":[644.0,742.0],"1.0":[798.0,896.0]}},"10":{"p":[66,74,88,43,31],"pp":[6,14,8,3,11],"a":[5,9,4,1,11],"b":[1,5,4,2,0],"Q":30,"cmax":76.0,"xy":[[19.67,27.36],[-1.23,-18.18],[-22.57,1.94],[-0.75,-0.43],[-49.27,-4.29],[-50.11,3.69]],"UM":{"0.1":[403.1,479.1],"0.5":[495.5,571.5],"1.0":[611.0,687.0]}}},"runs":[{"id":1,"h":0.1,"t":60.0,"tl":23.0,"nd":95,"ndl":1,"obj":678.75,"lp":1.6,"lpl":450.66,"ruta":[0,2,1,5,4,3,0],"s":[1,1,1,0,0],"te":9.7,"br":[0,2,1,5,3,4,0],"bv":296.5,"bvj":295.0,"bsd":700.5},{"id":1,"h":0.5,"t":54.0,"tl":15.0,"nd":134,"ndl":1,"obj":717.75,"lp":8.0,"lpl":468.38,"ruta":[0,2,1,5,4,3,0],"s":[1,1,1,0,0],"te":9.6,"br":[0,2,1,5,3,4,0],"bv":302.5,"bvj":295.0,"bsd":738.5},{"id":1,"h":1.0,"t":53.0,"tl":17.0,"nd":161,"ndl":1,"obj":766.5,"lp":16.0,"lpl":489.06,"ruta":[0,2,1,5,4,3,0],"s":[1,1,1,0,0],"te":9.4,"br":[0,2,1,5,3,4,0],"bv":310.0,"bvj":295.0,"bsd":786.0},{"id":2,"h":0.1,"t":53.0,"tl":17.0,"nd":86,"ndl":1,"obj":532.95,"lp":1.4,"lpl":402.88,"ruta":[0,5,2,1,3,4,0],"s":[1,1,0,1,0],"te":6.9,"br":[0,5,2,1,3,4,0],"bv":261.5,"bvj":260.0,"bsd":532.95},{"id":2,"h":0.5,"t":48.0,"tl":23.0,"nd":1,"ndl":1,"obj":568.75,"lp":7.0,"lpl":418.24,"ruta":[0,5,2,1,3,4,0],"s":[1,1,0,1,0],"te":7.1,"br":[0,5,2,1,3,4,0],"bv":267.5,"bvj":260.0,"bsd":568.75},{"id":2,"h":1.0,"t":64.0,"tl":31.0,"nd":120,"ndl":1,"obj":613.5,"lp":14.0,"lpl":437.27,"ruta":[0,5,2,1,3,4,0],"s":[1,1,0,1,0],"te":7.7,"br":[0,5,2,1,3,4,0],"bv":275.0,"bvj":260.0,"bsd":613.5},{"id":3,"h":0.1,"t":67.0,"tl":17.0,"nd":63,"ndl":1,"obj":571.35,"lp":1.5,"lpl":468.58,"ruta":[0,1,3,2,5,4,0],"s":[1,1,1,0,0],"te":9.7,"br":[0,5,2,3,4,1,0],"bv":279.8,"bvj":279.0,"bsd":777.2},{"id":3,"h":0.5,"t":66.0,"tl":18.0,"nd":106,"ndl":1,"obj":592.75,"lp":7.5,"lpl":481.1,"ruta":[0,1,3,2,5,4,0],"s":[1,1,1,0,0],"te":10.0,"br":[0,5,2,3,4,1,0],"bv":283.0,"bvj":279.0,"bsd":814.0},{"id":3,"h":1.0,"t":63.0,"tl":21.0,"nd":74,"ndl":1,"obj":619.5,"lp":15.0,"lpl":496.73,"ruta":[0,1,3,2,5,4,0],"s":[1,1,1,0,0],"te":8.7,"br":[0,5,2,3,4,1,0],"bv":287.0,"bvj":279.0,"bsd":860.0},{"id":4,"h":0.1,"t":58.0,"tl":15.0,"nd":117,"ndl":1,"obj":508.1,"lp":1.65,"lpl":366.15,"ruta":[0,3,5,4,2,1,0],"s":[1,1,1,1,1],"te":9.5,"br":[0,1,5,2,4,3,0],"bv":252.7,"bvj":252.0,"bsd":708.25},{"id":4,"h":0.5,"t":56.0,"tl":17.0,"nd":122,"ndl":1,"obj":540.5,"lp":8.25,"lpl":381.95,"ruta":[0,3,5,4,2,1,0],"s":[1,1,1,1,0],"te":10.0,"br":[0,1,5,2,4,3,0],"bv":255.5,"bvj":252.0,"bsd":745.25},{"id":4,"h":1.0,"t":62.0,"tl":16.0,"nd":139,"ndl":1,"obj":581.0,"lp":16.5,"lpl":401.7,"ruta":[0,3,5,4,2,1,0],"s":[1,1,1,1,0],"te":9.8,"br":[0,1,5,2,4,3,0],"bv":259.0,"bvj":252.0,"bsd":791.5},{"id":5,"h":0.1,"t":61.0,"tl":13.0,"nd":64,"ndl":1,"obj":435.1,"lp":1.7,"lpl":328.93,"ruta":[0,2,3,4,1,5,0],"s":[1,0,1,1,0],"te":8.1,"br":[0,5,1,4,3,2,0],"bv":197.3,"bvj":196.0,"bsd":567.6},{"id":5,"h":0.5,"t":62.0,"tl":18.0,"nd":153,"ndl":1,"obj":495.5,"lp":8.5,"lpl":344.0,"ruta":[0,2,3,4,1,5,0],"s":[1,0,1,1,0],"te":9.2,"br":[0,5,1,4,3,2,0],"bv":202.5,"bvj":196.0,"bsd":598.0},{"id":5,"h":1.0,"t":65.0,"tl":20.0,"nd":221,"ndl":1,"obj":571.0,"lp":17.0,"lpl":362.75,"ruta":[0,2,3,4,1,5,0],"s":[1,0,1,1,0],"te":9.2,"br":[0,5,1,4,3,2,0],"bv":209.0,"bvj":196.0,"bsd":636.0},{"id":6,"h":0.1,"t":58.0,"tl":18.0,"nd":92,"ndl":1,"obj":356.15,"lp":1.8,"lpl":235.1,"ruta":[0,1,4,5,2,3,0],"s":[1,1,1,1,1],"te":8.4,"br":[0,1,3,4,5,2,0],"bv":178.6,"bvj":176.0,"bsd":370.5},{"id":6,"h":0.5,"t":56.0,"tl":21.0,"nd":106,"ndl":1,"obj":412.75,"lp":9.0,"lpl":254.6,"ruta":[0,1,4,5,2,3,0],"s":[1,1,0,1,0],"te":8.3,"br":[0,1,3,4,5,2,0],"bv":189.0,"bvj":176.0,"bsd":432.5},{"id":6,"h":1.0,"t":62.0,"tl":28.0,"nd":181,"ndl":1,"obj":483.5,"lp":18.0,"lpl":278.22,"ruta":[0,1,4,5,2,3,0],"s":[1,1,1,1,0],"te":8.7,"br":[0,2,5,4,1,3,0],"bv":201.0,"bvj":180.0,"bsd":577.5},{"id":7,"h":0.1,"t":59.0,"tl":12.0,"nd":55,"ndl":1,"obj":484.55,"lp":1.6,"lpl":428.0,"ruta":[0,5,2,1,4,3,0],"s":[1,1,1,0,0],"te":6.3,"br":[0,5,2,1,4,3,0],"bv":235.2,"bvj":233.0,"bsd":484.55},{"id":7,"h":0.5,"t":58.0,"tl":17.0,"nd":59,"ndl":1,"obj":526.75,"lp":8.0,"lpl":445.57,"ruta":[0,5,2,1,4,3,0],"s":[1,1,1,0,0],"te":6.4,"br":[0,5,2,1,4,3,0],"bv":244.0,"bvj":233.0,"bsd":526.75},{"id":7,"h":1.0,"t":63.0,"tl":14.0,"nd":58,"ndl":1,"obj":579.5,"lp":16.0,"lpl":467.53,"ruta":[0,5,2,1,4,3,0],"s":[1,1,1,0,0],"te":6.6,"br":[0,5,2,1,4,3,0],"bv":255.0,"bvj":233.0,"bsd":579.5},{"id":8,"h":0.1,"t":45.0,"tl":13.0,"nd":82,"ndl":1,"obj":381.9,"lp":1.7,"lpl":338.23,"ruta":[0,1,5,3,2,4,0],"s":[1,1,1,0,0],"te":7.6,"br":[0,1,5,2,3,4,0],"bv":191.6,"bvj":191.0,"bsd":385.35},{"id":8,"h":0.5,"t":44.0,"tl":14.0,"nd":87,"ndl":1,"obj":413.5,"lp":8.5,"lpl":353.97,"ruta":[0,1,5,3,2,4,0],"s":[1,1,1,0,0],"te":9.4,"br":[0,1,5,2,3,4,0],"bv":194.0,"bvj":191.0,"bsd":414.75},{"id":8,"h":1.0,"t":51.0,"tl":17.0,"nd":98,"ndl":1,"obj":451.5,"lp":17.0,"lpl":373.64,"ruta":[0,1,5,2,3,4,0],"s":[1,1,1,0,1],"te":7.6,"br":[0,1,5,2,3,4,0],"bv":197.0,"bvj":191.0,"bsd":451.5},{"id":9,"h":0.1,"t":59.0,"tl":19.0,"nd":109,"ndl":1,"obj":767.05,"lp":1.8,"lpl":452.77,"ruta":[0,2,1,3,5,4,0],"s":[1,1,1,0,0],"te":8.4,"br":[0,2,1,3,5,4,0],"bv":277.3,"bvj":276.0,"bsd":767.05},{"id":9,"h":0.5,"t":67.0,"tl":13.0,"nd":122,"ndl":1,"obj":799.25,"lp":9.0,"lpl":475.17,"ruta":[0,2,1,3,5,4,0],"s":[1,1,1,0,0],"te":12.3,"br":[0,2,1,3,5,4,0],"bv":282.5,"bvj":276.0,"bsd":799.25},{"id":9,"h":1.0,"t":52.0,"tl":14.0,"nd":136,"ndl":1,"obj":839.5,"lp":18.0,"lpl":503.17,"ruta":[0,2,1,3,5,4,0],"s":[1,1,1,0,1],"te":9.0,"br":[0,2,1,3,5,4,0],"bv":289.0,"bvj":276.0,"bsd":839.5},{"id":10,"h":0.1,"t":67.0,"tl":15.0,"nd":110,"ndl":1,"obj":401.3,"lp":1.5,"lpl":333.0,"ruta":[0,3,1,2,4,5,0],"s":[1,1,1,1,0],"te":10.0,"br":[0,2,5,4,1,3,0],"bv":189.0,"bvj":187.0,"bsd":510.75},{"id":10,"h":0.5,"t":75.0,"tl":18.0,"nd":120,"ndl":1,"obj":442.5,"lp":7.5,"lpl":348.0,"ruta":[0,3,1,2,4,5,0],"s":[1,1,1,1,0],"te":10.1,"br":[0,5,4,2,1,3,0],"bv":196.0,"bvj":190.0,"bsd":600.0},{"id":10,"h":1.0,"t":78.0,"tl":27.0,"nd":159,"ndl":1,"obj":494.0,"lp":15.0,"lpl":366.75,"ruta":[0,3,1,2,4,5,0],"s":[1,1,1,1,0],"te":11.8,"br":[0,5,4,2,1,3,0],"bv":202.0,"bvj":190.0,"bsd":641.0}],"coords51":[[21.26,35.48],[-44.77,21.79],[-11.77,23.62],[49.13,-42.64],[35.3,7.49],[-48.84,-22.2],[38.25,-0.4],[29.29,37.5],[1.31,36.64],[-5.92,24.69],[-46.83,-43.05],[-11.84,17.66],[-24.67,13.68],[33.13,-20.5],[45.1,-40.73],[-6.66,50.63],[-0.76,-18.31],[-40.74,42.82],[3.1,-29.34],[-28.93,-20.27],[23.86,-36.63],[6.99,-35.35],[8.16,12.6],[25.4,41.39],[-37.81,22.75],[27.13,-27.46],[-29.68,26.8],[21.06,-25.37],[29.47,47.38],[-34.07,-48.37],[-2.01,-19.44],[-29.64,21.71],[48.47,41.41],[43.29,33.42],[14.18,-0.36],[-11.86,-20.21],[-37.78,16.68],[-34.86,-17.18],[-38.94,-40.18],[15.07,-13.45],[41.33,17.44],[33.09,-35.72],[11.1,14.63],[-2.78,35.77],[-40.81,-0.24],[45.84,-43.77],[-34.66,37.86],[-2.92,-11.43],[22.18,-0.58],[-18.99,-40.43],[-43.94,-28.24]]};
+(() => {
+const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = (s, e = document) => e.querySelector(s), $$ = (s, e = document) => [...e.querySelectorAll(s)];
+const NS = 'http://www.w3.org/2000/svg';
+const el = (tag, attrs = {}, parent, text) => {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) k === 'dl' ? e.style.setProperty('--d', attrs[k] + 'ms') : e.setAttribute(k, attrs[k]);
+  if (text != null) e.textContent = text;
+  if (parent) parent.appendChild(e);
+  return e;
+};
+const fmt = (v, dec = 0) => Number(v).toLocaleString('es-CL', {minimumFractionDigits: dec, maximumFractionDigits: dec});
+const fh = h => h === 1 ? '1' : fmt(h, 1);
+const avg = a => a.reduce((x, y) => x + y, 0) / a.length;
+
+/* ---------- escala del escenario ---------- */
+const stage = $('#stage');
+const fit = () => stage.style.setProperty('--k', Math.min(innerWidth / 1600, innerHeight / 900));
+addEventListener('resize', fit); fit();
+
+/* ---------- temporizadores que se cancelan al cambiar de diapositiva ---------- */
+let timers = [], rafs = [];
+const later = (ms, fn) => { if (RM) fn(); else timers.push(setTimeout(fn, ms)); };
+const ease = p => p < .5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+const tween = (ms, fn, done) => {
+  if (RM) { fn(1); done && done(); return; }
+  const t0 = performance.now();
+  const step = now => { const p = Math.min(1, (now - t0) / ms); fn(p); if (p < 1) rafs.push(requestAnimationFrame(step)); else done && done(); };
+  rafs.push(requestAnimationFrame(step));
+};
+const clearAll = () => { timers.forEach(clearTimeout); rafs.forEach(cancelAnimationFrame); timers = []; rafs = []; };
+
+/* ---------- cifras calculadas desde los datos ---------- */
+const R = D.runs, H3 = [0.1, 0.5, 1];
+const tAll = R.map(r => r.t), tlAll = R.map(r => r.tl);
+const gapB = R.map(r => 100 * (r.obj - r.lp) / r.obj), gapL = R.map(r => 100 * (r.obj - r.lpl) / r.obj);
+const K = {
+  mean: avg(tAll), min: Math.min(...tAll), max: Math.max(...tAll), tl: avg(tlAll), nd: avg(R.map(r => r.nd)), te: avg(R.map(r => r.te)),
+  byH: H3.map(h => { const rr = R.filter(r => r.h === h); return {t: avg(rr.map(r => r.t)), nd: avg(rr.map(r => r.nd))}; }),
+  diff: R.filter(r => r.br.join() !== r.ruta.join()).length,
+};
+$('#k-mean').dataset.count = K.mean.toFixed(1);
+$('#k-min').textContent = fmt(K.min); $('#k-max').textContent = fmt(K.max);
+$('#k-te').textContent = fmt(K.te, 1);
+K.byH.forEach((b, j) => { $('#k-nd' + j).dataset.count = b.nd.toFixed(1); });
+$('#k-th0').textContent = fmt(K.byH[0].t, 1); $('#k-th2').textContent = fmt(K.byH[2].t, 1);
+$('#k-mean2').textContent = fmt(K.mean, 1); $('#k-tl').textContent = fmt(K.tl, 1);
+$('#k-nd').textContent = fmt(K.nd, 1);
+$('#k-gb').textContent = fmt(Math.min(...gapB), 1) + '–' + fmt(Math.max(...gapB), 1) + ' %';
+$('#k-gl').textContent = fmt(Math.min(...gapL), 1) + '–' + fmt(Math.max(...gapL), 1) + ' %';
+$('#k-diff').textContent = K.diff;
+$('#k-rng').textContent = fmt(K.min) + '–' + fmt(K.max);
+
+/* ---------- retrasos y títulos palabra por palabra ---------- */
+$$('[data-d]').forEach(e => e.style.setProperty('--d', e.dataset.d + 'ms'));
+const splitWords = root => {
+  let i = 0;
+  const walk = node => [...node.childNodes].forEach(ch => {
+    if (ch.nodeType === 3) {
+      const frag = document.createDocumentFragment();
+      ch.textContent.split(/(\s+)/).forEach(pt => {
+        if (!pt) return;
+        if (/^\s+$/.test(pt)) { frag.appendChild(document.createTextNode(' ')); return; }
+        const w = document.createElement('span'), inner = document.createElement('span');
+        w.className = 'w'; inner.textContent = pt; inner.style.setProperty('--i', i++);
+        w.appendChild(inner); frag.appendChild(w);
+      });
+      node.replaceChild(frag, ch);
+    } else if (ch.nodeType === 1 && ch.tagName !== 'BR') walk(ch);
+  });
+  walk(root);
+};
+$$('.ww').forEach(splitWords);
+
+/* ---------- 1 · cajas del camión de la portada ---------- */
+(() => {
+  const g = $('#coverBoxes');
+  const types = ['b', 'b', 'a', 'a', 'a', 'a', 'a', 'b', 'b'];
+  let k = 0;
+  types.forEach((t, c) => [78, 120, 162].forEach(y => el('rect', {x: 264 + c * 39.5, y, width: 35, height: 36, rx: 3, class: 'pop bx-' + t, dl: 2100 + (k++) * 22}, g)));
+  const copia = $('.cover-truck .truck').cloneNode(true);
+  copia.querySelector('#coverBoxes').removeAttribute('id');
+  $('#endTruck').appendChild(copia);
+})();
+
+/* ---------- 2 · patrón de carga ---------- */
+(() => {
+  const g = $('#s2g');
+  const T = (nb, na, nz) => [...Array(nb).fill('b'), ...Array(na).fill('a'), ...Array(nz).fill('b')];
+  const row = (x, y, w, h, gap, types, d0, step, nuevas = []) => types.forEach((t, k) =>
+    el('rect', {x: x + k * (w + gap), y, width: w, height: h, rx: 5, class: 'pop bx-' + t + (nuevas.includes(k) ? ' bx-new' : ''), dl: d0 + k * step}, g));
+  row(84, 56, 40, 58, 6, T(4, 8, 3), 500, 45);
+  row(70, 276, 26, 34, 4, T(4, 5, 5), 2300, 30, [12, 13]);
+  row(70, 368, 26, 34, 4, T(9, 5, 0), 2900, 30, [7, 8]);
+})();
+
+/* ---------- 3 · línea de tiempo de la ruta óptima ---------- */
+const EV = [{c: 2, T: 35, D: 35.2}, {c: 1, T: 68.3, D: 69.15}, {c: 5, T: 113.4, D: 114}, {c: 4, T: 203.25, D: 203.65}, {c: 3, T: 256.6, D: 256.75}];
+const RET = 339.9, TX = t => 30 + t * 1340 / 340;
+(() => {
+  const s = $('#tl');
+  el('line', {x1: 30, x2: TX(RET), y1: 130, y2: 130, class: 'tl-axis'}, s);
+  el('line', {id: 'tl-prog', x1: 30, x2: 30, y1: 130, y2: 130, class: 'tl-prog'}, s);
+  el('rect', {x: 19, y: 119, width: 22, height: 22, class: 'f-ink'}, s);
+  el('text', {x: 22, y: 178, class: 'tl-s'}, s, 'depósito');
+  el('rect', {x: TX(RET) - 11, y: 119, width: 22, height: 22, class: 'tl-ret'}, s);
+  el('text', {x: TX(RET) + 10, y: 178, class: 'tl-s', 'text-anchor': 'end'}, s, 'regreso');
+  [[0, 35, 5], [35.3, 68.3, 4], [69.4, 113.4, 3], [114.25, 203.25, 2], [204.6, 256.6, 1], [256.9, RET, 0]].forEach(([a, b, m]) =>
+    el('text', {x: TX((a + b) / 2), y: 232, class: 'mult', 'text-anchor': 'middle', 'data-t': a}, s, '×' + m));
+  el('text', {x: 22, y: 264, class: 'tl-s'}, s, 'clientes que siguen esperando durante cada viaje');
+  EV.forEach(e => {
+    const g = el('g', {class: 'stop'}, s);
+    el('circle', {cx: TX(e.T), cy: 130, r: 13, class: 'stop-c'}, g);
+    el('text', {x: TX(e.T), y: 60, class: 'stop-n', 'text-anchor': 'middle'}, g, 'cliente ' + e.c);
+    el('text', {x: TX(e.T), y: 178, class: 'stop-d', 'text-anchor': 'middle'}, g, 'D = ' + fmt(e.D, 2));
+  });
+  const tr = el('g', {id: 'tl-truck'}, s);
+  el('rect', {x: 0, y: 2, width: 36, height: 26, rx: 3, class: 'f-ink2'}, tr);
+  el('path', {d: 'M38 9h10l8 10v9H38z', class: 'f-ink'}, tr);
+  el('path', {d: 'M41 12h6l5 7H41z', class: 'f-bg'}, tr);
+  el('circle', {cx: 10, cy: 31, r: 5, class: 'f-mute'}, tr);
+  el('circle', {cx: 46, cy: 31, r: 5, class: 'f-mute'}, tr);
+})();
+
+/* ---------- 4 · hoja de ruta ---------- */
+const STEPS = [['Leer e_vigo', 'same'], ['Recortar a n', 'same'], ['Escalar p', 'same'], ['Regla (79): α y β', 'same'], ['Capacidad Q', 'same'], ['h → u y ℓ', 'adapt'], ['U y M', 'new']];
+(() => {
+  const sv = $('#road7'), p = $('#road7-path'), L = p.getTotalLength(), gS = $('#r7stops');
+  sv._L = L;
+  sv._stops = STEPS.map(([name, kind], k) => {
+    const f = (k + .5) / 7, pt = p.getPointAtLength(f * L), g = el('g', {class: 'r7s k-' + kind}, gS);
+    el('circle', {cx: pt.x, cy: pt.y, r: 24, class: 'r7c'}, g);
+    el('text', {x: pt.x, y: pt.y + 7, class: 'r7n', 'text-anchor': 'middle'}, g, k + 1);
+    const ly = pt.y < 290 ? pt.y - 84 : pt.y + 64;
+    el('text', {x: pt.x, y: ly, class: 'r7l', 'text-anchor': 'middle'}, g, name);
+    el('text', {x: pt.x, y: ly + 26, class: 'r7b', 'text-anchor': 'middle'}, g, {same: 'IGUAL QUE BATTARRA', adapt: 'ADAPTADO', new: 'NUEVO'}[kind]);
+    return {g, f};
+  });
+})();
+
+/* ---------- 6 · mapa de los 50 clientes ---------- */
+(() => {
+  const g = $('#map51'), P = D.coords51, X = x => 300 + x * 5.3, Y = y => 280 - y * 5.3;
+  P.forEach((p, k) => { if (k > 0) el('circle', {cx: X(p[0]), cy: Y(p[1]), r: 5, class: (k > 5 ? 'dimmer ' : 'pop ') + 'f-mute', dl: 150 + k * 18}, g); });
+  el('rect', {x: X(P[0][0]) - 9, y: Y(P[0][1]) - 9, width: 18, height: 18, class: 'pop f-ink', dl: 100}, g);
+  el('text', {x: X(P[0][0]) + 14, y: Y(P[0][1]) + 26, class: 'maplbl pop', dl: 2200}, g, '0');
+  for (let k = 1; k <= 5; k++) {
+    const [x, y] = P[k];
+    el('circle', {cx: X(x), cy: Y(y), r: 12, class: 'pop f-ink', dl: 2200 + k * 160}, g);
+    el('text', {x: X(x) + 16, y: Y(y) - 12, class: 'maplbl pop', dl: 2250 + k * 160}, g, k);
+  }
+})();
+
+/* ---------- 8 · unidades de cada cliente ---------- */
+$$('.rrow').forEach(r => { const u = $('.units', r); for (let k = 0; k < +r.dataset.a + +r.dataset.b; k++) u.appendChild(Object.assign(document.createElement('i'), {className: 'u'})); });
+
+/* ---------- 9 · capacidad ---------- */
+(() => {
+  const g = $('#qsum');
+  for (let k = 0; k < 32; k++) el('rect', {x: 30 + (k % 4) * 35, y: 390 - Math.floor(k / 4) * 35, width: 30, height: 30, rx: 4, class: 'pop bx-a', dl: 300 + k * 22}, g);
+  for (let k = 0; k < 16; k++) el('rect', {x: 210 + (k % 4) * 35, y: 390 - Math.floor(k / 4) * 35, width: 30, height: 30, rx: 4, class: 'pop bx-b', dl: 1050 + k * 22}, g);
+  el('line', {x1: 10, x2: 370, y1: 138, y2: 138, class: 'qline fd', dl: 1500}, g);
+  el('text', {x: 10, y: 124, class: 'ql-t fd', dl: 1500}, g, 'Q = max{32, 16} = 32');
+  el('text', {x: 97, y: 458, class: 'ql-t fd', 'text-anchor': 'middle', dl: 1000, style: 'fill:var(--a)'}, g, 'Σα = 32');
+  el('text', {x: 277, y: 458, class: 'ql-t fd', 'text-anchor': 'middle', dl: 1400, style: 'fill:var(--b)'}, g, 'Σβ = 16');
+
+  const s = $('#qload'), B = 400, k = 8.5, QY = B - 32 * k;
+  const defs = el('defs', {}, s);
+  const pat = el('pattern', {id: 'stripes', width: 10, height: 10, patternUnits: 'userSpaceOnUse', patternTransform: 'rotate(45)'}, defs);
+  el('rect', {width: 5, height: 10, class: 'f-ink'}, pat);
+  el('text', {x: 60, y: 30, class: 'ql-h fd', dl: 200}, s, 'RUTA ÓPTIMA DE LA INSTANCIA 1');
+  el('text', {x: 790, y: 30, class: 'ql-h fd', dl: 1800}, s, 'OTRO ORDEN');
+  const L = [[32, 0], [28, 2], [13, 5], [6, 5], [3, 13], [0, 16]], A = ['0→2', '2→1', '1→5', '5→4', '4→3', '3→0'];
+  L.forEach(([y, b], i) => {
+    const x = 60 + i * 112;
+    if (y) el('rect', {x, y: B - y * k, width: 72, height: y * k, class: 'gy bx-a', dl: 400 + i * 170}, s);
+    if (b) el('rect', {x, y: B - (y + b) * k, width: 72, height: b * k, class: 'gy bx-b', dl: 520 + i * 170}, s);
+    el('text', {x: x + 36, y: B - (y + b) * k + 26, class: 'ql-in fd', 'text-anchor': 'middle', dl: 900 + i * 170}, s, y + b);
+    el('text', {x: x + 36, y: B + 30, class: 'ql-s', 'text-anchor': 'middle'}, s, A[i]);
+  });
+  el('line', {x1: 745, x2: 745, y1: QY - 60, y2: B + 40, class: 'sep fd', dl: 1800}, s);
+  const gx0 = 790;
+  el('rect', {x: gx0, y: B - 29 * k, width: 72, height: 29 * k, class: 'gy ghost-a', dl: 1900}, s);
+  el('rect', {x: gx0, y: B - 37 * k, width: 72, height: 8 * k, class: 'gy ghost-b', dl: 2050}, s);
+  el('rect', {x: gx0, y: B - 37 * k, width: 72, height: 5 * k, class: 'over fd', dl: 2300}, s);
+  el('text', {x: gx0 + 36, y: B - 37 * k - 14, class: 'ql-o pop', 'text-anchor': 'middle', dl: 2400}, s, '37 > Q');
+  el('text', {x: gx0 + 36, y: B + 30, class: 'ql-s', 'text-anchor': 'middle'}, s, '0→4');
+  el('text', {x: gx0 + 36, y: B + 52, class: 'ql-s', 'text-anchor': 'middle'}, s, 'cliente 4 primero');
+  el('line', {x1: 30, x2: 900, y1: QY, y2: QY, class: 'qline fd', dl: 200}, s);
+  el('text', {x: 680, y: QY - 12, class: 'ql-t fd', 'text-anchor': 'end', dl: 200}, s, 'Q = 32');
+})();
+
+/* ---------- 13 · U y M por instancia ---------- */
+(() => {
+  const s = $('#umchart'), UM = [...Array(10)].map((_, i) => D.ids[i + 1].UM['0.1']);
+  const maxM = Math.max(...UM.map(v => v[1])), x0 = 70, sc = 400 / maxM;
+  el('rect', {x: x0, y: 4, width: 16, height: 16, rx: 3, class: 'f-t fd', dl: 900}, s);
+  el('text', {x: x0 + 24, y: 18, class: 'umv fd', dl: 900}, s, 'U');
+  el('rect', {x: x0 + 70, y: 4, width: 16, height: 16, rx: 3, class: 'um-c fd', dl: 900}, s);
+  const lg = el('text', {x: x0 + 94, y: 18, class: 'umv fd', dl: 900}, s, '+ c');
+  el('tspan', {'baseline-shift': 'sub', 'font-size': 11}, lg, 'max');
+  el('tspan', {}, lg, ' = M');
+  UM.forEach(([U, M], i) => {
+    const y = 44 + i * 46;
+    el('text', {x: 0, y: y + 19, class: 'axl'}, s, 'id ' + (i + 1));
+    el('rect', {x: x0, y, width: U * sc, height: 26, rx: 4, class: 'gx f-t', dl: 1000 + i * 80}, s);
+    el('rect', {x: x0 + U * sc, y, width: (M - U) * sc, height: 26, rx: 4, class: 'gx um-c', dl: 1300 + i * 80}, s);
+    el('text', {x: x0 + M * sc + 12, y: y + 19, class: 'umv fd', dl: 1600 + i * 80}, s, fmt(U, 1) + ' · ' + fmt(M, 1));
+  });
+})();
+
+/* ---------- 17 · tiempos por id ---------- */
+(() => {
+  const g = $('#times'), x0 = 70, y0 = 480, ky = 5.4;
+  [0, 20, 40, 60, 80].forEach(v => {
+    el('line', {x1: x0 - 10, x2: 965, y1: y0 - v * ky, y2: y0 - v * ky, class: 'gridl'}, g);
+    el('text', {x: x0 - 18, y: y0 - v * ky + 5, class: 'axl', 'text-anchor': 'end'}, g, v);
+  });
+  el('text', {x: 0, y: 30, class: 'axl'}, g, 'ms');
+  for (let id = 1; id <= 10; id++) {
+    const gx = x0 + (id - 1) * 89 + 6;
+    H3.forEach((h, j) => {
+      const r = R.find(r => r.id === id && r.h === h), hg = r.t * ky;
+      el('rect', {x: gx + j * 26, y: y0 - hg, width: 22, height: hg, rx: 3, class: 'gy hb' + j, dl: 300 + (id - 1) * 90 + j * 40}, g);
+      el('text', {x: gx + j * 26 + 11, y: y0 - hg - 8, class: 'barv fd', 'text-anchor': 'middle', dl: 1400 + (id - 1) * 60}, g, fmt(r.t));
+    });
+    el('text', {x: gx + 37, y: y0 + 30, class: 'axl', 'text-anchor': 'middle'}, g, 'id ' + id);
+  }
+  const ym = y0 - K.mean * ky;
+  el('line', {x1: x0 - 10, x2: 965, y1: ym, y2: ym, class: 'mean fd', dl: 2000}, g);
+})();
+
+/* ---------- 18 · nodos ---------- */
+(() => {
+  const s = $('#heat'), x0 = 110, cw = 140, y0 = 64, rh = 40, maxN = Math.max(...R.map(r => r.nd));
+  H3.forEach((h, j) => el('text', {x: x0 + j * cw + cw / 2, y: 40, class: 'hc-h', 'text-anchor': 'middle'}, s, 'h = ' + fh(h)));
+  for (let id = 1; id <= 10; id++) {
+    const y = y0 + (id - 1) * rh;
+    el('text', {x: x0 - 20, y: y + 26, class: 'axl', 'text-anchor': 'end'}, s, 'id ' + id);
+    H3.forEach((h, j) => {
+      const r = R.find(r => r.id === id && r.h === h), op = .12 + .88 * r.nd / maxN;
+      const c = el('g', {class: 'pop', dl: 300 + (id - 1) * 60 + j * 40}, s);
+      el('rect', {x: x0 + j * cw + 4, y: y + 3, width: cw - 8, height: rh - 6, rx: 6, class: 'f-t', 'fill-opacity': op.toFixed(2)}, c);
+      el('text', {x: x0 + j * cw + cw / 2, y: y + 26, class: 'hc-v' + (op > .55 ? ' dk' : ''), 'text-anchor': 'middle'}, c, r.nd);
+    });
+  }
+  const ya = y0 + 10 * rh + 16;
+  el('line', {x1: x0, x2: x0 + 3 * cw, y1: ya - 6, y2: ya - 6, class: 'gridl'}, s);
+  el('text', {x: x0 - 20, y: ya + 24, class: 'axl', 'text-anchor': 'end'}, s, 'prom.');
+  K.byH.forEach((b, j) => el('text', {x: x0 + j * cw + cw / 2, y: ya + 24, class: 'hc-a fd', 'text-anchor': 'middle', dl: 1200}, s, fmt(b.nd, 1)));
+})();
+
+/* ---------- 19 · con y sin (24)-(29) ---------- */
+(() => {
+  const s = $('#dumb'), x0 = 90, sc = 9.2, y0 = 70, rh = 46;
+  el('circle', {cx: x0 + 6, cy: 22, r: 8, class: 'f-ink'}, s);
+  el('text', {x: x0 + 22, y: 28, class: 'barv'}, s, 'modelo (1)–(19)');
+  el('circle', {cx: x0 + 216, cy: 22, r: 8, class: 'f-t'}, s);
+  el('text', {x: x0 + 232, y: 28, class: 'barv'}, s, 'con (24)–(29)');
+  el('text', {x: 830, y: 28, class: 'axl', 'text-anchor': 'end'}, s, 'promedio de los 3 valores de h');
+  [0, 20, 40, 60, 80].forEach(v => {
+    el('line', {x1: x0 + v * sc, x2: x0 + v * sc, y1: 46, y2: y0 + 10 * rh - 14, class: 'gridl'}, s);
+    el('text', {x: x0 + v * sc, y: y0 + 10 * rh + 10, class: 'axl', 'text-anchor': 'middle'}, s, v + ' ms');
+  });
+  for (let id = 1; id <= 10; id++) {
+    const rr = R.filter(r => r.id === id), b = avg(rr.map(r => r.t)), l = avg(rr.map(r => r.tl)), y = y0 + (id - 1) * rh + 8;
+    el('text', {x: x0 - 24, y: y + 6, class: 'axl', 'text-anchor': 'end'}, s, 'id ' + id);
+    el('path', {d: `M${x0 + b * sc} ${y}H${x0 + l * sc}`, pathLength: 1, class: 'draw dl-line', dl: 900 + (id - 1) * 90}, s);
+    el('circle', {cx: x0 + b * sc, cy: y, r: 9, class: 'pop f-ink', dl: 300 + (id - 1) * 60}, s);
+    el('circle', {cx: x0 + l * sc, cy: y, r: 9, class: 'pop f-t', dl: 1500 + (id - 1) * 90}, s);
+    el('text', {x: x0 + b * sc + 16, y: y + 5, class: 'barv fd', dl: 500 + (id - 1) * 60}, s, fmt(b, 1));
+    el('text', {x: x0 + l * sc - 16, y: y + 5, class: 'barv fd', 'text-anchor': 'end', dl: 1700 + (id - 1) * 90}, s, fmt(l, 1));
+  }
+})();
+
+/* ---------- 20 · rutas óptimas ---------- */
+(() => {
+  const box = $('#grid10');
+  for (let id = 1; id <= 10; id++) {
+    const r = R.find(r => r.id === id && r.h === 0.1), xy = D.ids[id].xy;
+    const card = document.createElement('div');
+    card.className = 'mcard rv'; card.style.setProperty('--d', (300 + (id - 1) * 90) + 'ms');
+    const sv = el('svg', {viewBox: '0 0 240 150'}, card);
+    const xs = xy.map(p => p[0]), ys = xy.map(p => p[1]);
+    const mnx = Math.min(...xs), mxx = Math.max(...xs), mny = Math.min(...ys), mxy = Math.max(...ys);
+    const sc = Math.min(190 / (mxx - mnx || 1), 108 / (mxy - mny || 1));
+    const P = i => [120 + (xy[i][0] - (mnx + mxx) / 2) * sc, 75 - (xy[i][1] - (mny + mxy) / 2) * sc];
+    const d = r.ruta.map((n, k) => (k ? 'L' : 'M') + P(n)[0].toFixed(1) + ' ' + P(n)[1].toFixed(1)).join(' ');
+    el('path', {d, pathLength: 1, class: 'draw rt', dl: 800 + (id - 1) * 110, style: '--dur:1.5s'}, sv);
+    const pol = {}; r.ruta.slice(1, -1).forEach((n, k) => { pol[n] = r.s[k]; });
+    for (let n = 1; n <= 5; n++) {
+      const [x, y] = P(n);
+      el('circle', {cx: x, cy: y, r: 7.5, class: pol[n] === 0 ? 'nd2' : 'nd1'}, sv);
+      el('text', {x: x + 10, y: y - 8, class: 'ndl'}, sv, n);
+    }
+    const [dx, dy] = P(0);
+    el('rect', {x: dx - 7, y: dy - 7, width: 14, height: 14, class: 'f-ink'}, sv);
+    card.insertAdjacentHTML('beforeend',
+      `<div class="mc-h"><b>id ${id}</b><span>${fmt(r.t)} ms</span></div><div class="mc-s">Σ D = ${fmt(r.obj, 2)}</div>` +
+      `<div class="mc-p">${r.s.map(v => `<i class="${v === 0 ? 'p2' : ''}">P${v === 0 ? 2 : 1}</i>`).join('')}</div>`);
+    box.appendChild(card);
+  }
+})();
+
+/* ---------- 21 · TSPPD-H3 frente a TRPPD-H3 ---------- */
+(() => {
+  const s = $('#cmp'), xy = D.ids[1].xy;
+  const xs = xy.map(p => p[0]), ys = xy.map(p => p[1]);
+  const mnx = Math.min(...xs), mxx = Math.max(...xs), mny = Math.min(...ys), mxy = Math.max(...ys);
+  const sc = Math.min(480 / (mxx - mnx), 440 / (mxy - mny));
+  const P = i => [310 + (xy[i][0] - (mnx + mxx) / 2) * sc, 280 - (xy[i][1] - (mny + mxy) / 2) * sc];
+  const path = rt => rt.map((n, k) => (k ? 'L' : 'M') + P(n).map(v => v.toFixed(1)).join(' ')).join(' ');
+  el('path', {d: path([0, 2, 1, 5, 3, 4, 0]), class: 'rb-path fd', dl: 500}, s);
+  el('path', {d: path([0, 2, 1, 5, 4, 3, 0]), pathLength: 1, class: 'draw rt2', dl: 1300, style: '--dur:2.2s'}, s);
+  const mid = (a, b, dx = 0, dy = 0) => [(P(a)[0] + P(b)[0]) / 2 + dx, (P(a)[1] + P(b)[1]) / 2 + dy];
+  [[5, 4, '89', 'var(--t)', 0, -12], [5, 3, '100', 'var(--ink2)', 0, 24], [3, 0, '83', 'var(--t)', 26, 0], [4, 0, '31', 'var(--ink2)', 22, 6]].forEach(([a, b, t, c, dx, dy], k) => {
+    const [x, y] = mid(a, b, dx, dy);
+    el('text', {x, y, class: 'arc-l fd', 'text-anchor': 'middle', style: 'fill:' + c, dl: 2400 + k * 150}, s, t);
+  });
+  for (let n = 1; n <= 5; n++) {
+    const [x, y] = P(n);
+    el('circle', {cx: x, cy: y, r: 13, class: 'nd1 pop', dl: 200 + n * 80}, s);
+    el('text', {x: x + 18, y: y - 16, class: 'cl21 pop', dl: 250 + n * 80}, s, n);
+  }
+  const [dx, dy] = P(0);
+  el('rect', {x: dx - 11, y: dy - 11, width: 22, height: 22, class: 'f-ink pop', dl: 150}, s);
+  el('text', {x: dx + 18, y: dy - 16, class: 'cl21 pop', dl: 200}, s, '0');
+})();
+
+/* ---------- barra inferior ---------- */
+const slides = $$('.slide'), N = slides.length, hud = $('#hud'), truckEl = $('#hudTruck');
+for (let i = 0; i < N; i++) { const d = document.createElement('i'); d.style.left = (i / (N - 1) * 100) + '%'; $('#hudStops').appendChild(d); }
+
+/* ---------- secuencias de cada diapositiva ---------- */
+const countUp = e => {
+  const v = parseFloat(e.dataset.count), dec = +(e.dataset.dec || 0), d = +(e.dataset.d || 0);
+  e.textContent = fmt(0, dec);
+  later(d, () => tween(1300, p => { e.textContent = fmt(v * ease(p), dec); }));
+};
+const ENTER = {};
+
+ENTER.objetivo = () => {
+  const prog = $('#tl-prog'), tr = $('#tl-truck'), stops = $$('#tl .stop'), mults = $$('#tl .mult'), sum = $('#sumD');
+  stops.forEach(e => e.classList.remove('on')); mults.forEach(e => e.classList.remove('on'));
+  sum.textContent = fmt(0, 2); prog.setAttribute('x2', 30); tr.setAttribute('transform', `translate(${TX(0) - 28} 92)`);
+  let acc = 0, k = 0;
+  later(1000, () => tween(6200, p => {
+    const t = RET * p;
+    prog.setAttribute('x2', TX(t)); tr.setAttribute('transform', `translate(${TX(t) - 28} 92)`);
+    mults.forEach(m => { if (t >= +m.dataset.t) m.classList.add('on'); });
+    while (k < EV.length && t >= EV[k].T) {
+      stops[k].classList.add('on');
+      const a0 = acc; acc += EV[k].D; const a1 = acc;
+      tween(450, q => { sum.textContent = fmt(a0 + (a1 - a0) * q, 2); });
+      k++;
+    }
+  }));
+};
+
+ENTER.ruta7 = () => {
+  const sv = $('#road7'), p = $('#road7-path'), L = sv._L, tr = $('#r7truck');
+  sv._stops.forEach(o => o.g.classList.remove('on'));
+  const place = l => {
+    const a = p.getPointAtLength(l), b = p.getPointAtLength(Math.min(L, l + 2));
+    const ang = l + 2 > L ? 0 : Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI;
+    tr.setAttribute('transform', `translate(${a.x} ${a.y}) rotate(${ang})`);
+  };
+  place(0);
+  later(800, () => tween(6000, q => { place(q * L); sv._stops.forEach(o => { if (q >= o.f - .004) o.g.classList.add('on'); }); }));
+};
+
+ENTER.paso3 = s => {
+  const cols = $$('.pcol', s);
+  cols.forEach(c => {
+    const bar = $('.pbar', c);
+    bar.classList.add('notr'); bar.style.height = (+c.dataset.p * 4) + 'px';
+    $('.pval', c).innerHTML = `p = <b>${c.dataset.p}</b>`; c.classList.remove('done');
+  });
+  void s.offsetWidth;
+  cols.forEach(c => $('.pbar', c).classList.remove('notr'));
+  cols.forEach((c, k) => later(1300 + k * 650, () => {
+    $('.pbar', c).style.height = (+c.dataset.pp * 4) + 'px';
+    $('.pval', c).innerHTML = `${c.dataset.p} mod 20 =<b>${c.dataset.pp}</b>`;
+    c.classList.add('done');
+  }));
+};
+
+ENTER.paso4 = s => {
+  const rows = $$('.rrow', s), tot = $('.rtot', s);
+  rows.forEach(r => { $$('.u', r).forEach(u => { u.className = 'u'; }); r.classList.remove('done'); });
+  tot.classList.remove('show');
+  rows.forEach((r, k) => later(1000 + k * 900, () => {
+    const a = +r.dataset.a, us = $$('.u', r);
+    us.forEach((u, j) => later(j * 35, () => u.classList.add(j < a ? 'ua' : 'ub')));
+    later(us.length * 35 + 150, () => r.classList.add('done'));
+  }));
+  later(1000 + 5 * 900 + 300, () => tot.classList.add('show'));
+};
+
+const CAP4 = [
+  ['Llega al cliente 4', 'T₄ = 203,25'],
+  ['Retirar las 5 recogidas de la puerta', 'u<sub>b</sub> · 5 = 0,25'],
+  ['Descargar las 3 unidades del cliente: queda atendido', 'u<sub>a</sub> · 3 = 0,15 → D₄'],
+  ['Política 2: retirar las 3 entregas que siguen a bordo', 'u<sub>a</sub> · 3 = 0,15'],
+  ['Cargar las 5 + 8 recogidas al fondo', 'ℓ<sub>b</sub> · 13 = 0,65'],
+  ['Recargar las 3 entregas y salir al cliente 3', 'ℓ<sub>a</sub> · 3 = 0,15 → F₄'],
+];
+ENTER.cliente4 = () => {
+  const yard = $('#yard'), pat = $('#pat'), q4 = $('#q4'), clk = $('#clk'), cap = $('#cap4');
+  yard.classList.remove('anim'); $$('.bx', yard).forEach(b => b.remove()); pat.classList.remove('show'); q4.classList.remove('on');
+  const mk = (t, x, y) => { const b = document.createElement('div'); b.className = 'bx ' + t; b.style.left = x + 'px'; b.style.top = y + 'px'; yard.appendChild(b); return b; };
+  const SX = k => 22 + k * 25.4, BY = 41, DX = k => 884 + k * 26, PX = k => 1150 + (k % 4) * 26, PY = k => 196 + Math.floor(k / 4) * 28, EX = k => 1290 + k * 26, EY = 210;
+  const A = [0, 1, 2, 3, 4, 5].map(k => mk('a', SX(k), BY));
+  const Z = [0, 1, 2, 3, 4].map(k => mk('b', SX(6 + k), BY));
+  const P = [0, 1, 2, 3, 4, 5, 6, 7].map(k => mk('b', PX(k), PY(k)));
+  void yard.offsetWidth; yard.classList.add('anim');
+  const mv = (b, x, y, dl) => later(dl, () => { b.style.left = x + 'px'; b.style.top = y + 'px'; });
+  let cv = 203.25; clk.textContent = fmt(cv, 2);
+  const clockTo = v => { const a = cv; cv = v; tween(700, q => { clk.textContent = fmt(a + (v - a) * q, 2); }); };
+  const segs = $$('#tl4 .sg'), mks = $$('#tl4 .tmk');
+  segs.forEach(e => e.classList.remove('on')); mks.forEach(e => e.classList.remove('on'));
+  const caption = i => {
+    cap.classList.remove('flip'); void cap.offsetWidth; cap.classList.add('flip');
+    $('.sn', cap).textContent = i ? i : '·'; $('.st', cap).innerHTML = CAP4[i][0]; $('.sv', cap).innerHTML = CAP4[i][1];
+  };
+  caption(0);
+  later(500, () => mks[0].classList.add('on'));
+  const ST = [
+    () => { Z.slice().reverse().forEach((b, k) => mv(b, DX(k), BY, k * 70)); clockTo(203.5); },
+    () => { [A[5], A[4], A[3]].forEach((b, k) => mv(b, EX(k), EY, k * 90)); clockTo(203.65); later(500, () => mks[1].classList.add('on')); },
+    () => { [A[2], A[1], A[0]].forEach((b, k) => mv(b, DX(5 + k), BY, k * 90)); clockTo(203.8); },
+    () => { [...Z, ...P].forEach((b, k) => mv(b, SX(k), BY, k * 50)); clockTo(204.45); },
+    () => { [A[0], A[1], A[2]].forEach((b, k) => mv(b, SX(13 + k), BY, k * 90)); clockTo(204.6);
+            later(700, () => { mks[2].classList.add('on'); q4.classList.add('on'); pat.classList.add('show'); }); },
+  ];
+  ST.forEach((f, i) => later(1600 + i * 2300, () => { caption(i + 1); segs[i].classList.add('on'); f(); }));
+};
+
+ENTER.interruptor = () => {
+  const sw = $('#swt'), lbl = $('#swlbl'), a = $('#st1'), b = $('#st0');
+  const set = v => { sw.classList.toggle('off', !v); lbl.innerHTML = v ? 'x<sub>ij</sub> = 1' : 'x<sub>ij</sub> = 0'; a.classList.toggle('show', v); b.classList.toggle('show', !v); };
+  set(true);
+  if (RM) return;
+  let v = true;
+  const loop = () => later(3200, () => { v = !v; set(v); loop(); });
+  later(600, loop);
+};
+
+/* ---------- navegación ---------- */
+let cur = -1;
+const enter = s => { $$('[data-count]', s).forEach(countUp); const f = ENTER[s.dataset.enter]; if (f) f(s); };
+const updateHud = () => {
+  $('#hudN').textContent = String(cur + 1).padStart(2, '0') + ' / ' + String(N).padStart(2, '0');
+  truckEl.style.left = (cur / (N - 1) * 100) + '%';
+  $$('#hudStops i').forEach((d, i) => { d.className = i < cur ? 'past' : i === cur ? 'cur' : ''; });
+};
+const go = (n, instant) => {
+  n = Math.max(0, Math.min(N - 1, n));
+  if (n === cur) return;
+  clearAll();
+  const prev = cur; cur = n;
+  slides.forEach((s, i) => {
+    s.classList.toggle('still', !!instant || !(i === n || i === prev));
+    s.classList.remove('is-leaving');
+    s.classList.toggle('is-active', i === n);
+    s.classList.toggle('is-past', i < n);
+  });
+  if (prev >= 0 && !instant) {
+    const ps = slides[prev], tok = ps._tok = {};
+    ps.classList.add('is-leaving');
+    setTimeout(() => { if (ps._tok === tok && cur !== prev) ps.classList.remove('is-leaving'); }, 900);
+    hud.classList.add('driving'); setTimeout(() => hud.classList.remove('driving'), 850);
+    truckEl.classList.toggle('rev', n < prev);
+  }
+  enter(slides[n]); updateHud();
+  history.replaceState(null, '', '#' + (n + 1));
+};
+const replay = () => {
+  const s = slides[cur];
+  clearAll();
+  s.classList.add('still'); s.classList.remove('is-active'); void s.offsetWidth; s.classList.add('is-active'); void s.offsetWidth; s.classList.remove('still');
+  enter(s);
+};
+addEventListener('keydown', e => {
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  const k = e.key;
+  if (['ArrowRight', 'PageDown', ' ', 'Enter'].includes(k)) { e.preventDefault(); go(cur + 1); }
+  else if (['ArrowLeft', 'PageUp', 'Backspace'].includes(k)) { e.preventDefault(); go(cur - 1); }
+  else if (k === 'Home') go(0);
+  else if (k === 'End') go(N - 1);
+  else if (k === 'r' || k === 'R') replay();
+  else if (k === 'f' || k === 'F') { if (!document.fullscreenElement) document.documentElement.requestFullscreen?.(); else document.exitFullscreen?.(); }
+});
+$('#bPrev').addEventListener('click', () => go(cur - 1));
+$('#bNext').addEventListener('click', () => go(cur + 1));
+$('#bRep').addEventListener('click', replay);
+stage.addEventListener('click', e => {
+  if (e.target.closest('button,a,.hud') || String(getSelection())) return;
+  const r = stage.getBoundingClientRect();
+  e.clientX - r.left < r.width * .3 ? go(cur - 1) : go(cur + 1);
+});
+let tx = null;
+addEventListener('touchstart', e => { tx = e.touches[0].clientX; }, {passive: true});
+addEventListener('touchend', e => { if (tx == null) return; const dx = e.changedTouches[0].clientX - tx; if (Math.abs(dx) > 50) go(cur + (dx < 0 ? 1 : -1)); tx = null; });
+
+go(Math.max(0, (parseInt(location.hash.slice(1), 10) || 1) - 1), true);
+})();
+</script>
+</body>
+</html>
