@@ -1,12 +1,13 @@
 /* ==========================================================================
    01 · Recorrido: mapa y carga a la vez
    #recorrido-escena reúne el reproductor (camion.js), la escena del mapa
-   (mapa.js, vinculado) y la de la carga (camion.js). En escritorio la escena
-   mide lo que la ventana bajo la barra: arriba el reproductor y, debajo, el
-   mapa a la izquierda y el estado, el camión y los pasos de la Tabla 3 a la
-   derecha. En pantallas angostas se apilan y el reproductor queda pegado bajo
-   la barra superior. Aquí solo se reacomodan las escenas; sus estilos propios
-   están en mapa.css y camion.css.
+   (mapa.js, vinculado), la tabla de tiempo por cliente (cronometro.js) y la
+   carga (camion.js). En escritorio la escena mide lo que la ventana bajo la
+   barra: arriba el reproductor; a la izquierda el mapa y, debajo, el tiempo
+   por cliente; a la derecha el estado, el camión y los pasos de la Tabla 3.
+   En pantallas angostas se apilan y el reproductor queda pegado bajo la barra
+   superior. Aquí solo se reacomodan las escenas; sus estilos propios están en
+   mapa.css, cronometro.css y camion.css.
    ========================================================================== */
 
 .seccion--recorrido { padding-top: clamp(56px, 8vw, 104px); }
@@ -34,17 +35,23 @@
   .recorrido__controles .camion-reproductor__nota { display: none; }
 }
 
-/* --- Escritorio: reproductor arriba, mapa y carga lado a lado ------------- */
+/* --- Escritorio: reproductor arriba; mapa y tiempo por cliente a la izquierda, carga a la derecha --- */
 @media (min-width: 960px) {
   .recorrido {
     max-width: 1600px; margin-inline: auto; padding: 12px var(--margen) 16px;
     height: calc(100vh - var(--barra-alto));
     display: grid; gap: 12px 20px;
     grid-template-columns: minmax(0, 58fr) minmax(0, 42fr);
-    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-areas: 'ctrl ctrl' 'mapa carga' 'crono carga';
     align-items: stretch;
   }
-  .recorrido__controles { grid-column: 1 / -1; }
+  .recorrido__controles { grid-area: ctrl; }
+  .recorrido__mapa { grid-area: mapa; min-height: 0; }
+  .recorrido__cronometro { grid-area: crono; min-height: 0; }
+  .recorrido__carga { grid-area: carga; min-height: 0; }
+  /* Con muchas paradas la tabla no le quita todo el alto al mapa: tiene scroll propio. */
+  .recorrido__cronometro .crono-desplazable { max-height: 34vh; }
   .recorrido__controles .camion-reproductor { flex-wrap: nowrap; }
   .recorrido__controles .camion-reproductor__nota { flex: 0 1 auto; flex-basis: auto; margin: 0; max-width: 34ch; }
 
@@ -82,4 +89,9 @@
   .recorrido .camion-leyenda li:last-child { display: none; }
   .recorrido__controles .camion-reproductor { padding-block: 6px; }
   .recorrido__controles .camion-reproductor__nota { display: none; }
+  .recorrido .mapa-pie { display: none; }
+  .recorrido .crono { padding-block: 6px 4px; gap: 4px; }
+  .recorrido .crono-ayuda { display: none; }
+  .recorrido .crono-tabla td, .recorrido .crono-tabla tbody th, .recorrido .crono-tabla tfoot th { padding-block: 1px 2px; }
+  .recorrido .crono-chip { height: 17px; min-width: 17px; font-size: 10.5px; }
 }

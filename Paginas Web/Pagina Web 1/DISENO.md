@@ -43,7 +43,7 @@ para números (con cifras tabulares). Decimales con coma (es-CL).
 | # | Sección | Contenido | Animación |
 |---|---|---|---|
 | 00 | Portada | Título, pregunta del problema, ruta de la instancia dibujada sobre papel liso | La ruta se traza sola; paralaje al bajar |
-| 01 | Mapa y carga | A la izquierda, nodos con u<sub>a</sub>, ℓ<sub>a</sub>, u<sub>b</sub>, ℓ<sub>b</sub> y arcos con c<sub>ij</sub>; a la derecha, el camión con las unidades en su posición física y los pasos de la Tabla 3. Debajo, barras de carga por tramo vs Q | Reproductor (ver abajo): el camión se mueve en el mapa y cada operación de carga y descarga se anima al mismo tiempo |
+| 01 | Mapa y carga | A la izquierda, nodos con u<sub>a</sub>, ℓ<sub>a</sub>, u<sub>b</sub>, ℓ<sub>b</sub> y arcos con c<sub>ij</sub>; bajo el mapa, el tiempo por cliente; a la derecha, el camión con las unidades en su posición física y los pasos de la Tabla 3. Debajo, barras de carga por tramo vs Q | Reproductor (ver abajo): el camión se mueve en el mapa y cada operación de carga y descarga se anima al mismo tiempo |
 | 02 | El problema | Tres ideas: latencia (Σ D<sub>i</sub>), una sola puerta (LIFO, Figura 1), Política 3 (Tabla 3) | Se construyen al entrar en pantalla |
 | 03 | La instancia | Selector (algoritmo, n, id, h), KPIs, tabla de clientes, parámetros, verificación, leyenda | Contadores |
 | 04 | Reloj | Línea de tiempo de la ruta con lupa de servicio y barras de espera D<sub>i</sub> por cliente | Cabezal ligado al scroll; barras que crecen |
@@ -61,9 +61,16 @@ arrastre para saltar; los puntos son las llegadas a cada cliente).
 - Con `prefers-reduced-motion` no hay animación: cada Continuar salta a la
   próxima pausa y el modo continuo avanza una pausa cada 2,5 s.
 
-En escritorio la escena mide el alto de la ventana bajo la barra (mapa a la
-izquierda; estado, camión y pasos a la derecha) y al apretar Iniciar se alinea
-bajo la barra. En pantallas de menos de 960 px el mapa y el camión se apilan y
+**Tiempo por cliente** (bajo el mapa): una fila por cliente en el orden de la
+ruta con el viaje c<sub>ij</sub>, u<sub>a</sub>, ℓ<sub>a</sub>, u<sub>b</sub>, ℓ<sub>b</sub>, el tiempo en el cliente (F<sub>i</sub> − T<sub>i</sub>) y el
+total (viaje + cliente), más el regreso y las sumas de la ruta. Muestra lo que
+lleva cada cliente en el instante del reproductor: la fila del cliente que se
+atiende crece en vivo y al final Σ total = instante de regreso. Barras finas:
+viaje a escala del tramo más largo y manipulación a escala del mayor F<sub>i</sub> − T<sub>i</sub>.
+
+En escritorio la escena mide el alto de la ventana bajo la barra (mapa y tiempo
+por cliente a la izquierda; estado, camión y pasos a la derecha) y al apretar
+Iniciar se alinea bajo la barra. En pantallas de menos de 960 px el mapa y el camión se apilan y
 el reproductor queda pegado bajo la barra superior.
 
 El selector de soluciones vive en la barra superior (un botón que abre un panel)
@@ -77,7 +84,8 @@ Lo que pide el enunciado y dónde está:
   incurrido* en ese cliente (p. ej. u<sub>a</sub>·α<sub>i</sub>) y el *valor unitario* del parámetro.
 - **Tiempo de viaje en cada arco** → etiqueta c<sub>ij</sub> en el punto medio de cada arco.
 - **Carga del camión para cada cliente** → sección 01 (camión animado junto al mapa y barras w/y/z).
-- **Gráfico del tiempo de cada cliente** → sección 04 (línea de tiempo y espera D<sub>i</sub>).
+- **Gráfico del tiempo de cada cliente** → sección 01 (tabla de tiempo por cliente,
+  en vivo) y sección 04 (línea de tiempo y espera D<sub>i</sub>).
 
 ## Datos
 
@@ -107,7 +115,7 @@ Pagina Web 1/
     index.html         esqueleto de secciones
     css/base.css       tokens y componentes comunes (incluye el selector)
     css/<seccion>.css  estilos de cada sección
-    css/recorrido.css  acomodo conjunto de mapa y carga
+    css/recorrido.css  acomodo conjunto de mapa, tiempo por cliente y carga
     js/main.js         arranque, sección Instancia
     js/selector.js     selector de soluciones (barra y sección Instancia)
     js/modelo.js       normalización y simulación (Tabla 3)
@@ -115,6 +123,7 @@ Pagina Web 1/
     js/util.js         formato, DOM/SVG, tooltip
     js/intro.js        portada y "El problema"
     js/mapa.js         mapa de la ruta
+    js/cronometro.js   tiempo por cliente (sigue estado.avance)
     js/camion.js       carga del camión
     js/tiempos.js      reloj
 ```
@@ -153,7 +162,7 @@ export function crear(raiz, estado) {
   se hace `estado.set({ pedirParada: { indice } })` y la carga mueve las dos
   vistas. `estado.modoContinuo` guarda el interruptor entre soluciones.
 - Los colores salen siempre de los tokens CSS (clases o `style: { fill: 'var(--a)' }`).
-- Las clases de cada sección llevan prefijo (`intro-`, `mapa-`, `camion-`, `tiempos-`).
+- Las clases de cada sección llevan prefijo (`intro-`, `mapa-`, `crono-`, `camion-`, `tiempos-`).
 
 ### Estructura `sim` (resultado de `simular`)
 

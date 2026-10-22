@@ -10,6 +10,7 @@ import { $, $$, PARAM_HTML, avisar, el, fmt, movimientoReducido } from './util.j
 import { crearSelector } from './selector.js';
 import * as intro from './intro.js';
 import * as mapa from './mapa.js';
+import * as cronometro from './cronometro.js';
 import * as camion from './camion.js';
 import * as tiempos from './tiempos.js';
 
@@ -282,10 +283,12 @@ async function iniciar() {
 
   selector = crearSelector({ barra: $('#selector-barra'), enLinea: $('#selector'), alElegir: (archivo) => mostrar(archivo) });
 
-  // Mapa y carga comparten la escena: la carga tiene el reproductor y el mapa la sigue.
+  // Mapa, tiempo por cliente y carga comparten la escena: la carga tiene el reproductor
+  // y los otros dos la siguen.
   modulos = [
     intro.crear({ hero: $('#hero-fondo'), problema: $('#problema-escena') }, estado),
     mapa.crear($('#mapa-escena'), estado, { vinculado: true }),
+    cronometro.crear($('#cronometro-escena'), estado),
     camion.crear($('#carga-escena'), estado, {
       escena: $('#recorrido-escena'), controles: $('#recorrido-controles'), grafico: $('#carga-grafico'),
     }),
