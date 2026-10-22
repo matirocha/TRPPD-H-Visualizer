@@ -7,20 +7,22 @@ Ejemplos (desde la carpeta notebooks):
     python correr_trppdh3.py --banco-battarra --tiempo 7200
     python correr_trppdh3.py --n 10 --ids 3 --h 0.5 --ua 0.1 --la 0.4
 
-Cada instancia deja un JSON con la ruta, las políticas, los tiempos y las cargas
-en resultados/soluciones/ y una fila en resultados/resumen_<fecha>.csv.
+Cada instancia deja un JSON con formato trppdh3-salida/1 (ver salidas.py) en
+Outputs/gurobi/, que lee el visualizador web, y una fila en
+Outputs/resumenes/resumen_gurobi_<fecha>.csv.
 """
 
 import argparse
 import csv
-import json
 from datetime import datetime
 from pathlib import Path
 
 from instancias_vigo import IDS, TAMANOS, VALORES_H, generar_instancia
 from modelo_trppdh3 import resolver
+from salidas import CARPETA_OUTPUTS, construir_salida, guardar_salida
 
-CARPETA_RESULTADOS = Path(__file__).resolve().parent / "resultados"
+CLAVE_ALGORITMO = "gurobi"
+NOMBRE_ALGORITMO = "Gurobi · modelo (1)-(19)"
 COLUMNAS = ["instancia", "n", "id", "h", "ua", "la", "ub", "lb", "Q", "estado",
             "objetivo", "cota", "gap", "segundos", "nodos", "viaje",
             "manipulacion_adicional", "regreso", "ruta", "politica"]
@@ -55,7 +57,7 @@ def parsear_argumentos(argv=None):
     ap.add_argument("--latencia", action="store_true",
                     help="agrega la desigualdad válida de latencia (24)-(29)")
     ap.add_argument("--silencioso", action="store_true", help="oculta el log de Gurobi")
-    ap.add_argument("--salida", type=Path, default=CARPETA_RESULTADOS)
+    ap.add_argument("--salida", type=Path, default=CARPETA_OUTPUTS)
     return ap.parse_args(argv)
 
 
@@ -64,9 +66,9 @@ def main(argv=None):
     combinaciones = (banco_battarra() if args.banco_battarra
                      else [(n, h) for h in args.h for n in args.n])
 
-    carpeta_sol = args.salida / "soluciones"
-    carpeta_sol.mkdir(parents=True, exist_ok=True)
-    ruta_csv = args.salida / f"resumen_{datetime.now():%Y%m%d_%H%M%S}.csv"
+    carpeta_resumen = args.salida / "resumenes"
+    carpeta_resumen.mkdir(parents=True, exist_ok=True)
+    ruta_csv = carpeta_resumen / f"resumen_{CLAVE_ALGORITMO}_{datetime.now():%Y%m%d_%H%M%S}.csv"
 
     with open(ruta_csv, "w", newline="", encoding="utf-8") as archivo:
         escritor = csv.DictWriter(archivo, fieldnames=COLUMNAS, extrasaction="ignore")
@@ -79,8 +81,11 @@ def main(argv=None):
                                verbose=not args.silencioso,
                                explicitacion=args.explicitacion,
                                latencia=args.latencia)
-                (carpeta_sol / f"{inst.nombre}.json").write_text(
-                    json.dumps(sol, indent=2, ensure_ascii=False), encoding="utf-8")
+                parametros = {"explicitacion": args.explicitacion, "latencia": args.latencia,
+                              "limite_tiempo": args.tiempo, "gap": args.gap}
+                guardar_salida(construir_salida(inst, sol, CLAVE_ALGORITMO,
+                                                NOMBRE_ALGORITMO, parametros),
+                               args.salida)
                 fila = dict(sol)
                 fila["ruta"] = "-".join(map(str, sol.get("ruta", [])))
                 fila["politica"] = "".join(str(v) for v in sol.get("politica", {}).values())

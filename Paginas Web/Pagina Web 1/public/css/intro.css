@@ -1,0 +1,497 @@
+/* ==========================================================================
+   Portada (#inicio) y "El problema" (#problema)
+   Clases .hero* (esqueleto de index.html) e .intro-* (creadas por intro.js).
+   ========================================================================== */
+
+/* Fraunces itálica para el subtítulo (index.html solo carga la redonda). */
+@import url('../vendor/fraunces/opsz-italic.css');
+
+/* --- Portada -------------------------------------------------------------- */
+.hero {
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  padding-top: calc(var(--barra-alto) + clamp(24px, 6vh, 64px));
+  overflow: hidden;
+}
+
+/* Fondo: cuadrícula cartográfica + ruta; el velo deja legible el texto. */
+.hero__fondo {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgb(23 32 42 / 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(23 32 42 / 0.055) 1px, transparent 1px),
+    linear-gradient(rgb(23 32 42 / 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(23 32 42 / 0.025) 1px, transparent 1px);
+  background-size: 96px 96px, 96px 96px, 24px 24px, 24px 24px;
+  background-position: -1px -1px;
+}
+.hero__fondo::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(to top, var(--papel) 0, rgb(244 240 232 / 0) 24%),
+    linear-gradient(100deg, var(--papel) 16%, rgb(244 240 232 / 0.72) 36%, rgb(244 240 232 / 0.3) 52%, rgb(244 240 232 / 0) 64%);
+}
+
+.hero__contenido {
+  margin-top: auto;
+  padding-bottom: clamp(28px, 6vh, 60px);
+  /* El bloque deja pasar el puntero a la ruta; solo su texto lo captura. */
+  pointer-events: none;
+}
+.hero__contenido > * { pointer-events: auto; }
+
+.hero__antetitulo {
+  display: flex; align-items: center; gap: 12px; width: fit-content; max-width: 100%;
+  font: 500 12px/1.45 var(--f-mono); letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--tinta-2);
+}
+.hero__antetitulo::before { content: ''; flex: 0 0 28px; height: 1px; background: currentColor; }
+
+.hero__titulo {
+  width: fit-content;
+  max-width: 100%;
+  margin: clamp(10px, 2vh, 22px) 0 clamp(14px, 2.4vh, 26px) -0.045em;
+  font-family: var(--f-titulo);
+  font-weight: 560;
+  font-size: clamp(56px, 17vw, 200px);
+  line-height: 0.86;
+  letter-spacing: -0.05em;
+  font-variation-settings: 'opsz' 144;
+  /* Sin interletraje automático: el texto partido por SplitText mide lo mismo que el original. */
+  font-kerning: none;
+  color: var(--tinta);
+  white-space: nowrap;
+  /* Halo de papel, como los rótulos de un mapa: entre 960 y ~1300 px el título
+     (hasta ~78 % del ancho) pasa por encima de la ruta de fondo. */
+  text-shadow: 0 0 0.06em var(--papel), 0 0 0.02em var(--papel);
+}
+.hero__titulo sub {
+  display: inline-block;
+  position: relative;
+  top: 0.08em;
+  margin-left: 0.04em;
+  font-size: 0.42em;
+  line-height: 1;
+  vertical-align: baseline;
+  font-style: italic;
+  font-weight: 420;
+  letter-spacing: 0;
+  color: var(--tinta-2);
+}
+.hero__letra { will-change: transform; }
+
+.hero__subtitulo {
+  max-width: 30ch;
+  margin-bottom: 18px;
+  font: italic 400 clamp(21px, 2.5vw, 32px)/1.18 var(--f-titulo);
+  font-variation-settings: 'opsz' 72;
+  letter-spacing: -0.01em;
+  color: var(--tinta);
+  text-wrap: balance;
+}
+
+.hero__pregunta {
+  max-width: 46ch;
+  font-size: clamp(16.5px, 1.55vw, 20px);
+  line-height: 1.55;
+  color: var(--tinta-2);
+  text-wrap: pretty;
+}
+.hero__subtitulo, .hero__pregunta { text-shadow: 0 0 8px var(--papel), 0 0 2px var(--papel); }
+.hero__pregunta em {
+  text-shadow: none;
+  font-style: italic;
+  color: var(--tinta);
+  background: linear-gradient(transparent 60%, rgb(255 226 138 / 0.85) 60%);
+  padding-inline: 0.08em;
+}
+
+.hero__instancia {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  width: fit-content; max-width: 100%;
+  margin-top: clamp(18px, 3vh, 28px);
+}
+.hero__chip {
+  display: inline-flex; align-items: center; gap: 2px;
+  padding: 7px 12px; border: 1px solid var(--regla); border-radius: 999px;
+  background: rgb(251 249 245 / 0.8);
+  font: 500 12px/1 var(--f-mono); color: var(--tinta-2);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+}
+.hero__chip--fuerte { background: var(--tinta); border-color: var(--tinta); color: var(--papel); }
+.hero__chip sub { font-size: 0.75em; }
+
+.hero__bajar {
+  position: relative;
+  display: flex; align-items: center; gap: 14px;
+  width: 100%; max-width: var(--ancho); margin-inline: auto;
+  padding: 18px var(--margen) 26px;
+  font: 500 12px/1 var(--f-mono); letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--tinta-2); text-decoration: none;
+  transition: color 0.2s;
+}
+.hero__bajar::before {
+  content: ''; position: absolute; top: 0; left: var(--margen); right: var(--margen);
+  height: 1px; background: var(--regla);
+}
+.hero__bajar:hover { color: var(--tinta); }
+.hero__flecha {
+  position: relative; flex: 0 0 auto;
+  width: 1px; height: 22px; background: currentColor;
+  animation: intro-bajar 1.9s var(--facil) infinite;
+}
+.hero__flecha::after {
+  content: ''; position: absolute; left: -3.5px; bottom: 0;
+  width: 7px; height: 7px;
+  border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg);
+}
+@keyframes intro-bajar {
+  0% { transform: translateY(-6px); opacity: 0; }
+  35% { opacity: 1; }
+  100% { transform: translateY(8px); opacity: 0; }
+}
+
+/* Ruta de fondo (SVG). Escritorio: mitad derecha. Móvil: todo el fondo, tenue. */
+.intro-hero {
+  position: absolute;
+  top: calc(var(--barra-alto) + 20px);
+  right: clamp(12px, 3vw, 48px);
+  bottom: 24%;
+  width: min(56%, 860px);
+}
+/* En escritorio el título ocupa ~56 % del ancho y la ruta el 40 % derecho: no se cruzan. */
+@media (min-width: 960px) {
+  .intro-hero { width: min(40%, 680px); }
+  .hero__titulo { font-size: clamp(56px, 13vw, 184px); }
+}
+.intro-hero__svg { width: 100%; height: 100%; max-width: none; overflow: visible; }
+
+.intro-hero__arco { fill: none; stroke: var(--tinta); stroke-width: 2.4; stroke-linecap: round; }
+.intro-hero__guia { fill: none; stroke: none; }
+.intro-hero__punto { fill: var(--tinta-3); }
+
+.intro-hero__deposito rect { fill: var(--deposito); }
+.intro-hero__deposito text { font-family: var(--f-mono); font-weight: 500; fill: var(--papel); }
+.intro-hero__deposito .intro-hero__rotulo { fill: var(--tinta-3); }
+
+.intro-hero__nodo { cursor: default; }
+.intro-hero__anillo { fill: var(--superficie); stroke-width: 4; }
+.intro-hero__nodo--p1 .intro-hero__anillo { stroke: var(--p1); }
+.intro-hero__nodo--p2 .intro-hero__anillo { stroke: var(--p2); }
+.intro-hero__numero { font-family: var(--f-mono); font-weight: 500; fill: var(--tinta); }
+.intro-hero__rotulo { font: 500 15px var(--f-mono); fill: var(--tinta-3); letter-spacing: -0.01em; }
+.intro-hero__nodo.es-resaltado .intro-hero__anillo { stroke-width: 6; }
+
+.intro-hero__pulso { fill: none; stroke-width: 2; opacity: 0; visibility: hidden; }
+.intro-hero__pulso--p1 { stroke: var(--p1); }
+.intro-hero__pulso--p2 { stroke: var(--p2); }
+
+/* Oculto hasta que el bucle lo muestra: con movimiento reducido no hay bucle y
+   el marcador quedaría visible en la esquina (0, 0) del dibujo. */
+.intro-hero__marcador { visibility: hidden; }
+.intro-hero__halo { fill: rgb(212 137 28 / 0.28); }
+.intro-hero__carro { fill: var(--tinta); stroke: var(--papel); stroke-width: 2.5; }
+
+.intro-hero__marco { fill: none; }
+.intro-hero__norte path { fill: var(--tinta-2); }
+.intro-hero__norte text { font: 600 15px var(--f-mono); fill: var(--tinta-2); }
+.intro-hero__escala path { fill: none; stroke: var(--tinta-2); stroke-width: 1.5; }
+.intro-hero__escala text { font: 500 13px var(--f-mono); fill: var(--tinta-3); }
+
+@media (min-width: 960px) {
+  .intro-hero__nodo, .intro-hero__deposito { pointer-events: auto; }
+}
+@media (max-width: 959px) {
+  .intro-hero { inset: var(--barra-alto) 0 0 0; width: auto; opacity: 0.22; }
+  .hero__fondo::after { background: linear-gradient(to top, var(--papel) 0, rgb(244 240 232 / 0.6) 40%, rgb(244 240 232 / 0) 70%); }
+}
+
+/* --- El problema: tres ideas ---------------------------------------------- */
+.intro-ideas { display: grid; gap: clamp(80px, 11vw, 150px); }
+
+.intro-idea {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: clamp(28px, 5vw, 76px);
+  align-items: center;
+}
+.intro-idea--invertida { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); }
+.intro-idea--invertida .intro-idea__texto { order: 2; }
+@media (max-width: 959px) {
+  .intro-idea, .intro-idea--invertida { grid-template-columns: minmax(0, 1fr); }
+  .intro-idea--invertida .intro-idea__texto { order: 0; }
+}
+
+.intro-idea__texto { min-width: 0; }
+.intro-idea__numero {
+  display: block;
+  margin: 0 0 6px -0.04em;
+  font: 300 clamp(72px, 9vw, 128px)/0.82 var(--f-titulo);
+  font-variation-settings: 'opsz' 144;
+  letter-spacing: -0.05em;
+  color: var(--regla);
+  user-select: none;
+}
+.intro-idea__titulo {
+  margin-bottom: 16px;
+  font: 500 clamp(26px, 3vw, 38px)/1.1 var(--f-titulo);
+  font-variation-settings: 'opsz' 96;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+.intro-idea__texto > p:not(.intro-nota) { max-width: 54ch; color: var(--tinta-2); text-wrap: pretty; }
+.intro-idea__texto > p:not(.intro-nota) + p:not(.intro-nota) { margin-top: 12px; }
+.intro-idea__texto strong { color: var(--tinta); font-weight: 600; }
+
+/* Fórmulas KaTeX */
+.intro-formulas { display: grid; gap: 10px; margin-top: 24px; }
+.intro-formula {
+  display: grid; gap: 6px; justify-items: start;
+  padding: 12px 16px;
+  background: var(--superficie);
+  border: 1px solid var(--regla-2); border-left: 3px solid var(--tinta);
+  border-radius: 0 var(--radio-s) var(--radio-s) 0;
+  font-size: 17px; color: var(--tinta);
+  overflow-x: auto; overflow-y: hidden;
+}
+.intro-formula--ancha { justify-items: stretch; }
+.intro-formula .katex { font-size: 1.08em; }
+.intro-formula__pie { font-size: 13px; line-height: 1.45; color: var(--tinta-2); }
+.intro-formula__pie .katex { font-size: 1em; }
+
+/* Dato real de la solución */
+.intro-nota {
+  display: grid; gap: 6px;
+  margin-top: 22px; max-width: 58ch;
+  padding: 12px 16px;
+  border: 1px dashed var(--regla); border-radius: var(--radio-s);
+  font-size: 14px; line-height: 1.7; color: var(--tinta-2);
+}
+.intro-nota__etiqueta { font: 600 11px/1 var(--f-mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--tinta-3); }
+.intro-nota strong { color: var(--tinta); font-weight: 600; }
+
+.intro-chip {
+  min-width: 23px; height: 23px; padding: 0 5px;
+  border-width: 1.5px; font-size: 11.5px;
+  vertical-align: 0.05em; cursor: default;
+  transition: transform 0.2s var(--facil), filter 0.2s;
+}
+.intro-chip.es-resaltado { transform: scale(1.12); }
+.tooltip .intro-tt-chip { color: var(--tinta); min-width: 24px; height: 24px; font-size: 12px; }
+
+/* Panel de cada visual */
+.intro-panel { display: grid; gap: 16px; margin: 0; min-width: 0; padding: clamp(14px, 2.2vw, 24px); }
+.intro-panel__cabecera { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; }
+.intro-panel__titulo { margin: 0; }
+.intro-math { text-transform: none; letter-spacing: 0.02em; }
+.intro-panel__pie { display: grid; gap: 12px; }
+/* Solo el dibujo de cada panel: los SVG internos de KaTeX (delimitadores altos) conservan su tamaño. */
+.intro-panel > svg { width: 100%; height: auto; margin-inline: auto; overflow: visible; }
+
+.intro-leyenda { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--tinta-2); }
+.intro-leyenda li { display: inline-flex; align-items: center; gap: 8px; }
+.intro-muestra--rayado {
+  background: repeating-linear-gradient(45deg, var(--op-ub) 0 3px, var(--b-fondo) 3px 4.5px);
+}
+
+/* --- Idea 1 · espera ------------------------------------------------------ */
+.intro-control { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.intro-control__etiqueta { font-size: 13px; color: var(--tinta-2); }
+.intro-segmentado button { padding: 5px 11px; font-size: 13px; min-width: 34px; font-family: var(--f-mono); }
+.intro-segmentado button:first-child { font-family: var(--f-texto); }
+
+.intro-espera__svg { max-width: 640px; }
+.intro-espera__eje { fill: none; stroke: var(--tinta-3); stroke-width: 1.2; }
+.intro-espera__texto { font: 500 12px var(--f-mono); fill: var(--tinta-2); }
+.intro-espera__texto--suave { fill: var(--tinta-3); }
+.intro-espera__texto--nopesa { fill: var(--tinta-2); }
+.intro-espera__texto--rotulo { font-size: 9.5px; letter-spacing: 0.1em; text-transform: uppercase; fill: var(--tinta-3); }
+.intro-espera__texto--orden { fill: var(--tinta); }
+.intro-espera__texto--d { font-family: var(--f-titulo); font-style: italic; font-size: 15px; fill: var(--tinta); }
+.intro-espera__texto--mas { font-weight: 600; fill: var(--b-fondo); visibility: hidden; }
+.intro-espera__orden { fill: var(--superficie); stroke: var(--regla); stroke-width: 1.5; }
+.intro-espera__marca { stroke: var(--tinta); stroke-width: 1.5; }
+.intro-espera__banda { fill: rgb(127 149 212 / 0.16); stroke: rgb(127 149 212 / 0.55); stroke-dasharray: 3 3; visibility: hidden; }
+.intro-espera__seg--viaje { fill: var(--viaje); }
+.intro-espera__seg--descarga { fill: var(--op-ua); }
+.intro-espera__seg--carga { fill: var(--op-lb); }
+.intro-espera__seg--despues { fill: var(--op-lb); opacity: 0.28; }
+.intro-espera__seg--regreso { fill: none; stroke: var(--tinta-3); stroke-width: 1.4; stroke-dasharray: 4 3; }
+.intro-espera__rayado-fondo { fill: var(--op-ub); }
+.intro-espera__rayado-linea { stroke: var(--b-fondo); stroke-width: 1.6; }
+.intro-panel .intro-espera__lectura { font-size: 14.5px; color: var(--tinta-2); min-height: 3em; }
+.intro-panel .intro-espera__lectura strong { color: var(--tinta); }
+
+/* --- Idea 2 · una sola puerta --------------------------------------------- */
+.intro-puerta__svg { max-width: 640px; }
+.intro-puerta__suelo { stroke: var(--regla); stroke-width: 1.5; stroke-dasharray: 2 4; }
+.intro-puerta__cabina { fill: var(--superficie); stroke: var(--tinta); stroke-width: 2; stroke-linejoin: round; }
+.intro-puerta__ventana { fill: var(--b-suave); stroke: var(--tinta); stroke-width: 1.2; }
+.intro-puerta__chasis { stroke: var(--tinta); stroke-width: 3; stroke-linecap: round; }
+.intro-puerta__rueda circle { fill: var(--tinta); }
+.intro-puerta__rueda .intro-puerta__buje { fill: var(--papel-2); }
+.intro-puerta__carroceria { fill: rgb(251 249 245 / 0.7); stroke: var(--tinta); stroke-width: 2.4; }
+.intro-puerta__hoja { stroke: var(--tinta); stroke-width: 5; stroke-linecap: round; }
+
+.intro-puerta__caja { stroke: rgb(23 32 42 / 0.18); stroke-width: 1; }
+.intro-puerta__junta { stroke: rgb(251 249 245 / 0.45); stroke-width: 1; }
+.intro-puerta__bloque--w .intro-puerta__caja { fill: var(--b-fondo); }
+.intro-puerta__bloque--y .intro-puerta__caja { fill: var(--a); }
+.intro-puerta__bloque--z .intro-puerta__caja { fill: var(--b-puerta); }
+.intro-puerta__bloque--beta .intro-puerta__caja { fill: var(--b-puerta); stroke: var(--b-fondo); stroke-width: 1.5; stroke-dasharray: 4 3; }
+.intro-puerta__letra { font: italic 500 21px var(--f-titulo); fill: var(--tinta); }
+.intro-puerta__bloque--w .intro-puerta__letra { fill: var(--superficie); }
+.intro-puerta__destino { font: 600 12px var(--f-mono); fill: var(--tinta); }
+
+.intro-puerta__extremo { font: italic 600 18px var(--f-titulo); fill: var(--tinta); }
+.intro-puerta__extremo-texto { font: 500 11px var(--f-mono); font-style: normal; fill: var(--tinta-3); letter-spacing: 0.04em; }
+
+.intro-puerta__cliente path { fill: none; stroke: var(--tinta-2); stroke-width: 1.5; }
+.intro-puerta__cliente .intro-puerta__bandera { fill: var(--p1); stroke: none; }
+.intro-puerta__cliente text { font: 500 12px var(--f-mono); fill: var(--tinta-2); }
+
+/* Texto en tinta; el color del parámetro va en la muestra ■ (u claro, ℓ oscuro, como en la leyenda). */
+.intro-puerta__op { font: 600 14px var(--f-mono); fill: var(--tinta); }
+.intro-puerta__op-muestra--ua { fill: var(--op-ua); }
+.intro-puerta__op-muestra--la { fill: var(--op-la); }
+.intro-puerta__op-muestra--ub { fill: var(--op-ub); }
+.intro-puerta__op-muestra--lb { fill: var(--op-lb); }
+
+.intro-puerta__rotulo path { fill: none; stroke-width: 1.5; }
+.intro-puerta__rotulo--w path { stroke: var(--b-fondo); }
+.intro-puerta__rotulo--y path { stroke: var(--a); }
+.intro-puerta__rotulo--z path { stroke: var(--b-puerta); }
+.intro-puerta__rotulo text { font: 500 11px var(--f-mono); fill: var(--tinta-2); }
+.intro-puerta__rotulo-letra { font: italic 600 14px var(--f-titulo); fill: var(--tinta); }
+
+.intro-puerta__controles { display: flex; align-items: center; gap: 8px; }
+.intro-puerta__controles .boton--icono { width: 34px; height: 34px; font-size: 15px; }
+.intro-puerta__controles .boton:disabled { opacity: 0.35; cursor: not-allowed; }
+.intro-puerta__indicador { min-width: 3.2em; text-align: center; font-size: 13px; color: var(--tinta-2); }
+.intro-puerta__repetir { padding: 6px 12px; font-size: 13px; }
+
+.intro-puerta__momento {
+  display: grid; gap: 4px; min-height: 6.2em;
+  padding: 12px 14px; border-radius: var(--radio-s); background: var(--papel);
+}
+.intro-panel .intro-puerta__paso { margin: 0; font: 600 14px/1.35 var(--f-texto); color: var(--tinta); }
+.intro-puerta__formula { font-size: 15px; }
+.intro-puerta__formula[hidden] { display: none; }
+.intro-panel .intro-puerta__texto { margin: 0; font-size: 14px; color: var(--tinta-2); }
+
+/* --- Idea 3 · Tabla 3 ----------------------------------------------------- */
+.intro-tabla {
+  width: calc(100% + 12px);
+  margin: -6px;
+  border-collapse: separate;
+  border-spacing: 6px;
+  table-layout: fixed;
+  font-size: 14px;
+}
+.intro-tabla__col-paso { width: 30px; }
+.intro-tabla__paso { padding: 12px 0 0; vertical-align: top; text-align: center; font-size: 13px; font-weight: 600; color: var(--tinta-2); }
+.intro-tabla__cabeza { padding: 4px 4px 10px; vertical-align: bottom; text-align: left; font-weight: 400; }
+.intro-tabla__cabeza-fila { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-bottom: 6px; }
+.intro-tabla__s { font-size: 13px; color: var(--tinta-2); }
+.intro-tabla__cabeza-texto { display: block; margin-bottom: 8px; font: 500 15px/1.25 var(--f-titulo); color: var(--tinta); }
+.intro-tabla__clientes { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 10px; }
+.intro-tabla__ninguno { font-size: 12.5px; color: var(--tinta-2); }
+
+.intro-celda {
+  padding: 10px 12px;
+  vertical-align: top;
+  background: var(--papel);
+  border-left: 3px solid var(--regla);
+  border-radius: var(--radio-s);
+  color: var(--tinta);
+  line-height: 1.4;
+}
+.intro-celda--p1 { border-left-color: var(--p1); }
+.intro-celda--p2 { border-left-color: var(--p2); }
+.intro-celda--solo { background: var(--p2-suave); }
+.intro-celda--vacia {
+  border: 1px dashed var(--regla); background: transparent;
+  text-align: center; vertical-align: middle; color: var(--tinta-3);
+}
+.intro-celda__solo {
+  display: inline-flex; align-items: center; gap: 5px; margin-bottom: 4px;
+  font: 600 10.5px/1 var(--f-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--tinta);
+}
+.intro-celda__solo::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--p2); }
+.intro-celda__texto { display: block; }
+.intro-celda__formula { display: block; margin-top: 6px; color: var(--tinta-2); overflow-x: auto; overflow-y: hidden; }
+.intro-celda__formula .katex { font-size: 1.02em; }
+
+.intro-tabla__hito td { padding: 2px 0; }
+.intro-hito { position: relative; display: flex; align-items: center; gap: 10px; padding: 4px 0; }
+.intro-hito::before {
+  content: ''; position: absolute; left: 0; right: 0; top: 50%;
+  border-top: 1.5px dashed var(--tinta-3); z-index: 0;
+}
+.intro-hito__marca {
+  position: relative; z-index: 1; flex: 0 0 auto;
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 42px; height: 28px; padding: 0 10px; border-radius: 999px;
+  background: var(--tinta); color: var(--papel);
+  font: italic 600 15px/1 var(--f-titulo);
+}
+.intro-hito__texto {
+  position: relative; z-index: 1;
+  padding-right: 8px; background: var(--superficie);
+  font-size: 13px; line-height: 1.4; color: var(--tinta-2);
+}
+.intro-tabla__hito--F .intro-hito__marca { background: var(--superficie); color: var(--tinta); box-shadow: inset 0 0 0 1.5px var(--tinta); }
+
+/* Patrón de la carga al salir, en la cabecera de cada política */
+.intro-mini { display: inline-flex; align-items: center; gap: 3px; }
+.intro-mini__extremo { font: italic 600 12px/1 var(--f-titulo); color: var(--tinta-3); }
+.intro-mini__b { height: 12px; border-radius: 2px; }
+.intro-mini__b--w { width: 20px; background: var(--b-fondo); }
+.intro-mini__b--y { width: 32px; background: var(--a); }
+.intro-mini__b--z { width: 18px; background: var(--b-puerta); }
+.intro-mini__b--vacio { background: transparent; box-shadow: inset 0 0 0 1px var(--tinta-3); }
+.intro-mini__b--destino { outline: 2px solid var(--tinta); outline-offset: 1.5px; }
+
+/* --- Pantallas angostas ----------------------------------------------------- */
+@media (max-width: 599px) {
+  .intro-panel { gap: 12px; }
+  .intro-panel__cabecera { align-items: flex-start; }
+  .intro-control__etiqueta { width: 100%; }
+
+  /* Los SVG se encogen ~0,55×: se agrandan los textos en unidades del dibujo. */
+  .intro-espera__texto { font-size: 19px; }
+  .intro-espera__texto--d { font-size: 23px; }
+  .intro-espera__texto--rotulo { font-size: 13px; }
+  .intro-espera__texto--nopesa { font-size: 17px; }
+
+  .intro-puerta__rotulo, .intro-puerta__extremo-texto { display: none; }
+  .intro-puerta__destino { font-size: 17px; }
+  .intro-puerta__letra { font-size: 27px; }
+  .intro-puerta__extremo { font-size: 24px; }
+  .intro-puerta__op { font-size: 21px; }
+  .intro-puerta__cliente text { font-size: 18px; }
+
+  .intro-tabla { font-size: 13px; border-spacing: 4px; width: calc(100% + 8px); margin: -4px; }
+  .intro-tabla__col-paso { width: 20px; }
+  .intro-celda { padding: 8px 8px; }
+  .intro-tabla__cabeza-texto { font-size: 14px; }
+  .intro-formula { font-size: 15.5px; padding: 10px 12px; }
+}
+@media (min-width: 600px) {
+  /* En pantallas anchas los rótulos del dibujo bastan para w, y, z. */
+  .intro-puerta__pie .intro-leyenda { display: none; }
+}

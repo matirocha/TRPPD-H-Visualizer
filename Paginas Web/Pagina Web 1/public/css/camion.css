@@ -1,0 +1,353 @@
+/* ==========================================================================
+   04 · Carga del camión
+   Escena: cabecera (estado + paradas), camión en corte lateral, panel con los
+   pasos de la Tabla 3 y barras de carga por tramo. En escritorio con
+   movimiento permitido la escena queda fija (pin) y mide 100vh − barra.
+   ========================================================================== */
+
+.camion { position: relative; width: 100%; }
+
+.camion-escena {
+  width: 100%; max-width: 1300px; margin-inline: auto; padding-inline: var(--margen);
+  display: grid; gap: 14px;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: 'cab' 'fig' 'ctrl' 'panel' 'graf';
+}
+
+/* --- Cabecera: estado actual y paradas ----------------------------------- */
+.camion-cabecera {
+  grid-area: cab; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+  gap: 10px 20px; min-width: 0;
+}
+.camion-estado { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; min-width: 0; }
+.camion-estado__fase {
+  font: 600 11px/1 var(--f-mono); letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--superficie); background: var(--tinta); padding: 6px 9px; border-radius: 999px; white-space: nowrap;
+}
+/* p1 sobre texto claro queda en 4,2:1; se oscurece un poco con la tinta para pasar 4,5:1 */
+.camion-estado__fase--servicio { background: color-mix(in srgb, var(--p1) 82%, var(--tinta)); }
+.camion-estado__fase--servicio-p2 { background: var(--p2); }
+.camion-estado__texto { font: 500 15.5px/1.3 var(--f-texto); color: var(--tinta); min-width: 0; }
+.camion-estado__reloj { font-size: 13px; color: var(--tinta-2); white-space: nowrap; padding: 3px 8px; border: 1px solid var(--regla); border-radius: 999px; background: var(--superficie); }
+.camion-ruta { gap: 4px; }
+.camion-ruta .paso { min-width: 32px; height: 32px; font-size: 12.5px; }
+.camion-ruta .pasos__flecha { font-size: 11px; }
+.camion-ruta--densa { gap: 3px; }
+.camion-ruta--densa .pasos__flecha { display: none; }
+.camion-ruta--densa .paso { min-width: 28px; height: 28px; padding: 0 5px; font-size: 11.5px; }
+.camion-paso--resaltado { box-shadow: 0 0 0 3px rgb(255 226 138 / 0.9); }
+
+/* --- Figura del camión ---------------------------------------------------- */
+.camion-figura {
+  grid-area: fig; margin: 0; min-width: 0; position: relative;
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 12px 14px 10px;
+  background-color: var(--superficie);
+  background-image:
+    linear-gradient(rgb(23 32 42 / 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(23 32 42 / 0.045) 1px, transparent 1px);
+  background-size: 22px 22px;
+  border: 1px solid var(--regla-2); border-radius: var(--radio); box-shadow: var(--sombra-s);
+}
+.camion-svg { width: 100%; height: auto; overflow: visible; }
+.camion-leyenda {
+  list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 16px;
+  font-size: 12.5px; line-height: 1.35; color: var(--tinta-2);
+}
+.camion-leyenda li { display: inline-flex; align-items: center; gap: 7px; }
+.camion-leyenda strong { font-family: var(--f-mono); color: var(--tinta); }
+.camion-leyenda__nota { color: var(--tinta-3); }
+.camion-muestra { width: 11px; height: 17px; border-radius: 3px; background: var(--color); flex-shrink: 0; border: 1px solid rgb(23 32 42 / 0.25); }
+.camion-muestra--libre {
+  background: repeating-linear-gradient(45deg, var(--regla) 0 1.2px, var(--superficie) 1.2px 4.5px);
+  border-color: var(--regla);
+}
+
+/* Calle, regla y vehículo (SVG) */
+.camion-calle__asfalto { fill: var(--papel-2); }
+.camion-calle__borde { stroke: var(--tinta-2); stroke-width: 1.5; }
+.camion-calle__carril { stroke: var(--superficie); stroke-width: 2.5; stroke-dasharray: 26 20; }
+.camion-sombra { fill: rgb(23 32 42 / 0.1); }
+
+.camion-regla__linea, .camion-regla__marca { stroke: var(--tinta-3); stroke-width: 1; }
+.camion-regla__marca--mayor { stroke: var(--tinta-2); stroke-width: 1.3; }
+.camion-regla__q { stroke: var(--tinta); stroke-width: 1.8; }
+.camion-regla__num { font: 500 10px var(--f-mono); fill: var(--tinta-3); text-anchor: middle; }
+.camion-regla__rotulo { font: 600 11px var(--f-mono); fill: var(--tinta); text-anchor: start; }
+.camion-regla__titulo { font: 500 10px var(--f-mono); fill: var(--tinta-3); text-anchor: end; letter-spacing: 0.06em; }
+
+.camion-chasis { fill: var(--tinta); }
+.camion-escape { fill: var(--tinta-2); }
+.camion-cabina { fill: var(--superficie); stroke: var(--tinta); stroke-width: 2.2; stroke-linejoin: round; }
+.camion-ventana { fill: var(--papel-2); stroke: var(--tinta); stroke-width: 1.6; stroke-linejoin: round; }
+.camion-detalle { fill: none; stroke: var(--tinta); stroke-width: 1.4; stroke-linecap: round; }
+.camion-faro { fill: var(--resalte); stroke: var(--tinta); stroke-width: 1; }
+.camion-caja__fondo { fill: var(--superficie); }
+.camion-caja__marco { fill: var(--tinta); }
+.camion-ranura { stroke: var(--regla-2); stroke-width: 0.8; }
+.camion-ranura__division { stroke: var(--regla); stroke-width: 1; stroke-dasharray: 2 3; }
+.camion-trama { stroke: var(--regla); stroke-width: 1.2; }
+.camion-trama--anden { stroke: var(--regla); stroke-width: 1.4; }
+.camion-puerta__hoja { fill: var(--tinta-2); }
+.camion-puerta__nervio { stroke: rgb(251 249 245 / 0.4); stroke-width: 1; }
+.camion-puerta__manija { fill: var(--superficie); }
+.camion-rotulo { font: 500 11px var(--f-mono); fill: var(--tinta-2); letter-spacing: 0.04em; }
+.camion-rotulo--fin { text-anchor: end; }
+.camion-cota { stroke: var(--tinta-3); stroke-width: 1; stroke-dasharray: 2 4; }
+
+.camion-rueda__llanta { fill: var(--tinta); }
+.camion-rueda__aro { fill: var(--superficie); stroke: var(--tinta-2); stroke-width: 1.5; }
+.camion-rueda__rayos { stroke: var(--tinta-2); stroke-width: 2; stroke-linecap: round; }
+.camion-rueda__eje { fill: var(--tinta); }
+
+/* Andén, cubeta de entrega y letrero del cliente */
+.camion-anden__base { fill: var(--papel-2); }
+.camion-anden__borde { stroke: var(--tinta); stroke-width: 3; stroke-linecap: round; }
+.camion-anden__tope { fill: var(--tinta); }
+.camion-anden__rotulo { font: 500 10px var(--f-mono); fill: var(--tinta-3); letter-spacing: 0.18em; }
+.camion-cubeta__fondo { fill: var(--papel-2); stroke: var(--tinta-2); stroke-width: 1.2; }
+.camion-cubeta__frente { fill: var(--superficie); stroke: var(--tinta); stroke-width: 1.6; stroke-linejoin: round; }
+.camion-cubeta__rotulo { font: 500 8.5px var(--f-mono); fill: var(--tinta-2); text-anchor: middle; dominant-baseline: central; letter-spacing: 0.06em; }
+.camion-anden--deposito .camion-cubeta { display: none; }
+.camion-letrero__poste { stroke: var(--tinta-2); stroke-width: 3; stroke-linecap: round; }
+.camion-letrero__placa { fill: var(--superficie); stroke: var(--p1); stroke-width: 4; }
+.camion-letrero--p2 .camion-letrero__placa { stroke: var(--p2); }
+.camion-letrero__placa--deposito { display: none; fill: var(--deposito); stroke: var(--deposito); }
+.camion-letrero--deposito .camion-letrero__placa--cliente { display: none; }
+.camion-letrero--deposito .camion-letrero__placa--deposito { display: inline; }
+.camion-letrero__num { font: 600 15px var(--f-mono); fill: var(--tinta); text-anchor: middle; dominant-baseline: central; }
+.camion-letrero--deposito .camion-letrero__num { fill: var(--superficie); }
+.camion-letrero__etq { font: 500 10.5px var(--f-mono); fill: var(--tinta-2); text-anchor: middle; letter-spacing: 0.06em; }
+
+/* Unidades de carga */
+.camion-u { cursor: help; }
+.camion-u__caja { stroke: rgb(23 32 42 / 0.3); stroke-width: 0.8; transition: stroke 0.2s, stroke-width 0.2s, opacity 0.2s; }
+.camion-u__num { font-family: var(--f-mono); font-weight: 600; text-anchor: middle; dominant-baseline: central; pointer-events: none; transition: opacity 0.2s; }
+.camion-u__num--oculto { display: none; }
+.camion-u__num--cant { font-weight: 500; }
+.camion-u.es-resaltado .camion-u__caja { stroke: var(--tinta); stroke-width: 2.2; }
+.camion-svg--hover .camion-u:not(.es-resaltado) > * { opacity: 0.28; }
+
+/* --- Controles paso a paso (móvil o movimiento reducido) ----------------- */
+.camion-controles { grid-area: ctrl; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.camion-controles__nota { margin: 0; font-size: 13px; color: var(--tinta-2); text-align: center; line-height: 1.35; }
+.camion-controles .boton { white-space: nowrap; }
+.camion-controles .boton:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+.camion-controles .boton--principal { background: var(--tinta); color: var(--superficie); border-color: var(--tinta); }
+
+/* --- Panel de operación --------------------------------------------------- */
+.camion-panel {
+  grid-area: panel; min-width: 0; min-height: 0; position: relative;
+  display: flex; flex-direction: column; gap: 14px;
+  background: var(--superficie); border: 1px solid var(--regla-2); border-radius: var(--radio);
+  box-shadow: var(--sombra-s); padding: 18px 18px 16px;
+}
+.camion-vista { display: grid; gap: 10px; align-content: start; }
+.camion-vista[hidden] { display: none; }
+.camion-vista__ante { margin: 0; font: 500 11.5px/1 var(--f-mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--tinta-3); }
+.camion-vista__titulo {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 0 -6px; padding: 2px 6px;
+  font: 500 25px/1.15 var(--f-titulo); letter-spacing: -0.015em; border-radius: var(--radio-s);
+  transition: background 0.2s;
+}
+.camion-vista__titulo .cliente-chip { font-size: 13px; }
+.camion-vista__parada { font: 400 15px/1.2 var(--f-texto); color: var(--tinta-2); letter-spacing: 0; }
+.camion-vista__titulo--resaltado { background: rgb(255 226 138 / 0.5); }
+.camion-vista__texto { margin: 0; font-size: 14px; line-height: 1.5; color: var(--tinta-2); }
+.camion-vista .politica-chip { justify-self: start; }
+.camion-deposito {
+  display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 6px;
+  background: var(--deposito); color: var(--superficie); font: 600 13px/1 var(--f-mono);
+}
+.camion-vista__datos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin: 0; }
+.camion-dato { display: grid; gap: 2px; padding: 6px 9px; border-radius: var(--radio-s); background: var(--papel); }
+.camion-dato dt { font-size: 11.5px; color: var(--tinta-2); line-height: 1.2; }
+.camion-dato dd { margin: 0; font: 500 15px/1.2 var(--f-mono); font-variant-numeric: tabular-nums; }
+
+/* Orden de la carga (vista inicial y final) */
+.camion-orden { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; align-items: stretch; gap: 4px; }
+.camion-orden__extremo { display: grid; place-items: center; padding: 0 3px; font: 600 11px var(--f-mono); color: var(--tinta-3); }
+.camion-orden__bloque {
+  --color: var(--a);
+  display: inline-flex; align-items: baseline; gap: 3px; padding: 6px 8px; border-radius: 6px;
+  font: 600 13px/1 var(--f-mono); background: var(--color); color: var(--tinta); cursor: default;
+}
+.camion-orden__bloque small { font-size: 10.5px; font-weight: 500; opacity: 0.8; }
+.camion-orden__bloque--w { --color: var(--b-fondo); color: var(--superficie); }
+.camion-orden__bloque--z { --color: var(--b-puerta); }
+.camion-orden__bloque.es-resaltado { outline: 2px solid var(--tinta); outline-offset: 1px; }
+.camion-orden__vacio { font-size: 13px; color: var(--tinta-3); }
+.camion-vista__orden { display: grid; gap: 8px; padding-top: 10px; border-top: 1px dashed var(--regla); }
+.camion[data-modo='fija'] .camion-vista__orden { display: none; }
+
+/* Pasos de la Tabla 3 */
+.camion-pasos { list-style: none; margin: 2px 0 0; padding: 0; display: grid; gap: 3px; }
+.camion-op {
+  --color: var(--tinta-3);
+  display: grid; grid-template-columns: 26px minmax(0, 1fr); column-gap: 10px; align-items: start;
+  padding: 7px 10px 7px 7px; border-radius: var(--radio-s); border: 1px solid transparent;
+  transition: background 0.25s, border-color 0.25s, opacity 0.25s, box-shadow 0.25s;
+}
+.camion-op__num {
+  width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center;
+  font: 600 12px/1 var(--f-mono); color: var(--tinta-2); background: var(--superficie);
+  border: 2px solid var(--color); transition: background 0.25s, color 0.25s;
+}
+.camion-op__cuerpo { display: grid; gap: 1px; min-width: 0; }
+.camion-op__desc { margin: 0; font-size: 13.5px; line-height: 1.3; color: var(--tinta); }
+.camion-op__formula { margin: 0; font: 12.5px/1.45 var(--f-mono); color: var(--tinta-2); overflow-wrap: anywhere; }
+.camion-op__formula strong { font-weight: 600; color: var(--tinta); }
+.camion-op__t { margin: 0; font: 11.5px/1.3 var(--f-mono); color: var(--tinta-2); }
+.camion-op__na { margin: 0; font-size: 12.5px; font-style: italic; color: var(--tinta-2); }
+.camion-op.es-activa {
+  background: var(--papel); border-color: var(--regla);
+  box-shadow: inset 3px 0 0 var(--color);
+}
+.camion-op.es-activa .camion-op__num { background: var(--tinta); color: var(--superficie); border-color: var(--color); }
+.camion-op.es-hecha .camion-op__num { background: color-mix(in srgb, var(--color) 28%, var(--superficie)); color: var(--tinta); }
+.camion-op.es-hecha .camion-op__desc { color: var(--tinta-2); }
+.camion-op--vacia .camion-op__formula { color: var(--tinta-3); }
+.camion-op--na { opacity: 0.72; }
+.camion-op--na .camion-op__num { border-style: dashed; color: var(--tinta-3); }
+
+.camion-hito {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px;
+  margin: 0 0 0 19px; padding: 3px 10px 3px 18px; border-left: 2px dashed var(--regla);
+  font-size: 12.5px; color: var(--tinta-3); transition: color 0.25s, border-color 0.25s;
+}
+.camion-hito__marca { font: 600 13px/1.3 var(--f-mono); color: var(--tinta-2); padding: 0 4px; border-radius: 4px; transition: background 0.25s; }
+.camion-hito__valor { font: 500 13px/1.3 var(--f-mono); color: inherit; }
+.camion-hito.es-hecha, .camion-hito.es-activa { color: var(--tinta-2); border-left-color: var(--tinta-2); }
+.camion-hito.es-hecha .camion-hito__valor, .camion-hito.es-activa .camion-hito__valor { color: var(--tinta); }
+.camion-hito.es-activa .camion-hito__marca { background: var(--resalte); color: var(--tinta); }
+
+/* Contadores y ocupación */
+.camion-medidor { margin-top: auto; display: grid; gap: 9px; padding-top: 14px; border-top: 1px solid var(--regla-2); }
+.camion-medidor__titulo { margin: 0; font: 600 11.5px/1 var(--f-texto); letter-spacing: 0.07em; text-transform: uppercase; color: var(--tinta-2); }
+.camion-contadores { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.camion-contador {
+  --color: var(--tinta-3);
+  display: grid; gap: 4px; padding: 7px 8px 6px; border-radius: var(--radio-s);
+  background: var(--papel); border-top: 3px solid var(--color); min-width: 0;
+}
+.camion-contador--w { --color: var(--b-fondo); }
+.camion-contador--y { --color: var(--a); }
+.camion-contador--z { --color: var(--b-puerta); }
+.camion-contador--libre { --color: var(--regla); }
+.camion-contador--q { --color: var(--tinta); }
+.camion-contador__etq { font: 600 11px/1.15 var(--f-texto); color: var(--tinta-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.camion-contador__valor { font-size: 19px; line-height: 1; color: var(--tinta); }
+.camion-ocupacion {
+  display: flex; height: 12px; border-radius: 999px; overflow: hidden; border: 1px solid var(--regla);
+  background: repeating-linear-gradient(45deg, var(--regla-2) 0 1.5px, var(--superficie) 1.5px 6px);
+}
+.camion-ocupacion__seg { height: 100%; width: 0; transition: width 0.3s var(--facil); }
+.camion-ocupacion__seg--w { background: var(--b-fondo); }
+.camion-ocupacion__seg--y { background: var(--a); }
+.camion-ocupacion__seg--z { background: var(--b-puerta); }
+.camion-ocupacion__nota { display: flex; justify-content: space-between; gap: 10px; margin: 0; font: 12px/1.2 var(--f-mono); color: var(--tinta-2); }
+
+/* --- Gráfico de carga por tramo ------------------------------------------ */
+.camion-grafico {
+  grid-area: graf; min-width: 0; min-height: 0;
+  display: flex; flex-direction: column; gap: 6px;
+  background: var(--superficie); border: 1px solid var(--regla-2); border-radius: var(--radio);
+  box-shadow: var(--sombra-s); padding: 14px 16px 8px;
+}
+.camion-grafico__cabecera { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; }
+.camion-grafico__titulo { margin: 0; font: 600 12.5px/1.2 var(--f-texto); letter-spacing: 0.06em; text-transform: uppercase; color: var(--tinta-2); }
+.camion-grafico__leyenda { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--tinta-2); }
+.camion-grafico__leyenda li { display: inline-flex; align-items: center; gap: 6px; }
+.camion-grafico__leyenda .camion-muestra { width: 11px; height: 11px; }
+.camion-grafico__leyenda .camion-muestra--q { width: 18px; height: 0; border: 0; border-top: 2px dashed var(--tinta); border-radius: 0; background: none; }
+.camion-grafico__lienzo { position: relative; height: 240px; min-height: 0; }
+.camion-grafico__svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.camion-grafico__rejilla line { stroke: var(--regla-2); stroke-width: 1; }
+.camion-grafico__eje text, .camion-barra__eje { font: 500 10.5px var(--f-mono); fill: var(--tinta-3); }
+.camion-grafico__base { stroke: var(--tinta-2); stroke-width: 1.2; }
+.camion-grafico__q { stroke: var(--tinta); stroke-width: 1.3; stroke-dasharray: 5 4; }
+.camion-grafico__q-rotulo { font: 600 11px var(--f-mono); fill: var(--tinta); }
+.camion-barra__seg { stroke: var(--superficie); stroke-width: 1; }
+.camion-barra__seg--w { fill: var(--b-fondo); }
+.camion-barra__seg--y { fill: var(--a); }
+.camion-barra__seg--z { fill: var(--b-puerta); }
+.camion-barra__pila { transition: opacity 0.3s; }
+.camion-barra__total { font: 600 11px var(--f-mono); fill: var(--tinta-2); text-anchor: middle; transition: fill-opacity 0.3s; }
+.camion-barra__zona { fill: transparent; cursor: help; }
+.camion-grafico__svg.tiene-foco .camion-barra:not(.es-activa) .camion-barra__pila { opacity: 0.3; }
+.camion-grafico__svg.tiene-foco .camion-barra:not(.es-activa) .camion-barra__total { fill-opacity: 0.45; }
+.camion-barra.es-activa .camion-barra__total { fill: var(--tinta); }
+.camion-barra.es-activa .camion-barra__eje { fill: var(--tinta); font-weight: 600; }
+.camion-grafico__svg .camion-barra.es-resaltado .camion-barra__pila,
+.camion-grafico__svg.tiene-foco .camion-barra.es-resaltado .camion-barra__pila { opacity: 1; }
+.camion-barra.es-resaltado .camion-barra__seg { stroke: var(--tinta); stroke-width: 1.4; }
+
+/* --- Escritorio ----------------------------------------------------------- */
+@media (min-width: 960px) {
+  .camion-escena {
+    grid-template-columns: minmax(0, 1fr) clamp(300px, 27vw, 372px);
+    /* El panel abarca las cuatro filas: si es más alto que la columna izquierda,
+       el sobrante va a la última fila (1fr) y no abre huecos entre camión y controles. */
+    grid-template-rows: auto auto auto 1fr;
+    grid-template-areas: 'cab panel' 'fig panel' 'ctrl panel' 'graf panel';
+    align-items: start;
+  }
+  .camion-grafico__lienzo { height: 260px; }
+}
+
+/* Escena fija con scroll: la altura de la ventana menos la barra superior */
+@media (min-width: 960px) and (prefers-reduced-motion: no-preference) {
+  .camion { height: calc(100vh - var(--barra-alto)); }
+  .camion-escena {
+    height: 100%; padding-block: 10px 16px; gap: 12px 16px;
+    grid-template-rows: auto auto minmax(150px, 430px);
+    grid-template-areas: 'cab panel' 'fig panel' 'graf panel';
+    align-items: stretch; align-content: center;
+  }
+  .camion-controles { display: none; }
+  .camion-figura { min-height: 0; }
+  .camion-svg { max-height: calc(100vh - 400px); min-height: 140px; }
+  /* contain: size impide que el contenido del panel agrande las filas de la izquierda
+     (el panel toma solo la altura de su área). Sin scroll propio: la rueda siempre
+     avanza la página y el paso activo se centra por código. */
+  .camion-panel {
+    contain: size; max-height: 100%; overflow: hidden; scroll-behavior: smooth;
+    padding-bottom: 0;
+  }
+  .camion-medidor { position: sticky; bottom: 0; z-index: 1; background: var(--superficie); padding-bottom: 14px; }
+  .camion-grafico__lienzo { flex: 1 1 auto; height: auto; min-height: 100px; }
+
+  /* Cabecera de alto constante: el texto de la fase cambia en cada paso y no debe
+     mover el camión ni redimensionar el gráfico mientras se hace scroll.
+     Fila 1: fase, texto (una línea) y reloj; fila 2: paradas. */
+  .camion-cabecera { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 8px; }
+  .camion-estado { flex-wrap: nowrap; min-height: 28px; }
+  .camion-estado__texto { flex: 1 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .camion-estado__reloj { margin-left: auto; }
+}
+
+@media (min-width: 960px) and (max-height: 760px) and (prefers-reduced-motion: no-preference) {
+  .camion-panel { padding: 14px 14px 0; gap: 10px; }
+  .camion-medidor { padding-bottom: 12px; }
+  .camion-vista { gap: 7px; }
+  .camion-vista__titulo { font-size: 21px; }
+  .camion-op { padding-block: 5px; }
+  .camion-leyenda { font-size: 11.5px; }
+}
+
+/* --- Móvil ---------------------------------------------------------------- */
+@media (max-width: 600px) {
+  .camion-figura { padding: 10px 8px 8px; }
+  .camion-estado__texto { font-size: 14.5px; }
+  .camion-controles__nota { display: none; }
+  .camion-controles .boton { flex: 1; justify-content: center; }
+  .camion-panel { padding: 16px 14px 14px; }
+  .camion-vista__titulo { font-size: 22px; }
+  .camion-contadores { gap: 4px; }
+  .camion-contador { padding: 6px 6px 5px; }
+  .camion-contador__valor { font-size: 16px; }
+  .camion-grafico { padding: 12px 10px 6px; }
+}
+@media (max-width: 440px) {
+  .camion-contadores { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}

@@ -1,0 +1,286 @@
+/* ==========================================================================
+   05 · El reloj: línea de tiempo de la ruta (con lupa de servicio) y espera
+   D_i de cada cliente. Todos los colores salen de los tokens de base.css.
+   ========================================================================== */
+
+.tiempos { display: grid; gap: clamp(20px, 3vw, 28px); }
+.tiempos-tarjeta { min-width: 0; }
+
+/* Color por componente: lo toman fill / background a través de --color */
+.tiempos-color--viaje { --color: var(--viaje); }
+.tiempos-color--ua { --color: var(--op-ua); }
+.tiempos-color--la { --color: var(--op-la); }
+.tiempos-color--ub { --color: var(--op-ub); }
+.tiempos-color--lb { --color: var(--op-lb); }
+.tiempos-color--p1 { --color: var(--p1); }
+.tiempos-color--p2 { --color: var(--p2); }
+
+/* --- Cabecera de cada tarjeta -------------------------------------------- */
+.tiempos-cabecera {
+  display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between;
+  gap: 14px 28px; margin-bottom: 18px;
+}
+.tiempos-cabecera__texto { flex: 1 1 420px; min-width: 0; }
+.tiempos-cabecera .tarjeta__titulo { margin-bottom: 8px; }
+.tiempos-tarjeta .tiempos-bajada { font-size: 14.5px; line-height: 1.55; color: var(--tinta-2); max-width: 74ch; text-wrap: pretty; }
+.tiempos-control { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.tiempos-control__etiqueta { font: 600 11.5px/1 var(--f-texto); letter-spacing: 0.08em; text-transform: uppercase; color: var(--tinta-3); }
+.tiempos-control .segmentado button { padding: 6px 13px; font-size: 13.5px; }
+
+/* --- Leyenda compacta ----------------------------------------------------- */
+.tiempos-leyenda {
+  list-style: none; margin: 0 0 16px; padding: 0;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;
+  font-size: 13px; line-height: 1.3; color: var(--tinta-2);
+}
+.tiempos-leyenda li { display: inline-flex; align-items: center; gap: 7px; }
+.tiempos-leyenda .muestra { width: 16px; height: 10px; border-radius: 3px; }
+.tiempos-leyenda .muestra--anillo { width: 14px; height: 14px; border-radius: 50%; border-width: 2.5px; background: var(--superficie); }
+.tiempos-leyenda__sep { width: 1px; height: 16px; background: var(--regla); }
+.tiempos-leyenda__alfiler {
+  position: relative; width: 12px; height: 12px; margin-bottom: 5px; flex-shrink: 0;
+  border-radius: 50%; border: 2px solid var(--tinta-2); background: var(--superficie);
+}
+.tiempos-leyenda__alfiler::after {
+  content: ''; position: absolute; left: 50%; top: 100%; width: 1px; height: 6px;
+  background: var(--tinta-2); transform: translateX(-50%);
+}
+
+.tiempos-tarjeta .tiempos-nota { font-size: 13px; line-height: 1.45; color: var(--tinta-2); margin: 0; text-wrap: pretty; }
+
+/* --- A · Pista ------------------------------------------------------------ */
+.tiempos-pista { position: relative; min-width: 0; }
+.tiempos-svg { width: 100%; height: auto; overflow: visible; -webkit-user-select: none; user-select: none; }
+.tiempos-svg text { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+
+.tiempos-guia { stroke: var(--regla-2); stroke-width: 1; }
+.tiempos-eje .domain { stroke: var(--regla); }
+.tiempos-eje .tick line { stroke: var(--regla); }
+.tiempos-eje .tick text { fill: var(--tinta-3); font-family: var(--f-mono); font-size: 11px; }
+.tiempos-svg--movil .tiempos-eje .tick text { font-size: 10px; }
+.tiempos-base { stroke: var(--regla); stroke-width: 1; }
+.tiempos-deposito { fill: var(--deposito); }
+
+.tiempos-viaje { fill: var(--viaje); }
+.tiempos-viaje--regreso { opacity: 0.45; }
+.tiempos-c { fill: var(--tinta-2); font-weight: 500; text-anchor: middle; pointer-events: none; }
+
+.tiempos-servicio { fill: var(--regla); }
+.tiempos-op { fill: var(--color); }
+.tiempos-marca-d { stroke: var(--tinta); stroke-width: 1.5; stroke-linecap: round; }
+.tiempos-halo { fill: none; stroke: var(--tinta-3); stroke-width: 1.25; opacity: 0; transition: opacity 0.2s, stroke 0.2s; }
+.tiempos-parada { transition: opacity 0.2s; }
+.tiempos-parada.es-lupa .tiempos-halo { opacity: 1; }
+.tiempos-parada.es-activo .tiempos-halo { opacity: 1; stroke: var(--tinta); stroke-width: 1.75; }
+
+.tiempos-alfiler { cursor: pointer; transition: opacity 0.2s; }
+.tiempos-alfiler__tallo { stroke: var(--tinta-3); stroke-width: 1; pointer-events: none; transition: opacity 0.2s, stroke 0.2s; }
+.tiempos-alfiler__chip { fill: var(--superficie); stroke: var(--p1); stroke-width: 2; transition: fill 0.2s; }
+.tiempos-alfiler--p2 .tiempos-alfiler__chip { stroke: var(--p2); }
+.tiempos-alfiler__num { fill: var(--tinta); font-weight: 600; text-anchor: middle; pointer-events: none; }
+/* Halo del color de la tarjeta: los tallos de otros alfileres pasan por detrás sin tachar el valor */
+.tiempos-alfiler__valor {
+  fill: var(--tinta-2); pointer-events: none;
+  paint-order: stroke; stroke: var(--superficie); stroke-width: 3px; stroke-linejoin: round;
+}
+.tiempos-alfiler.es-activo .tiempos-alfiler__chip { fill: var(--resalte); stroke-width: 2.5; }
+.tiempos-alfiler__tallo.es-activo { stroke: var(--tinta); }
+.tiempos-alfiler.es-activo .tiempos-alfiler__valor { fill: var(--tinta); font-weight: 600; }
+
+/* Al resaltar un cliente, el resto se atenúa */
+.tiempos--hover .tiempos-parada:not(.es-activo),
+.tiempos--hover .tiempos-alfiler:not(.es-activo),
+.tiempos--hover .tiempos-alfiler__tallo:not(.es-activo) { opacity: 0.35; }
+
+.tiempos-velo { fill: var(--superficie); opacity: 0.6; pointer-events: none; }
+.tiempos-cabezal { pointer-events: none; }
+.tiempos-cabezal line { stroke: var(--tinta); stroke-width: 1.5; }
+.tiempos-cabezal rect { fill: var(--tinta); }
+.tiempos-cabezal text { fill: var(--superficie); font-weight: 500; text-anchor: middle; }
+
+.tiempos-hit { fill: transparent; cursor: pointer; }
+.tiempos-hit--arco { cursor: default; }
+
+.tiempos-pie-pista {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+  gap: 8px 24px; margin-top: 10px;
+}
+.tiempos-pie-pista .tiempos-leyenda { margin: 0; }
+.tiempos-pie-pista .tiempos-nota { flex: 1 1 280px; text-align: right; }
+
+/* --- A · Lupa ------------------------------------------------------------- */
+.tiempos-lupa { margin-top: 22px; padding-top: 20px; border-top: 1px dashed var(--regla); display: grid; gap: 16px; }
+.tiempos-lupa__cabeza { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; }
+.tiempos-lupa__titulo {
+  font: 600 12px/1.2 var(--f-texto); letter-spacing: 0.08em; text-transform: uppercase; color: var(--tinta-3);
+  display: flex; align-items: center; gap: 10px;
+}
+.tiempos-lupa__titulo::before {
+  content: ''; width: 11px; height: 11px; border: 2px solid currentColor; border-radius: 50%;
+  box-shadow: 4px 4px 0 -2.5px currentColor; flex-shrink: 0;
+}
+.tiempos-lupa__nav { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.tiempos-lupa__nav .boton--icono { width: 34px; height: 34px; font-size: 19px; line-height: 1; flex-shrink: 0; }
+.tiempos-lupa__nav .boton:disabled { opacity: 0.35; cursor: not-allowed; }
+.tiempos-ruta { gap: 4px; min-width: 0; }
+.tiempos-ruta .paso { min-width: 32px; height: 32px; }
+.tiempos-ruta .tiempos-pildora--hover { border-color: var(--color); color: var(--tinta); box-shadow: 0 0 0 3px rgb(255 226 138 / 0.75); }
+@media (max-width: 640px) {
+  .tiempos-lupa__nav { width: 100%; }
+  .tiempos-ruta { flex: 1 1 auto; justify-content: center; }
+  .tiempos-ruta .pasos__flecha { display: none; }
+  .tiempos-ruta .paso { min-width: 30px; height: 30px; font-size: 12.5px; }
+}
+
+.tiempos-lupa__cuerpo { display: grid; gap: 18px 36px; align-items: start; }
+@media (min-width: 1080px) {
+  .tiempos-lupa__cuerpo { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); }
+}
+.tiempos-lupa__izq { display: grid; gap: 14px; min-width: 0; }
+.tiempos-lupa__grafico { min-width: 0; }
+
+.tiempos-ficha { display: grid; gap: 8px; }
+.tiempos-ficha__fila { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.tiempos-ficha__k { font-size: 13px; color: var(--tinta-2); }
+.tiempos-ficha__nombre { font: 500 21px/1.15 var(--f-titulo); letter-spacing: -0.01em; color: var(--tinta); }
+/* Fila de alto fijo: el texto cambia con el scroll sin mover la página */
+.tiempos-lupa__estado { height: 26px; display: flex; align-items: center; min-width: 0; }
+.tiempos-ficha__estado {
+  display: inline-block; max-width: 100%; padding: 4px 11px; border-radius: 999px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-size: 12.5px; line-height: 1.3; color: var(--tinta-2); background: var(--papel); border: 1px solid var(--regla-2);
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+.tiempos-ficha__estado--vivo { background: var(--tinta); color: var(--superficie); border-color: var(--tinta); }
+.tiempos-ficha__tiempos { display: flex; flex-wrap: wrap; gap: 4px 22px; margin: 0; }
+.tiempos-ficha__tiempos div { display: flex; align-items: baseline; gap: 7px; }
+.tiempos-ficha__tiempos dt { font-size: 12.5px; color: var(--tinta-2); }
+.tiempos-ficha__tiempos dd { margin: 0; font-size: 14px; color: var(--tinta); }
+.tiempos-ficha__tiempos .es-fuerte dd { font-weight: 600; }
+
+.tiempos-lupa-svg { width: 100%; height: auto; overflow: visible; }
+.tiempos-lupa-svg text { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+.tiempos-lupa-antes { fill: var(--papel-2); }
+.tiempos-rayado { stroke: var(--regla); stroke-width: 1.5; }
+.tiempos-lupa-op { fill: var(--tinta); font-weight: 600; text-anchor: middle; pointer-events: none; }
+.tiempos-lupa-op--claro { fill: var(--superficie); }
+.tiempos-lupa-d { stroke: var(--tinta); stroke-width: 2; }
+.tiempos-lupa-etq { fill: var(--tinta-2); }
+.tiempos-lupa-etq--d { fill: var(--tinta); font-weight: 600; }
+.tiempos-lupa-svg .tiempos-lupa-region { fill: var(--tinta-2); font-family: var(--f-texto); }
+.tiempos-lupa-tick { stroke: var(--tinta-3); stroke-width: 1; }
+.tiempos-lupa-velo { fill: var(--superficie); opacity: 0.62; pointer-events: none; }
+.tiempos-lupa-cursor { stroke: var(--tinta); stroke-width: 1.5; pointer-events: none; }
+.tiempos-lupa-svg .tiempos-lupa-vacio { fill: var(--tinta-2); font-family: var(--f-texto); font-size: 13px; text-anchor: middle; }
+
+/* Pasos de la Tabla 3, agrupados antes y después de D_i */
+.tiempos-grupos { display: grid; gap: 14px; min-width: 0; }
+.tiempos-grupo { display: grid; gap: 4px; }
+.tiempos-tarjeta .tiempos-grupo__titulo {
+  display: flex; align-items: center; gap: 9px; margin: 0;
+  font-size: 13px; line-height: 1.4; color: var(--tinta-2);
+}
+.tiempos-grupo__titulo strong { color: var(--tinta); font-weight: 600; }
+.tiempos-grupo__texto { min-width: 0; }
+.tiempos-grupo__muestra { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; border: 1px solid var(--regla); }
+.tiempos-grupo--antes .tiempos-grupo__muestra { background: var(--papel-2); }
+.tiempos-grupo--despues .tiempos-grupo__muestra { background: repeating-linear-gradient(45deg, var(--regla) 0 1.5px, transparent 1.5px 5px); }
+.tiempos-grupo__suma { margin-left: auto; padding-left: 8px; font-size: 13px; font-weight: 500; color: var(--tinta); }
+
+.tiempos-pasos { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.tiempos-paso {
+  display: grid; grid-template-columns: 26px minmax(0, 1fr) auto;
+  grid-template-areas: 'num etq calc' 'num meta calc';
+  column-gap: 12px; row-gap: 1px; align-items: center;
+  padding: 7px 10px; border-radius: var(--radio-s); transition: background 0.2s;
+}
+.tiempos-paso__num {
+  grid-area: num; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center;
+  font: 600 12px/1 var(--f-mono); background: var(--color, var(--papel-2)); color: var(--tinta);
+}
+.tiempos-paso--oscuro .tiempos-paso__num { color: var(--superficie); }
+.tiempos-paso__etiqueta { grid-area: etq; font-size: 14px; line-height: 1.3; color: var(--tinta); }
+.tiempos-paso__meta { grid-area: meta; font-size: 12.5px; line-height: 1.35; color: var(--tinta-2); }
+.tiempos-paso__calculo { grid-area: calc; font-size: 13px; color: var(--tinta-2); text-align: right; white-space: nowrap; }
+.tiempos-paso__calculo strong { color: var(--tinta); font-weight: 600; }
+.tiempos-paso__por { color: var(--tinta-2); }
+.tiempos-paso[aria-current='step'] { background: rgb(255 226 138 / 0.5); }
+.tiempos-paso--na .tiempos-paso__num { background: transparent; border: 1.5px dashed var(--regla); color: var(--tinta-3); }
+.tiempos-paso--na .tiempos-paso__etiqueta { color: var(--tinta-3); }
+
+@media (max-width: 520px) {
+  .tiempos-paso { grid-template-columns: 26px minmax(0, 1fr); grid-template-areas: 'num etq' 'num calc' 'num meta'; }
+  .tiempos-paso__calculo { text-align: left; white-space: normal; }
+}
+
+/* --- B · Espera de cada cliente ------------------------------------------ */
+.tiempos-marco { position: relative; }
+.tiempos-guias-b { position: absolute; top: 0; bottom: 26px; pointer-events: none; }
+.tiempos-guia-b { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--regla-2); }
+.tiempos-filas { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; position: relative; }
+.tiempos-fila {
+  display: grid; grid-template-columns: 78px minmax(0, 1fr); align-items: center; gap: 14px;
+  padding: 4px 8px; margin-inline: -8px; border-radius: var(--radio-s);
+  transition: background 0.2s, opacity 0.2s; cursor: default;
+}
+.tiempos-fila:hover, .tiempos-fila.es-activo { background: rgb(255 226 138 / 0.42); }
+.tiempos--hover .tiempos-fila:not(.es-activo) { opacity: 0.5; }
+.tiempos-fila:focus-visible { outline-offset: 0; }
+.tiempos-fila__rotulo { display: flex; align-items: center; gap: 10px; }
+.tiempos-fila__k { font-size: 12.5px; color: var(--tinta-2); min-width: 2.4em; }
+.tiempos-fila__pista { position: relative; height: 28px; overflow: hidden; min-width: 0; }
+.tiempos-fila__barra { position: absolute; inset: 5px 0; }
+.tiempos-seg { position: absolute; top: 0; bottom: 0; left: 0; width: 0; background: var(--color); }
+.tiempos-fila__valor {
+  position: absolute; top: 0; bottom: 0; left: 0; display: flex; align-items: center; gap: 4px;
+  white-space: nowrap; font-size: 12.5px; font-weight: 500; color: var(--tinta);
+}
+.tiempos-fila__de { font-family: var(--f-texto); font-weight: 400; color: var(--tinta-2); }
+.tiempos-eje-b { position: relative; height: 26px; }
+.tiempos-eje-b__tick { position: absolute; top: 7px; transform: translateX(-50%); font-size: 11px; line-height: 1; color: var(--tinta-3); }
+.tiempos-nota--b { margin-top: 4px; }
+
+@media (max-width: 640px) {
+  .tiempos-fila { grid-template-columns: minmax(0, 1fr); gap: 2px; padding-block: 6px; }
+  .tiempos-fila__rotulo .cliente-chip { min-width: 24px; height: 24px; font-size: 12px; }
+  .tiempos-fila__pista { height: 24px; }
+  .tiempos-fila__barra { inset: 4px 0; }
+  .tiempos-fila__valor { font-size: 12px; }
+  .tiempos-guias-b { display: none; }
+  .tiempos-pie-pista .tiempos-nota { text-align: left; }
+}
+
+/* Pie: Σ D_i y su descomposición */
+.tiempos-total {
+  margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--regla-2);
+  display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 14px 36px; align-items: center;
+}
+.tiempos-total__cifra { display: grid; gap: 6px; }
+.tiempos-total__etiqueta { font: 600 12px/1.2 var(--f-texto); letter-spacing: 0.08em; text-transform: uppercase; color: var(--tinta-3); }
+.tiempos-total__valor { font: 500 clamp(34px, 4.2vw, 48px)/1 var(--f-titulo); letter-spacing: -0.02em; color: var(--tinta); }
+.tiempos-total__desglose { display: grid; gap: 10px; min-width: 0; }
+.tiempos-proporcion { display: flex; gap: 2px; height: 10px; border-radius: 4px; overflow: hidden; }
+.tiempos-proporcion span { flex: 1 1 0; min-width: 3px; background: var(--color); }
+.tiempos-desglose { display: flex; flex-wrap: wrap; gap: 6px 28px; margin: 0; font-size: 14px; }
+.tiempos-desglose div { display: flex; align-items: center; gap: 8px; }
+.tiempos-desglose dt { display: inline-flex; align-items: center; gap: 8px; color: var(--tinta-2); }
+.tiempos-desglose dd { margin: 0; font-weight: 500; color: var(--tinta); }
+.tiempos-desglose .muestra { width: 16px; height: 10px; border-radius: 3px; }
+.tiempos-desglose .tiempos-desglose__mezcla {
+  background: linear-gradient(90deg, var(--op-ua) 0 25%, var(--op-la) 25% 50%, var(--op-ub) 50% 75%, var(--op-lb) 75%);
+}
+.tiempos-tarjeta .tiempos-desglose__detalle { margin: 0; font-size: 12.5px; color: var(--tinta-2); }
+.tiempos-tarjeta .tiempos-total__nota { grid-column: 1 / -1; margin: 0; max-width: 84ch; font-size: 14px; color: var(--tinta-2); text-wrap: pretty; }
+@media (max-width: 640px) {
+  .tiempos-total { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* --- Tooltip (el nodo #tooltip es compartido) ---------------------------- */
+.tiempos-tt-clave {
+  display: inline-block; width: 12px; height: 3px; border-radius: 2px; margin-right: 7px;
+  vertical-align: middle; background: var(--color);
+}
+.tooltip .tt-fila.tiempos-tt-fuerte span:first-child,
+.tooltip .tt-fila.tiempos-tt-fuerte span:last-child { color: var(--papel); font-weight: 600; }
+.tooltip .tiempos-tt-chip { min-width: 22px; height: 22px; padding: 0 5px; font-size: 11.5px; color: var(--tinta); border-width: 2px; }
+.tooltip .tt-titulo .politica-chip { margin-left: auto; }

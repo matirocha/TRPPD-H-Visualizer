@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TRPPD-H₃ · Visualizador de rutas</title>
+  <meta name="description" content="Visualizador de rutas del TRPPD-H3: mapa de clientes, carga del camión y tiempos de atención bajo la Política 3 de Battarra et al. (2010).">
+  <link rel="icon" href="img/icono.svg" type="image/svg+xml">
+
+  <link rel="stylesheet" href="vendor/fraunces/opsz.css">
+  <link rel="stylesheet" href="vendor/inter/opsz.css">
+  <link rel="stylesheet" href="vendor/plex-mono/400.css">
+  <link rel="stylesheet" href="vendor/plex-mono/500.css">
+  <link rel="stylesheet" href="vendor/katex/katex.min.css">
+
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/intro.css">
+  <link rel="stylesheet" href="css/mapa.css">
+  <link rel="stylesheet" href="css/camion.css">
+  <link rel="stylesheet" href="css/tiempos.css">
+
+  <script defer src="vendor/gsap/gsap.min.js"></script>
+  <script defer src="vendor/gsap/ScrollTrigger.min.js"></script>
+  <script defer src="vendor/gsap/ScrollToPlugin.min.js"></script>
+  <script defer src="vendor/gsap/DrawSVGPlugin.min.js"></script>
+  <script defer src="vendor/gsap/MotionPathPlugin.min.js"></script>
+  <script defer src="vendor/gsap/SplitText.min.js"></script>
+  <script defer src="vendor/d3/d3.min.js"></script>
+  <script defer src="vendor/katex/katex.min.js"></script>
+  <script type="module" src="js/main.js"></script>
+</head>
+<body>
+  <a class="saltar" href="#mapa">Saltar al mapa</a>
+
+  <header class="barra" id="barra">
+    <div class="barra__interior">
+      <a class="marca" href="#inicio" aria-label="Inicio">
+        <span class="marca__logo" aria-hidden="true">
+          <svg viewBox="0 0 32 32"><path d="M6 24 L14 9 L22 19 L27 8" /><circle cx="6" cy="24" r="3" /><circle cx="14" cy="9" r="2.4" /><circle cx="22" cy="19" r="2.4" /><circle cx="27" cy="8" r="2.4" /></svg>
+        </span>
+        <span class="marca__texto">TRPPD-H<sub>3</sub></span>
+      </a>
+      <nav class="barra__nav" aria-label="Secciones">
+        <a href="#problema">Problema</a>
+        <a href="#instancia">Instancia</a>
+        <a href="#mapa">Mapa</a>
+        <a href="#carga">Carga</a>
+        <a href="#tiempos">Tiempos</a>
+        <a href="#datos">Datos</a>
+      </nav>
+      <div class="barra__selector">
+        <label class="visualmente-oculto" for="selector-rapido">Solución mostrada</label>
+        <select id="selector-rapido" class="selector-rapido"></select>
+        <span class="en-vivo" id="en-vivo" hidden title="La página se actualiza cuando cambia la carpeta Outputs">
+          <span class="en-vivo__punto" aria-hidden="true"></span>en vivo
+        </span>
+      </div>
+    </div>
+    <div class="progreso" aria-hidden="true"><span class="progreso__barra" id="progreso"></span></div>
+  </header>
+
+  <main id="contenido">
+    <!-- 00 · Portada -->
+    <section class="hero" id="inicio">
+      <div class="hero__fondo" id="hero-fondo" aria-hidden="true"></div>
+      <div class="contenedor hero__contenido">
+        <p class="hero__antetitulo">Taller de investigación · Política 3 de Battarra et&nbsp;al. (2010)</p>
+        <h1 class="hero__titulo">TRPPD-H<sub>3</sub></h1>
+        <p class="hero__subtitulo">Traveling Repairman Problem con recogidas, entregas y costos de manipulación</p>
+        <p class="hero__pregunta">Un camión con una sola puerta trasera sale con todas las entregas. Cada cliente espera la suya. ¿En qué orden visitarlos, y cómo acomodar la carga, para que la <em>espera total</em> sea mínima?</p>
+        <div class="hero__instancia" id="hero-instancia"></div>
+      </div>
+      <a class="hero__bajar" href="#problema"><span>Desliza para recorrer la ruta</span><span class="hero__flecha" aria-hidden="true"></span></a>
+    </section>
+
+    <!-- 01 · Problema -->
+    <section class="seccion" id="problema" aria-labelledby="problema-titulo">
+      <div class="contenedor">
+        <header class="seccion__cabecera" data-revelar>
+          <p class="seccion__numero">01 · El problema</p>
+          <h2 class="seccion__titulo" id="problema-titulo">Tres ideas para leer una ruta</h2>
+          <p class="seccion__entrada">El objetivo no es recorrer menos, sino que los clientes esperen menos. Y la espera depende tanto de los kilómetros como de cuánto cuesta mover la carga detrás de una única puerta.</p>
+        </header>
+        <div id="problema-escena" class="problema"></div>
+      </div>
+    </section>
+
+    <!-- 02 · Instancia -->
+    <section class="seccion seccion--instancia" id="instancia" aria-labelledby="instancia-titulo">
+      <div class="contenedor">
+        <header class="seccion__cabecera" data-revelar>
+          <p class="seccion__numero">02 · La instancia</p>
+          <h2 class="seccion__titulo" id="instancia-titulo">Datos y resultado</h2>
+          <p class="seccion__entrada">Elige la solución a visualizar. Cada archivo de la carpeta <code>Outputs</code> es la salida de un modelo o algoritmo sobre una instancia de e_vigo adaptada con la regla (79).</p>
+        </header>
+        <div class="selector" id="selector" data-revelar></div>
+        <div class="kpis" id="kpis"></div>
+        <div class="instancia__detalle">
+          <div class="tarjeta tarjeta--tabla" data-revelar>
+            <h3 class="tarjeta__titulo">Clientes en el orden de la ruta</h3>
+            <div class="tabla-desplazable" id="tabla-clientes"></div>
+          </div>
+          <aside class="instancia__lateral">
+            <div class="tarjeta" id="parametros" data-revelar></div>
+            <div class="tarjeta" id="verificacion" data-revelar></div>
+          </aside>
+        </div>
+        <div class="tarjeta leyenda" id="leyenda" data-revelar></div>
+      </div>
+    </section>
+
+    <!-- 03 · Mapa -->
+    <section class="seccion seccion--mapa" id="mapa" aria-labelledby="mapa-titulo">
+      <div class="contenedor">
+        <header class="seccion__cabecera" data-revelar>
+          <p class="seccion__numero">03 · El recorrido</p>
+          <h2 class="seccion__titulo" id="mapa-titulo">Mapa de la ruta</h2>
+          <p class="seccion__entrada">Cada nodo es un cliente y muestra sus cuatro tiempos de manipulación: u<sub>a</sub> y ℓ<sub>a</sub> (descargar y cargar entregas), u<sub>b</sub> y ℓ<sub>b</sub> (descargar y cargar recogidas). Cada arco indica el tiempo de viaje c<sub>ij</sub>. Al bajar, el camión recorre la ruta.</p>
+        </header>
+      </div>
+      <div id="mapa-escena" class="mapa-escena"></div>
+    </section>
+
+    <!-- 04 · Carga -->
+    <section class="seccion seccion--carga" id="carga" aria-labelledby="carga-titulo">
+      <div class="contenedor">
+        <header class="seccion__cabecera" data-revelar>
+          <p class="seccion__numero">04 · La carga</p>
+          <h2 class="seccion__titulo" id="carga-titulo">Lo que lleva el camión en cada tramo</h2>
+          <p class="seccion__entrada">La carga mantiene el patrón (F, b…b, a…a, b…b, R): recogidas al fondo, entregas pendientes y recogidas junto a la puerta. Al bajar, cada cliente ejecuta los pasos de la Tabla 3 y se ve qué unidades salen y entran por la puerta trasera.</p>
+        </header>
+      </div>
+      <div id="carga-escena" class="carga-escena"></div>
+    </section>
+
+    <!-- 05 · Tiempos -->
+    <section class="seccion seccion--tiempos" id="tiempos" aria-labelledby="tiempos-titulo">
+      <div class="contenedor">
+        <header class="seccion__cabecera" data-revelar>
+          <p class="seccion__numero">05 · El reloj</p>
+          <h2 class="seccion__titulo" id="tiempos-titulo">Cuánto espera cada cliente</h2>
+          <p class="seccion__entrada">El cliente <em>i</em> queda atendido en D<sub>i</sub>, al terminar la descarga de su entrega. La función objetivo suma esos instantes; aquí se ve de qué está hecho cada uno: viaje y manipulación acumulados.</p>
+        </header>
+      </div>
+      <div id="tiempos-escena" class="tiempos-escena"></div>
+    </section>
+
+    <!-- 06 · Datos -->
+    <section class="seccion seccion--datos" id="datos" aria-labelledby="datos-titulo">
+      <div class="contenedor">
+        <header class="seccion__cabecera" data-revelar>
+          <p class="seccion__numero">06 · Agregar resultados</p>
+          <h2 class="seccion__titulo" id="datos-titulo">De un algoritmo a esta página</h2>
+          <p class="seccion__entrada">El visualizador lee la carpeta <code>Outputs</code> de la raíz del proyecto. Con el servidor de Node encendido, cualquier archivo nuevo aparece en el selector sin recargar.</p>
+        </header>
+        <div class="datos__rejilla">
+          <div class="tarjeta" data-revelar>
+            <h3 class="tarjeta__titulo">1 · Resolver</h3>
+            <p>Desde <code>notebooks/</code>, el modelo de Gurobi y la enumeración escriben en <code>Outputs/&lt;algoritmo&gt;/&lt;instancia&gt;.json</code>.</p>
+            <pre class="codigo"><code>python correr_trppdh3.py --n 5 --explicitacion
+python correr_enumeracion.py --n 5</code></pre>
+          </div>
+          <div class="tarjeta" data-revelar>
+            <h3 class="tarjeta__titulo">2 · Un algoritmo nuevo</h3>
+            <p>Basta con entregar la ruta y el vector <em>s</em>; <code>salidas.py</code> completa los instantes con la Tabla 3.</p>
+            <pre class="codigo"><code>from salidas import construir_salida, guardar_salida
+sol = {"ruta": [0, 2, 1, 5, 4, 3, 0],
+       "politica": {2: 1, 1: 1, 5: 1, 4: 0, 3: 0}}
+guardar_salida(construir_salida(inst, sol, "mi_heuristica"))</code></pre>
+          </div>
+          <div class="tarjeta" data-revelar>
+            <h3 class="tarjeta__titulo">3 · Visualizar</h3>
+            <p>Desde <code>Paginas Web/Pagina Web 1</code>:</p>
+            <pre class="codigo"><code>npm install
+npm start          # http://localhost:3000
+npm run verificar  # simulación JS vs. Outputs
+npm run exportar   # versión estática en dist/</code></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="pie">
+    <div class="contenedor pie__interior">
+      <p>Formulación TRPPD-H<sub>3</sub> · documento de trabajo, octubre de 2026.</p>
+      <p>Battarra, M., Erdoğan, G., Laporte, G. y Vigo, D. (2010). The traveling salesman problem with pickups, deliveries, and handling costs. <em>Transportation Science</em>, 44(3), 383–399.</p>
+      <p>Instancias: Gendreau, Laporte y Vigo (1999), adaptadas con la regla (79). Coordenadas del mapa recuperadas por escalamiento multidimensional de la matriz de costos.</p>
+    </div>
+  </footer>
+
+  <div class="tooltip" id="tooltip" role="tooltip" hidden></div>
+  <div class="avisos" id="avisos" aria-live="polite"></div>
+  <div class="carga-inicial" id="carga-inicial" role="status">Cargando soluciones…</div>
+</body>
+</html>
