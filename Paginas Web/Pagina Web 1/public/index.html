@@ -51,9 +51,6 @@
       <div class="barra__selector">
         <label class="visualmente-oculto" for="selector-rapido">Solución mostrada</label>
         <select id="selector-rapido" class="selector-rapido"></select>
-        <span class="en-vivo" id="en-vivo" hidden title="La página se actualiza cuando cambia la carpeta Outputs">
-          <span class="en-vivo__punto" aria-hidden="true"></span>en vivo
-        </span>
       </div>
     </div>
     <div class="progreso" aria-hidden="true"><span class="progreso__barra" id="progreso"></span></div>
@@ -151,7 +148,7 @@
         <header class="seccion__cabecera" data-revelar>
           <p class="seccion__numero">06 · Agregar resultados</p>
           <h2 class="seccion__titulo" id="datos-titulo">De un algoritmo a esta página</h2>
-          <p class="seccion__entrada">El visualizador lee la carpeta <code>Outputs</code> de la raíz del proyecto. Con el servidor de Node encendido, cualquier archivo nuevo aparece en el selector sin recargar.</p>
+          <p class="seccion__entrada">El visualizador lee la carpeta <code>Outputs</code> de la raíz del proyecto. Cada archivo nuevo aparece en el selector al recargar la página; en la versión publicada, después de hacer commit y push de <code>Outputs</code>.</p>
         </header>
         <div class="datos__rejilla">
           <div class="tarjeta" data-revelar>

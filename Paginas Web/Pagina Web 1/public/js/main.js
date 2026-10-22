@@ -3,7 +3,7 @@
 //
 // Cada sección es un módulo con crear(raiz, estado) -> { render(sim, salida), destruir() }.
 // render se llama cada vez que cambia la solución elegida, siempre después de destruir().
-import { cargarManifest, cargarSalida, escucharCambios } from './datos.js';
+import { cargarManifest, cargarSalida } from './datos.js';
 import { crearEstado } from './estado.js';
 import { PARAMETROS, PARAMETRO_INFO, normalizar, simular } from './modelo.js';
 import { $, $$, PARAM_HTML, avisar, el, fmt, movimientoReducido } from './util.js';
@@ -299,21 +299,6 @@ async function mostrar(archivo, { silencioso = false } = {}) {
   return true;
 }
 
-async function recargarManifest(cambio) {
-  const anterior = new Set(manifest.map((s) => s.archivo));
-  manifest = await cargarManifest();
-  const nuevos = manifest.filter((s) => !anterior.has(s.archivo));
-  if (!manifest.some((s) => s.archivo === archivoActual)) {
-    if (manifest.length) await mostrar(manifest[0].archivo);
-  } else if (cambio?.archivos?.includes(archivoActual)) {
-    await mostrar(archivoActual, { silencioso: true });
-    avisar('La solución mostrada se actualizó en Outputs');
-  } else {
-    construirSelector();
-  }
-  if (nuevos.length) avisar(nuevos.length === 1 ? `Nueva solución: ${nuevos[0].archivo}` : `${nuevos.length} soluciones nuevas en Outputs`);
-}
-
 // --- Navegación y animaciones generales ------------------------------------
 
 function iniciarNavegacion() {
@@ -389,12 +374,6 @@ async function iniciar() {
   iniciarRevelado();
 
   aviso.classList.add('carga-inicial--lista');
-  const enVivo = $('#en-vivo');
-  const fuente = escucharCambios((cambio) => recargarManifest(cambio).catch(console.error), (conectado) => {
-    enVivo.hidden = false;
-    enVivo.classList.toggle('en-vivo--caido', !conectado);
-  });
-  if (!fuente) enVivo.hidden = true;
   // Las fuentes cambian las medidas: se recalculan los pines al terminar de cargarlas.
   document.fonts?.ready.then(() => ScrollTrigger.refresh());
 }

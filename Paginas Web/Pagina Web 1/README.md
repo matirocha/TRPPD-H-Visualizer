@@ -14,8 +14,9 @@ npm start
 ```
 
 Abre <http://localhost:3000>. El servidor lee `../../Outputs` (o la carpeta de
-la variable `OUTPUTS_DIR`) y avisa a la página cuando aparece o cambia una
-solución, así que basta con correr un algoritmo para verla.
+la variable `OUTPUTS_DIR`); después de correr un algoritmo, recarga la página
+para ver sus soluciones. En la versión publicada (Vercel), los cambios en
+`Outputs` aparecen al hacer commit y push.
 
 | Comando | Qué hace |
 |---|---|

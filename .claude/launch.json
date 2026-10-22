@@ -6,6 +6,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["--prefix", "Paginas Web/Pagina Web 1", "start"],
       "port": 3000
+    },
+    {
+      "name": "pagina-web-1-estatica",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "4173", "--directory", "Paginas Web/Pagina Web 1/dist"],
+      "port": 4173
     }
   ]
 }

@@ -129,10 +129,6 @@ code { font-family: var(--f-mono); font-size: 0.88em; background: var(--papel-2)
   padding: 7px 32px 7px 14px; font-size: 13px; font-family: var(--f-mono);
   text-overflow: ellipsis;
 }
-.en-vivo { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--tinta-2); white-space: nowrap; }
-.en-vivo__punto { width: 8px; height: 8px; border-radius: 50%; background: var(--p1); box-shadow: 0 0 0 0 rgb(18 134 125 / 0.6); animation: latido 2s infinite; }
-.en-vivo--caido .en-vivo__punto { background: var(--tinta-3); animation: none; }
-@keyframes latido { 70% { box-shadow: 0 0 0 7px rgb(18 134 125 / 0); } 100% { box-shadow: 0 0 0 0 rgb(18 134 125 / 0); } }
 .progreso { position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; }
 .progreso__barra { display: block; height: 100%; background: var(--tinta); transform-origin: 0 50%; transform: scaleX(0); }
 

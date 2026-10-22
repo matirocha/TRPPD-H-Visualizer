@@ -63,8 +63,9 @@ Lo que pide el enunciado y dónde está:
 
 - Las soluciones viven en `Outputs/<algoritmo>/<instancia>.json` (formato
   `trppdh3-salida/1`, descrito en `Outputs/README.md`).
-- El servidor (`server.js`, Express) las lista en `/api/salidas` y avisa por
-  Server-Sent Events (`/api/eventos`) cuando cambia la carpeta.
+- En local, el servidor (`server.js`, Express) las lista en `/api/salidas`; en
+  la versión publicada, `npm run exportar` las copia a `dist/datos/`. En ambos
+  casos se leen al cargar la página.
 - La página **no confía ciegamente en los números del archivo**: vuelve a
   recorrer la ruta con la secuencia de la Tabla 3 (`public/js/modelo.js`) y
   compara T<sub>i</sub>, D<sub>i</sub>, F<sub>i</sub>, q<sub>i</sub> y Σ D<sub>i</sub> con lo reportado. Las cargas físicas (w, y, z)
@@ -78,7 +79,7 @@ Lo que pide el enunciado y dónde está:
 
 ```
 Pagina Web 1/
-  server.js            Express: estáticos, /api/salidas, /api/eventos
+  server.js            Express: estáticos y /api/salidas
   lib/salidas.js       lectura de Outputs (compartida con los scripts)
   scripts/exportar.js  copia estática en dist/
   scripts/verificar.js simulación JS vs. todas las salidas

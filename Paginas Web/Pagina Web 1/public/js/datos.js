@@ -23,15 +23,3 @@ export function cargarSalida(archivo) {
   const ruta = archivo.split('/').map(encodeURIComponent).join('/');
   return leerJSON(modo === 'estatico' ? `datos/${ruta}` : `api/salidas/${ruta}`);
 }
-
-export const enVivo = () => modo === 'api' && 'EventSource' in window;
-
-/** Llama a fn({archivos}) cada vez que el servidor detecta cambios en Outputs. */
-export function escucharCambios(fn, alEstado = () => {}) {
-  if (!enVivo()) return null;
-  const fuente = new EventSource('api/eventos');
-  fuente.addEventListener('cambio', (e) => fn(JSON.parse(e.data)));
-  fuente.addEventListener('open', () => alEstado(true));
-  fuente.addEventListener('error', () => alEstado(false));
-  return fuente;
-}
