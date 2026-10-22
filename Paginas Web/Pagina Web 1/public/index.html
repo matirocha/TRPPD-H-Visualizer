@@ -67,16 +67,17 @@
       <a class="hero__bajar" href="#recorrido"><span>Desliza para recorrer la ruta</span><span class="hero__flecha" aria-hidden="true"></span></a>
     </section>
 
-    <!-- 01 · Recorrido: mapa y carga a la vez. La escena entera se fija en escritorio. -->
+    <!-- 01 · Recorrido: mapa y carga a la vez, movidos por un reproductor. -->
     <section class="seccion seccion--recorrido" id="recorrido" aria-labelledby="recorrido-titulo">
       <div class="contenedor">
         <header class="seccion__cabecera" data-revelar>
           <p class="seccion__numero">01 · El recorrido</p>
           <h2 class="seccion__titulo" id="recorrido-titulo">Mapa y carga, a la vez</h2>
-          <p class="seccion__entrada">El mapa muestra la ruta: cada nodo trae sus tiempos de manipulación u<sub>a</sub>, ℓ<sub>a</sub>, u<sub>b</sub> y ℓ<sub>b</sub>, y cada arco su tiempo de viaje c<sub>ij</sub>. El camión, visto de lado, muestra qué lleva y qué entra o sale por la única puerta en cada paso de la Tabla 3. Al bajar, el camión avanza en las dos vistas al mismo tiempo.</p>
+          <p class="seccion__entrada">El mapa muestra la ruta: cada nodo trae sus tiempos de manipulación u<sub>a</sub>, ℓ<sub>a</sub>, u<sub>b</sub> y ℓ<sub>b</sub>, y cada arco su tiempo de viaje c<sub>ij</sub>. El camión, visto de lado, muestra qué lleva y qué entra o sale por la única puerta en cada paso de la Tabla 3. Con <strong>Iniciar</strong> el camión avanza en las dos vistas a la vez y se detiene después de cada paso para leer la explicación; <strong>Continuar</strong> sigue al siguiente. Con el <strong>modo continuo</strong> recorre la ruta sin parar.</p>
         </header>
       </div>
       <div id="recorrido-escena" class="recorrido">
+        <div id="recorrido-controles" class="recorrido__controles"></div>
         <div id="mapa-escena" class="mapa-escena recorrido__mapa"></div>
         <div id="carga-escena" class="carga-escena recorrido__carga"></div>
       </div>

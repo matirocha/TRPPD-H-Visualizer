@@ -6,8 +6,8 @@ entregas y costos de manipulación bajo la Política 3 de Battarra et al., 2010)
 ## Concepto
 
 **"Hoja de ruta técnica"**: papel cálido, tinta oscura y datos en monoespaciada,
-como un cuaderno de campo de logística. La página es un relato con *scroll*: se
-baja y el camión recorre la ruta dos veces, cada vez con una lente distinta.
+como un cuaderno de campo de logística. El camión recorre la ruta dos veces,
+cada vez con una lente distinta.
 
 1. **Mapa y carga, a la vez** (justo después de la portada): dónde va y cuánto
    tarda cada tramo, y qué lleva dentro y qué entra o sale por la única puerta.
@@ -43,14 +43,28 @@ para números (con cifras tabulares). Decimales con coma (es-CL).
 | # | Sección | Contenido | Animación |
 |---|---|---|---|
 | 00 | Portada | Título, pregunta del problema, ruta de la instancia dibujada sobre papel liso | La ruta se traza sola; paralaje al bajar |
-| 01 | Mapa y carga | A la izquierda, nodos con u<sub>a</sub>, ℓ<sub>a</sub>, u<sub>b</sub>, ℓ<sub>b</sub> y arcos con c<sub>ij</sub>; a la derecha, el camión con las unidades en su posición física y los pasos de la Tabla 3. Debajo, barras de carga por tramo vs Q | Una sola escena fija: el scroll mueve el camión en el mapa y anima cada operación de carga y descarga al mismo tiempo |
+| 01 | Mapa y carga | A la izquierda, nodos con u<sub>a</sub>, ℓ<sub>a</sub>, u<sub>b</sub>, ℓ<sub>b</sub> y arcos con c<sub>ij</sub>; a la derecha, el camión con las unidades en su posición física y los pasos de la Tabla 3. Debajo, barras de carga por tramo vs Q | Reproductor (ver abajo): el camión se mueve en el mapa y cada operación de carga y descarga se anima al mismo tiempo |
 | 02 | El problema | Tres ideas: latencia (Σ D<sub>i</sub>), una sola puerta (LIFO, Figura 1), Política 3 (Tabla 3) | Se construyen al entrar en pantalla |
 | 03 | La instancia | Selector (algoritmo, n, id, h), KPIs, tabla de clientes, parámetros, verificación, leyenda | Contadores |
 | 04 | Reloj | Línea de tiempo de la ruta con lupa de servicio y barras de espera D<sub>i</sub> por cliente | Cabezal ligado al scroll; barras que crecen |
 | 05 | Datos | Cómo generar salidas y conectar algoritmos nuevos | — |
 
-En pantallas de menos de 960 px el mapa y el camión se apilan, cada uno con
-sus botones de paso a paso, y siguen moviéndose juntos.
+La sección 01 no depende del scroll: un reproductor sobre la escena tiene
+**volver al inicio**, **explicación anterior**, **Iniciar / Pausar / Continuar /
+Repetir**, el interruptor **Modo continuo** y una barra de avance (clic o
+arrastre para saltar; los puntos son las llegadas a cada cliente).
+
+- Modo continuo apagado (por defecto): el camión se detiene al final de cada
+  paso de la Tabla 3 y al final de cada parada (D<sub>i</sub>, F<sub>i</sub>), para leer la
+  explicación del panel; **Continuar** sigue hasta la próxima pausa.
+- Modo continuo encendido: recorre la ruta completa sin parar.
+- Con `prefers-reduced-motion` no hay animación: cada Continuar salta a la
+  próxima pausa y el modo continuo avanza una pausa cada 2,5 s.
+
+En escritorio la escena mide el alto de la ventana bajo la barra (mapa a la
+izquierda; estado, camión y pasos a la derecha) y al apretar Iniciar se alinea
+bajo la barra. En pantallas de menos de 960 px el mapa y el camión se apilan y
+el reproductor queda pegado bajo la barra superior.
 
 El selector de soluciones vive en la barra superior (un botón que abre un panel)
 y, el mismo panel, en la sección 03. Cada opción muestra el Σ D de la solución
@@ -123,20 +137,21 @@ export function crear(raiz, estado) {
 - `main.js` llama `destruir()` y luego `render()` cada vez que se elige otra
   solución, y después `ScrollTrigger.refresh()`.
 - Todo lo de GSAP se crea dentro de `gsap.context(() => …, raiz)` y se revierte
-  con `ctx.revert()` en `destruir()`. Pines y *scrub* solo en escritorio
-  (`gsap.matchMedia()`, `(min-width: 960px)` y sin `prefers-reduced-motion`);
-  en móvil o con movimiento reducido hay botones de paso a paso.
+  con `ctx.revert()` en `destruir()`. Los *scrub* ligados al scroll (sección del
+  reloj) solo en escritorio (`gsap.matchMedia()`, `(min-width: 960px)` y sin
+  `prefers-reduced-motion`); en móvil o con movimiento reducido hay botones.
 - La barra superior mide 64 px: los pines empiezan en `top top+=64`.
 - Resaltado compartido: al pasar sobre un cliente se hace
   `estado.set({ hover: i })` y al salir `estado.set({ hover: null })`; cada vista
   escucha `estado.on('hover', fn)` y marca ese cliente.
-- Mapa y carga van juntos: `camion.crear(raiz, estado, { fijar, grafico })` fija
-  `#recorrido-escena` (las dos vistas) y dibuja las barras en `#carga-grafico`;
-  `mapa.crear(raiz, estado, { vinculado: true })` no tiene pin propio. La carga
+- Mapa y carga van juntos: `camion.crear(raiz, estado, { escena, controles, grafico })`
+  pone el reproductor en `#recorrido-controles` y las barras en `#carga-grafico`;
+  `mapa.crear(raiz, estado, { vinculado: true })` no tiene scroll ni botones de
+  avance propios. La carga
   publica en cada actualización `estado.avance = { tramo, viaje, servicio, reloj }`
   y el mapa se ubica en ese punto de su línea; al elegir una parada en el mapa
   se hace `estado.set({ pedirParada: { indice } })` y la carga mueve las dos
-  vistas (scroll, animación o salto, según el modo).
+  vistas. `estado.modoContinuo` guarda el interruptor entre soluciones.
 - Los colores salen siempre de los tokens CSS (clases o `style: { fill: 'var(--a)' }`).
 - Las clases de cada sección llevan prefijo (`intro-`, `mapa-`, `camion-`, `tiempos-`).
 

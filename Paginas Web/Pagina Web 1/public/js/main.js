@@ -15,7 +15,7 @@ import * as tiempos from './tiempos.js';
 
 gsap.registerPlugin(ScrollTrigger, ScrollToPlugin, DrawSVGPlugin, MotionPathPlugin, SplitText);
 
-const estado = crearEstado({ salida: null, sim: null, hover: null, modoNodo: 'tiempo', avance: null });
+const estado = crearEstado({ salida: null, sim: null, hover: null, modoNodo: 'tiempo', avance: null, modoContinuo: false });
 let manifest = [];
 let archivoActual = null;
 let modulos = [];
@@ -282,11 +282,13 @@ async function iniciar() {
 
   selector = crearSelector({ barra: $('#selector-barra'), enLinea: $('#selector'), alElegir: (archivo) => mostrar(archivo) });
 
-  // Mapa y carga comparten la escena fijada: la carga lleva el scroll y el mapa la sigue.
+  // Mapa y carga comparten la escena: la carga tiene el reproductor y el mapa la sigue.
   modulos = [
     intro.crear({ hero: $('#hero-fondo'), problema: $('#problema-escena') }, estado),
     mapa.crear($('#mapa-escena'), estado, { vinculado: true }),
-    camion.crear($('#carga-escena'), estado, { fijar: $('#recorrido-escena'), grafico: $('#carga-grafico') }),
+    camion.crear($('#carga-escena'), estado, {
+      escena: $('#recorrido-escena'), controles: $('#recorrido-controles'), grafico: $('#carga-grafico'),
+    }),
     tiempos.crear($('#tiempos-escena'), estado),
   ];
 

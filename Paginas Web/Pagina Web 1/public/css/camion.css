@@ -1,8 +1,8 @@
 /* ==========================================================================
-   04 · Carga del camión
-   Escena: cabecera (estado + paradas), camión en corte lateral, panel con los
-   pasos de la Tabla 3 y barras de carga por tramo. En escritorio con
-   movimiento permitido la escena queda fija (pin) y mide 100vh − barra.
+   01 · Carga del camión (junto al mapa)
+   Escena: cabecera (estado + paradas), camión en corte lateral, reproductor,
+   panel con los pasos de la Tabla 3 y barras de carga por tramo. En
+   escritorio la escena mide 100vh − barra para verse completa al reproducir.
    ========================================================================== */
 
 .camion { position: relative; width: 100%; }
@@ -128,12 +128,88 @@
 .camion-u.es-resaltado .camion-u__caja { stroke: var(--tinta); stroke-width: 2.2; }
 .camion-svg--hover .camion-u:not(.es-resaltado) > * { opacity: 0.28; }
 
-/* --- Controles paso a paso (móvil o movimiento reducido) ----------------- */
-.camion-controles { grid-area: ctrl; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.camion-controles__nota { margin: 0; font-size: 13px; color: var(--tinta-2); text-align: center; line-height: 1.35; }
-.camion-controles .boton { white-space: nowrap; }
-.camion-controles .boton:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
-.camion-controles .boton--principal { background: var(--tinta); color: var(--superficie); border-color: var(--tinta); }
+/* --- Reproductor: inicio, pausa anterior, Iniciar/Pausar/Continuar, modo continuo y avance --- */
+.camion-reproductor {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; min-width: 0;
+  padding: 8px 14px 8px 8px;
+  background: var(--superficie); border: 1px solid var(--regla-2); border-radius: var(--radio);
+  box-shadow: var(--sombra-s);
+}
+.camion-escena > .camion-reproductor { grid-area: ctrl; }
+.camion-reproductor__botones { display: flex; align-items: center; gap: 6px; }
+.camion-icono { width: 16px; height: 16px; flex-shrink: 0; }
+.camion-icono path { fill: currentColor; }
+.camion-icono--atras path, .camion-icono--repetir path {
+  fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+}
+.camion-reproductor__boton {
+  display: grid; place-items: center; width: 38px; height: 38px; border-radius: 11px;
+  border: 1px solid var(--regla); background: var(--superficie); color: var(--tinta);
+  transition: border-color 0.2s, background 0.2s, transform 0.2s var(--facil);
+}
+.camion-reproductor__boton:hover:not(:disabled) { border-color: var(--tinta-3); background: var(--papel); }
+.camion-reproductor__boton:active:not(:disabled) { transform: scale(0.94); }
+.camion-reproductor__boton:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.camion-reproductor__principal {
+  display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+  min-width: 138px; height: 40px; padding: 0 18px 0 15px; border: 0; border-radius: 12px;
+  background: var(--tinta); color: var(--superficie);
+  font: 600 14.5px/1 var(--f-texto);
+  box-shadow: 0 8px 18px -10px rgb(23 32 42 / 0.65);
+  transition: background 0.2s, transform 0.2s var(--facil), box-shadow 0.2s;
+}
+.camion-reproductor__principal:hover { background: color-mix(in srgb, var(--tinta) 86%, var(--superficie)); }
+.camion-reproductor__principal:active { transform: scale(0.97); }
+.camion-reproductor__icono { display: grid; place-items: center; }
+/* Esperando al usuario: el botón late suave para indicar que hay que apretar Continuar. */
+.camion-reproductor__principal[data-estado='continuar'],
+.camion-reproductor__principal[data-estado='iniciar'] { animation: camion-llamado 2.2s ease-in-out infinite; }
+@keyframes camion-llamado {
+  0%, 100% { box-shadow: 0 8px 18px -10px rgb(23 32 42 / 0.65), 0 0 0 0 rgb(255 226 138 / 0); }
+  50% { box-shadow: 0 8px 18px -10px rgb(23 32 42 / 0.65), 0 0 0 5px rgb(255 226 138 / 0.85); }
+}
+
+/* Interruptor "Modo continuo" */
+.camion-reproductor__continuo {
+  display: inline-flex; align-items: center; gap: 9px; height: 38px; padding: 0 12px 0 8px;
+  border: 1px solid transparent; border-radius: 11px; background: transparent;
+  font: 500 13.5px/1 var(--f-texto); color: var(--tinta-2); white-space: nowrap;
+  transition: background 0.2s, color 0.2s;
+}
+.camion-reproductor__continuo:hover { background: var(--papel); color: var(--tinta); }
+.camion-reproductor__pista {
+  position: relative; width: 34px; height: 20px; border-radius: 999px; flex-shrink: 0;
+  background: var(--regla); transition: background 0.2s;
+}
+.camion-reproductor__perilla {
+  position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%;
+  background: var(--superficie); box-shadow: 0 1px 3px rgb(23 32 42 / 0.3);
+  transition: transform 0.25s var(--facil);
+}
+.camion-reproductor__continuo[aria-checked='true'] { color: var(--tinta); }
+.camion-reproductor__continuo[aria-checked='true'] .camion-reproductor__pista { background: var(--p1); }
+.camion-reproductor__continuo[aria-checked='true'] .camion-reproductor__perilla { transform: translateX(14px); }
+
+/* Avance: barra con las llegadas a cada cliente y contador de explicaciones */
+.camion-reproductor__avance { flex: 1 1 220px; display: flex; align-items: center; gap: 12px; min-width: 0; }
+.camion-reproductor__barra {
+  position: relative; flex: 1 1 auto; height: 8px; border-radius: 999px; overflow: visible;
+  background: var(--papel-2); cursor: pointer; touch-action: none;
+}
+.camion-reproductor__barra::before { content: ''; position: absolute; inset: -10px 0; } /* zona de clic más alta */
+.camion-reproductor__relleno {
+  position: absolute; inset: 0; border-radius: inherit; background: var(--tinta);
+  transform-origin: 0 50%; transform: scaleX(0);
+}
+.camion-reproductor__marcas { position: absolute; inset: 0; pointer-events: none; }
+.camion-reproductor__marca {
+  position: absolute; top: 50%; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%;
+  background: var(--superficie); border: 2px solid var(--p1);
+}
+.camion-reproductor__marca--p2 { border-color: var(--p2); }
+.camion-reproductor__contador { font-size: 12.5px; color: var(--tinta-2); white-space: nowrap; }
+.camion-reproductor__nota { flex-basis: 100%; margin: -2px 0 0 6px; font-size: 12.5px; line-height: 1.35; color: var(--tinta-2); }
 
 /* --- Panel de operación --------------------------------------------------- */
 .camion-panel {
@@ -178,7 +254,6 @@
 .camion-orden__bloque.es-resaltado { outline: 2px solid var(--tinta); outline-offset: 1px; }
 .camion-orden__vacio { font-size: 13px; color: var(--tinta-3); }
 .camion-vista__orden { display: grid; gap: 8px; padding-top: 10px; border-top: 1px dashed var(--regla); }
-.camion[data-modo='fija'] .camion-vista__orden { display: none; }
 
 /* Pasos de la Tabla 3 */
 .camion-pasos { list-style: none; margin: 2px 0 0; padding: 0; display: grid; gap: 3px; }
@@ -282,44 +357,34 @@
 .camion-grafico__svg.tiene-foco .camion-barra.es-resaltado .camion-barra__pila { opacity: 1; }
 .camion-barra.es-resaltado .camion-barra__seg { stroke: var(--tinta); stroke-width: 1.4; }
 
-/* --- Escritorio ----------------------------------------------------------- */
+/* --- Escritorio: escena de alto fijo -------------------------------------
+   La altura de la ventana menos la barra superior; el reproductor no mueve la
+   página, así que todo debe caber a la vista (ver también recorrido.css). */
 @media (min-width: 960px) {
-  .camion-escena {
-    grid-template-columns: minmax(0, 1fr) clamp(300px, 27vw, 372px);
-    /* El panel abarca las cuatro filas: si es más alto que la columna izquierda,
-       el sobrante va a la última fila (1fr) y no abre huecos entre camión y controles. */
-    grid-template-rows: auto auto auto 1fr;
-    grid-template-areas: 'cab panel' 'fig panel' 'ctrl panel' 'graf panel';
-    align-items: start;
-  }
-  .camion-grafico__lienzo { height: 260px; }
-}
-
-/* Escena fija con scroll: la altura de la ventana menos la barra superior */
-@media (min-width: 960px) and (prefers-reduced-motion: no-preference) {
   .camion { height: calc(100vh - var(--barra-alto)); }
   .camion-escena {
     height: 100%; padding-block: 10px 16px; gap: 12px 16px;
-    grid-template-rows: auto auto minmax(150px, 430px);
-    grid-template-areas: 'cab panel' 'fig panel' 'graf panel';
+    grid-template-columns: minmax(0, 1fr) clamp(300px, 27vw, 372px);
+    grid-template-rows: auto auto auto minmax(150px, 430px);
+    grid-template-areas: 'cab panel' 'fig panel' 'ctrl panel' 'graf panel';
     align-items: stretch; align-content: center;
   }
-  .camion-controles { display: none; }
   .camion-figura { min-height: 0; }
   .camion-svg { max-height: calc(100vh - 400px); min-height: 140px; }
   /* contain: size impide que el contenido del panel agrande las filas de la izquierda
      (el panel toma solo la altura de su área). Sin scroll propio: la rueda siempre
-     avanza la página y el paso activo se centra por código. */
+     mueve la página y el paso activo se centra por código. */
   .camion-panel {
     contain: size; max-height: 100%; overflow: hidden; scroll-behavior: smooth;
     padding-bottom: 0;
   }
+  .camion-vista__orden { display: none; }
   .camion-medidor { position: sticky; bottom: 0; z-index: 1; background: var(--superficie); padding-bottom: 14px; }
-  /* Solo cuando el gráfico va dentro de la escena fija (puede ir aparte, ver recorrido.css). */
+  /* Solo cuando el gráfico va dentro de la escena (puede ir aparte, ver recorrido.css). */
   .camion-escena .camion-grafico__lienzo { flex: 1 1 auto; height: auto; min-height: 100px; }
 
   /* Cabecera de alto constante: el texto de la fase cambia en cada paso y no debe
-     mover el camión ni redimensionar el gráfico mientras se hace scroll.
+     mover el camión ni redimensionar el panel durante la reproducción.
      Fila 1: fase, texto (una línea) y reloj; fila 2: paradas. */
   .camion-cabecera { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 8px; }
   .camion-estado { flex-wrap: nowrap; min-height: 28px; }
@@ -327,7 +392,7 @@
   .camion-estado__reloj { margin-left: auto; }
 }
 
-@media (min-width: 960px) and (max-height: 760px) and (prefers-reduced-motion: no-preference) {
+@media (min-width: 960px) and (max-height: 760px) {
   .camion-panel { padding: 14px 14px 0; gap: 10px; }
   .camion-medidor { padding-bottom: 12px; }
   .camion-vista { gap: 7px; }
@@ -340,8 +405,6 @@
 @media (max-width: 600px) {
   .camion-figura { padding: 10px 8px 8px; }
   .camion-estado__texto { font-size: 14.5px; }
-  .camion-controles__nota { display: none; }
-  .camion-controles .boton { flex: 1; justify-content: center; }
   .camion-panel { padding: 16px 14px 14px; }
   .camion-vista__titulo { font-size: 22px; }
   .camion-contadores { gap: 4px; }

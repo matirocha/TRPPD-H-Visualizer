@@ -1,6 +1,6 @@
 # Página Web 1 · Visualizador TRPPD-H₃
 
-Página con animaciones de scroll que muestra, para cada solución guardada en
+Página animada que muestra, para cada solución guardada en
 `Outputs/`, el mapa de la ruta, la carga del camión en cada tramo y los tiempos
 de atención de cada cliente. La propuesta de diseño está en [DISENO.md](DISENO.md).
 

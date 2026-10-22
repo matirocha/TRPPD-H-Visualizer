@@ -7,6 +7,7 @@
 //           (viaje y servicio de 0 a 1 en el tramo k); el mapa lo sigue
 //   pedirParada { indice } con -1 = depósito, 0..n-1 = paradas, n = regreso: el mapa le pide
 //           a la carga que vaya a esa parada (un objeto nuevo en cada pedido)
+//   modoContinuo true: el reproductor recorre la ruta sin parar; false: se detiene en cada paso
 export function crearEstado(inicial = {}) {
   let estado = { ...inicial };
   const oyentes = new Map();

@@ -6,7 +6,8 @@
 // [k + 0,7, k + 1].
 //
 // Vinculado (como se usa en la página): la timeline sigue a la carga del camión
-// (estado.avance), que es la que tiene el pin y los botones de paso a paso.
+// (estado.avance), que es la que tiene el reproductor; no hay scroll ni botones
+// propios de avance, y los clics en nodos o paradas se le piden a la carga.
 // Solo: en escritorio la escena se fija y el scroll mueve la timeline; en móvil o
 // con movimiento reducido no hay pin, la ruta se ve completa y se avanza con botones.
 import { PARAMETROS, PARAMETRO_INFO } from './modelo.js';
@@ -17,6 +18,7 @@ import {
 
 const CONSULTA_FIJA = '(min-width: 960px) and (prefers-reduced-motion: no-preference)';
 const CONSULTA_ANCHA_QUIETA = '(min-width: 960px) and (prefers-reduced-motion: reduce)';
+const CONSULTA_ANCHA = '(min-width: 960px)';
 const CONSULTA_ESTRECHA = 'not all and (min-width: 960px)';
 
 const VIAJE = 0.7;               // fracción de cada tramo de la timeline dedicada al viaje
@@ -407,7 +409,6 @@ function construirVista({ sim, salida, nombre, fijo, vinculado, estado, modoArco
   const arcosRef = [];          // { trazo, flecha, pildora, mascara, grupo }
   let irA = () => {};
   let seguir = () => {};        // modo vinculado: recibe estado.avance
-  let pasoBase = () => pasoActual; // desde dónde cuentan Anterior / Siguiente
   let desplazamiento = null;    // tween scrollTo de la ventana lanzado desde las píldoras o los nodos
   let pasoActual = -1;
   let filasTiempo = [];
@@ -777,17 +778,19 @@ function construirVista({ sim, salida, nombre, fijo, vinculado, estado, modoArco
     el('div', { class: 'mapa-reloj__pista', 'aria-hidden': 'true' }, avance, marcas),
     el('p', { class: 'mapa-reloj__leyenda', html: '<span class="mapa-reloj__clave" aria-hidden="true"></span>instantes de entrega D<sub>i</sub>' }));
 
-  const anterior = el('button', { type: 'button', class: 'boton', onclick: () => irA(pasoBase() - 1) },
+  const anterior = el('button', { type: 'button', class: 'boton', onclick: () => irA(pasoActual - 1) },
     el('span', { 'aria-hidden': 'true' }, '←'), 'Anterior');
-  const siguiente = el('button', { type: 'button', class: 'boton', onclick: () => irA(pasoBase() + 1) },
+  const siguiente = el('button', { type: 'button', class: 'boton', onclick: () => irA(pasoActual + 1) },
     'Siguiente', el('span', { 'aria-hidden': 'true' }, '→'));
   const navTexto = el('span', { class: 'mapa-navegacion__texto num', 'aria-hidden': 'true' });
-  const navegacion = fijo ? null : el('div', { class: 'mapa-navegacion' }, anterior, navTexto, siguiente);
+  // Vinculado: avanzar y retroceder se hace con el reproductor de la carga.
+  const porScroll = fijo && !vinculado;
+  const navegacion = fijo || vinculado ? null : el('div', { class: 'mapa-navegacion' }, anterior, navTexto, siguiente);
 
-  const tarjetaPanel = el('article', { class: 'mapa-parada', 'aria-live': fijo ? 'off' : 'polite', 'aria-atomic': 'true' });
+  const tarjetaPanel = el('article', { class: 'mapa-parada', 'aria-live': porScroll ? 'off' : 'polite', 'aria-atomic': 'true' });
   const panel = el('aside', { class: 'mapa-panel', 'aria-label': 'Recorrido de la ruta' },
     el('div', { class: 'mapa-panel__bloque' },
-      el('p', { class: 'mapa-panel__rotulo' }, fijo ? 'Ruta · baja para avanzar' : 'Ruta · elige una parada'),
+      el('p', { class: 'mapa-panel__rotulo' }, porScroll ? 'Ruta · baja para avanzar' : 'Ruta · elige una parada'),
       listaPasos),
     reloj,
     navegacion,
@@ -1230,24 +1233,19 @@ function construirVista({ sim, salida, nombre, fijo, vinculado, estado, modoArco
   // --- Vinculado a la carga del camión ----------------------------------------------
   // La carga publica estado.avance = { tramo, viaje, servicio, reloj } (fracciones de 0 a 1)
   // y el mapa se coloca en el mismo punto de su línea. Una parada elegida aquí se le pide
-  // a la carga, que mueve las dos vistas (con scroll, animación o salto, según el modo).
+  // a la carga, que salta a esa llegada y mueve las dos vistas.
   function iniciarVinculado() {
     const tl = lineaRecorrido();
-    // Mientras el camión viaja, Anterior / Siguiente cuentan desde la parada a la que va.
-    let destino = 0;
     seguir = (avance) => {
       if (!avance) {
-        destino = 0;
         tl.time(0);
         sincronizar(0);
         return;
       }
-      destino = limitar(avance.tramo + (avance.viaje > 0 ? 1 : 0), 0, N + 1);
       const t = limitar(avance.tramo + VIAJE * avance.viaje + (1 - VIAJE) * avance.servicio, 0, N + 1);
       tl.time(t);
       sincronizar(t, avance.reloj);
     };
-    pasoBase = () => destino;
     irA = (s) => estado.set({ pedirParada: { indice: limitar(s, 0, N + 1) - 1 } });
     seguir(estado.get('avance'));
   }
@@ -1392,8 +1390,13 @@ export function crear(raiz, estado, { vinculado = false } = {}) {
       if (ctx || bajas.length || raiz.childElementCount) destruir();
       ctx = gsap.context(() => {
         mm = gsap.matchMedia();
-        mm.add(CONSULTA_FIJA, (contexto) => montar(sim, salida, 'ancho', true, contexto));
-        mm.add(CONSULTA_ANCHA_QUIETA, (contexto) => montar(sim, salida, 'ancho', false, contexto));
+        if (vinculado) {
+          // Sin scroll: en escritorio la escena tiene siempre alto fijo, con o sin movimiento reducido.
+          mm.add(CONSULTA_ANCHA, (contexto) => montar(sim, salida, 'ancho', true, contexto));
+        } else {
+          mm.add(CONSULTA_FIJA, (contexto) => montar(sim, salida, 'ancho', true, contexto));
+          mm.add(CONSULTA_ANCHA_QUIETA, (contexto) => montar(sim, salida, 'ancho', false, contexto));
+        }
         mm.add(CONSULTA_ESTRECHA, (contexto) => montar(sim, salida, 'estrecho', false, contexto));
       }, raiz);
       bajas = [

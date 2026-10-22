@@ -4,8 +4,10 @@
 // derecha) con cada unidad en su ranura física, un panel con los pasos de la
 // Tabla 3 en la parada actual y barras de la carga a bordo por tramo.
 // Una sola línea de tiempo de GSAP, construida desde sim, anima los viajes y
-// las operaciones: en escritorio la escena queda fija y el scroll la recorre;
-// en móvil o con movimiento reducido se avanza por parada con botones.
+// las operaciones, y la mueve un reproductor (Iniciar / Pausar / Continuar):
+// sin el modo continuo se detiene al final de cada paso de la Tabla 3 y de
+// cada parada, para leer la explicación; con él recorre la ruta sin parar.
+// Con movimiento reducido el reproductor salta de una pausa a la siguiente.
 //
 // Esta línea marca el paso del recorrido: en cada actualización publica
 // estado.avance y el mapa se coloca en el mismo punto. Las paradas elegidas
@@ -13,10 +15,12 @@
 import { OPERACIONES } from './modelo.js';
 import { PARAM_HTML, POLITICA_TEXTO, color, conTooltip, el, fmt, movimientoReducido, ocultarTooltip, svg } from './util.js';
 
-const CONSULTA_FIJA = '(min-width: 960px) and (prefers-reduced-motion: no-preference)';
-
-// Duraciones dentro de la línea de tiempo (no son tiempos del modelo).
+// Duraciones dentro de la línea de tiempo (no son tiempos del modelo), en segundos de reproducción.
 const DUR = { inicio: 0.4, viaje: 1, puerta: 0.3, op: 0.6, aparecer: 0.22, pausa: 0.25, fin: 0.5 };
+// Con movimiento reducido y modo continuo: espera entre una explicación y la siguiente.
+const ESPERA_REDUCIDA = 2.5;
+// Las pausas quedan un poco antes del fin de su fase, para que esa fase siga activa en el panel.
+const ANTES = 1e-4;
 
 // Geometría del dibujo, en unidades del viewBox.
 const G = {
@@ -163,32 +167,32 @@ function contarAnden(p, segmentos) {
 // --- Módulo -----------------------------------------------------------------
 
 /**
- * fijar: elemento que se fija durante el scroll (por defecto, la escena del camión).
+ * escena: bloque que se lleva a la vista al apretar Iniciar en escritorio (por defecto, el del camión).
+ * controles: contenedor aparte para el reproductor (por defecto, dentro de la escena).
  * grafico: contenedor aparte para las barras de carga por tramo (por defecto, dentro de la escena).
  */
-export function crear(raiz, estado, { fijar = null, grafico = null } = {}) {
+export function crear(raiz, estado, { escena = null, controles = null, grafico = null } = {}) {
   let v = null;
   let ctx = null;
   let mm = null;
   let ro = null;
-  let quitarHover = null;
-  let quitarPedido = null;
+  let bajas = [];
 
   function render(sim, salida) {
     destruir();
     if (!sim?.paradas?.length || !window.gsap) return;
-    v = prepararVista(sim, salida, estado, { graficoAparte: Boolean(grafico) });
-    v.fijar = fijar;
+    v = prepararVista(sim, salida, estado, { controlesAparte: Boolean(controles), graficoAparte: Boolean(grafico) });
+    v.escena = escena ?? v.nodo;
     raiz.append(v.nodo);
+    controles?.append(v.reproductor);
     grafico?.append(v.grafico);
 
     ctx = gsap.context(() => {}, raiz);
     v.ctx = ctx;
     mm = gsap.matchMedia(raiz);
-    mm.add({ fija: CONSULTA_FIJA, libre: `not all and ${CONSULTA_FIJA}`, reducido: '(prefers-reduced-motion: reduce)' }, (contexto) => {
-      const { fija, reducido } = contexto.conditions;
+    mm.add({ animado: '(prefers-reduced-motion: no-preference)', reducido: '(prefers-reduced-motion: reduce)' }, (contexto) => {
       const vista = v;
-      montarLinea(vista, fija ? 'fija' : reducido ? 'reducido' : 'pasos');
+      montarLinea(vista, contexto.conditions.reducido ? 'reducido' : 'animado');
       return () => desmontarLinea(vista);
     });
 
@@ -206,23 +210,24 @@ export function crear(raiz, estado, { fijar = null, grafico = null } = {}) {
       if (!vista.crecido) ScrollTrigger.create({ trigger: vista.grafico, start: 'top 88%', once: true, onEnter: () => crecerGrafico(vista) });
     });
 
-    quitarHover = estado.on('hover', (c) => resaltar(vista, c));
-    quitarPedido = estado.on('pedirParada', (pedido) => {
-      if (pedido) irA(vista, pedido.indice);
-    });
+    bajas = [
+      estado.on('hover', (c) => resaltar(vista, c)),
+      estado.on('pedirParada', (pedido) => {
+        if (pedido) irA(vista, pedido.indice);
+      }),
+      estado.on('modoContinuo', (continuo) => cambiarContinuo(vista, continuo)),
+    ];
     resaltar(v, estado.get('hover'));
   }
 
   function destruir() {
-    quitarHover?.();
-    quitarHover = null;
-    quitarPedido?.();
-    quitarPedido = null;
+    for (const baja of bajas) baja();
+    bajas = [];
     ro?.disconnect();
     ro = null;
     if (v) {
       cancelAnimationFrame(v.rafGrafico);
-      v.reproduccion?.kill();
+      detener(v);
     }
     mm?.revert();
     mm = null;
@@ -230,6 +235,7 @@ export function crear(raiz, estado, { fijar = null, grafico = null } = {}) {
     ctx = null;
     if (v) ocultarTooltip();
     raiz.replaceChildren();
+    controles?.replaceChildren();
     grafico?.replaceChildren();
     v = null;
   }
@@ -239,7 +245,7 @@ export function crear(raiz, estado, { fijar = null, grafico = null } = {}) {
 
 // --- Construcción del DOM -----------------------------------------------------
 
-function prepararVista(sim, salida, estado, { graficoAparte = false } = {}) {
+function prepararVista(sim, salida, estado, { controlesAparte = false, graficoAparte = false } = {}) {
   const n = sim.paradas.length;
   const v = {
     sim, salida, estado, n,
@@ -248,8 +254,9 @@ function prepararVista(sim, salida, estado, { graficoAparte = false } = {}) {
     colores: leerColores(),
     fases: [], iFase: -1, kActual: null, andenActual: null,
     activos: new Set(), barras: [], crecido: false, tamGrafico: '',
-    ultimaCarga: '', ultimoReloj: '',
-    tl: null, st: null, modo: null, reproduccion: null, hist: new Map(), piezas: [],
+    ultimaCarga: '', ultimoReloj: '', ultimoReproductor: '',
+    tl: null, modo: null, reproduccion: null, reproduciendo: false, continuo: Boolean(estado.get('modoContinuo')),
+    hist: new Map(), piezas: [], pausas: [],
   };
 
   // Cabecera: estado y paradas
@@ -288,13 +295,8 @@ function prepararVista(sim, salida, estado, { graficoAparte = false } = {}) {
     seg ? el('li', { class: 'camion-leyenda__nota', html: `Bloques a escala: <strong>y·3 (7)</strong> = 7 unidades para el cliente 3` }) : null);
   const figura = el('figure', { class: 'camion-figura' }, v.svgCamion, leyenda);
 
-  // Controles paso a paso
-  v.btnAnterior = el('button', { type: 'button', class: 'boton', onclick: () => irA(v, (v.kActual ?? -1) - 1) }, '← Anterior');
-  v.btnSiguiente = el('button', { type: 'button', class: 'boton boton--principal', onclick: () => irA(v, (v.kActual ?? -1) + 1) }, 'Siguiente →');
-  const controles = el('div', { class: 'camion-controles' },
-    v.btnAnterior,
-    el('p', { class: 'camion-controles__nota' }, 'Elige una parada en la ruta o avanza de a una'),
-    v.btnSiguiente);
+  // Reproductor
+  construirReproductor(v);
 
   // Panel de operación
   construirPanel(v);
@@ -310,7 +312,7 @@ function prepararVista(sim, salida, estado, { graficoAparte = false } = {}) {
     v.lienzo);
 
   v.nodo = el('div', { class: 'camion' },
-    el('div', { class: 'camion-escena' }, cabecera, figura, controles, v.panel, graficoAparte ? null : v.grafico));
+    el('div', { class: 'camion-escena' }, cabecera, figura, controlesAparte ? null : v.reproductor, v.panel, graficoAparte ? null : v.grafico));
   return v;
 }
 
@@ -696,29 +698,17 @@ function montarLinea(v, modo) {
   v.andenActual = null;
   v.ultimaCarga = '';
   v.ultimoReloj = '';
-  // Siempre pausada: en modo fijo la controla el scrub (ScrollTrigger no necesita que corra).
+  v.ultimoReproductor = '';
+  // Siempre pausada: la mueve el reproductor con tweenTo (o seek, con movimiento reducido).
   const tl = construirLinea(v, true);
   v.tl = tl;
-  if (modo === 'fija') {
-    const fijo = v.fijar ?? v.nodo;
-    v.st = ScrollTrigger.create({
-      trigger: fijo,
-      pin: fijo,
-      start: 'top top+=64',
-      end: `+=${v.n * 120}%`,
-      scrub: 0.8,
-      anticipatePin: 1,
-      animation: tl,
-    });
-  }
+  v.pausas = calcularPausas(v);
   sincronizar(v, tl.time());
 }
 
 function desmontarLinea(v) {
-  v.reproduccion?.kill();
-  v.reproduccion = null;
+  detener(v);
   v.tl = null;
-  v.st = null;
 }
 
 function construirLinea(v, pausada) {
@@ -979,6 +969,7 @@ function sincronizar(v, t) {
     v.ultimoReloj = reloj;
     v.relojNodo.textContent = reloj;
   }
+  pintarReproductor(v);
   v.estado.set({ avance: avanceEn(v, t, instante) });
 }
 
@@ -1001,8 +992,6 @@ function aplicarFase(v, f) {
       else b.removeAttribute('aria-current');
       b.classList.toggle('paso--hecho', idx < f.k);
     });
-    v.btnAnterior.disabled = f.k <= -1;
-    v.btnSiguiente.disabled = f.k >= n;
   }
   const vista = v.vistas.get(f.k);
   for (const item of vista?._items ?? []) {
@@ -1030,10 +1019,10 @@ function aplicarFase(v, f) {
     `Camión con ${fmt(v.sim.Q)} ranuras. A bordo: ${fmt(c.y)} entregas, ${fmt(c.w)} recogidas al fondo y ${fmt(c.z)} junto a la puerta; ${fmt(v.sim.Q - c.total)} libres.`);
 }
 
-/** Si el panel fijo tiene scroll propio, lleva el paso activo a la vista sin mover la página. */
+/** Si el panel tiene alto fijo (escritorio) y no cabe todo, lleva el paso activo a la vista sin mover la página. */
 function centrarEnPanel(v, item) {
   const panel = v.panel;
-  if (v.modo !== 'fija' || panel.scrollHeight <= panel.clientHeight + 1) return;
+  if (panel.scrollHeight <= panel.clientHeight + 1) return;
   const arriba = item.offsetTop - panel.clientHeight / 2 + item.offsetHeight / 2;
   panel.scrollTop = Math.max(0, Math.min(arriba, panel.scrollHeight - panel.clientHeight));
 }
@@ -1075,30 +1064,195 @@ function pintarLetrero(v, cliente) {
   v.cubetaRotulo.textContent = p ? `Cliente ${cliente}` : '';
 }
 
-/** Elige una parada: -1 es el depósito al salir y n el regreso. */
+/** Elige una parada: -1 es el depósito al salir, k la llegada al cliente k y n el regreso. */
 function irA(v, indice) {
   const tl = v.tl;
   if (!tl) return;
   const k = Math.max(-1, Math.min(v.n, indice));
-  const desde = k < 0 ? 'inicio' : k >= v.n ? 'regreso' : `p${k}`;
-  const hasta = k < 0 ? 'inicio' : k >= v.n ? 'fin' : `fin${k}`;
-  if (v.modo === 'fija') {
-    const st = v.st;
-    if (!st) return;
-    const tiempo = k < 0 ? 0 : k >= v.n ? tl.labels.fin : tl.labels[`llega${k}`] + DUR.puerta;
-    const y = st.start + (st.end - st.start) * (tiempo / tl.duration());
-    gsap.to(window, { scrollTo: { y, autoKill: true }, duration: 0.9, ease: 'power2.inOut', overwrite: 'auto' });
-    return;
-  }
+  irATiempo(v, k < 0 ? 0 : k >= v.n ? tl.labels.fin : tl.labels[`llega${k}`]);
+}
+
+// --- Reproductor --------------------------------------------------------------
+// Volver al inicio · pausa anterior · Iniciar / Pausar / Continuar / Repetir ·
+// interruptor Modo continuo · barra de avance (clic o arrastre para saltar).
+
+const ICONOS = {
+  inicio: 'M3.5 3h2v10h-2zM13 3v10L6.5 8z',
+  atras: 'M10.5 3.5 6 8l4.5 4.5',
+  reproducir: 'M5 3v10l8-5z',
+  pausar: 'M4.5 3h2.6v10H4.5zM8.9 3h2.6v10H8.9z',
+  repetir: 'M12.6 9.2A4.8 4.8 0 1 1 11.2 4.6M12.6 2.6v3.2H9.4',
+};
+const icono = (nombre) => svg('svg', { class: `camion-icono camion-icono--${nombre}`, viewBox: '0 0 16 16', 'aria-hidden': 'true' },
+  svg('path', { d: ICONOS[nombre] }));
+
+function construirReproductor(v) {
+  const boton = (clase, etiqueta, nombre, onclick) => el('button', {
+    type: 'button', class: `camion-reproductor__boton ${clase}`, 'aria-label': etiqueta, title: etiqueta, onclick,
+  }, icono(nombre));
+  v.btnInicio = boton('', 'Volver al inicio', 'inicio', () => irATiempo(v, 0));
+  v.btnAtras = boton('', 'Explicación anterior', 'atras', () => irATiempo(v, pausaAnterior(v, v.tl?.time() ?? 0)));
+  v.btnPrincipalIcono = el('span', { class: 'camion-reproductor__icono' });
+  v.btnPrincipalTexto = el('span', {});
+  v.btnPrincipal = el('button', { type: 'button', class: 'camion-reproductor__principal', onclick: () => alternar(v) },
+    v.btnPrincipalIcono, v.btnPrincipalTexto);
+  v.interruptor = el('button', {
+    type: 'button', role: 'switch', class: 'camion-reproductor__continuo', 'aria-checked': String(v.continuo),
+    title: 'Encendido: el camión recorre la ruta sin parar. Apagado: se detiene en cada paso hasta apretar Continuar.',
+    onclick: () => v.estado.set({ modoContinuo: !v.continuo }),
+  }, el('span', { class: 'camion-reproductor__pista', 'aria-hidden': 'true' }, el('span', { class: 'camion-reproductor__perilla' })), 'Modo continuo');
+
+  v.relleno = el('span', { class: 'camion-reproductor__relleno' });
+  v.marcasAvance = el('span', { class: 'camion-reproductor__marcas' });
+  v.barraAvance = el('div', { class: 'camion-reproductor__barra', 'aria-hidden': 'true', title: 'Clic o arrastre para ir a otro momento' },
+    v.relleno, v.marcasAvance);
+  const saltar = (e) => {
+    const tl = v.tl;
+    if (!tl) return;
+    const caja = v.barraAvance.getBoundingClientRect();
+    irATiempo(v, Math.min(1, Math.max(0, (e.clientX - caja.left) / (caja.width || 1))) * tl.duration());
+  };
+  v.barraAvance.addEventListener('pointerdown', (e) => {
+    v.barraAvance.setPointerCapture(e.pointerId);
+    saltar(e);
+  });
+  v.barraAvance.addEventListener('pointermove', (e) => {
+    if (v.barraAvance.hasPointerCapture(e.pointerId)) saltar(e);
+  });
+  v.contadorAvance = el('span', { class: 'camion-reproductor__contador num' });
+  v.notaReproductor = el('p', { class: 'camion-reproductor__nota', 'aria-live': 'polite' });
+
+  v.reproductor = el('div', { class: 'camion-reproductor', role: 'group', 'aria-label': 'Reproducción del recorrido' },
+    el('div', { class: 'camion-reproductor__botones' }, v.btnInicio, v.btnAtras, v.btnPrincipal, v.interruptor),
+    el('div', { class: 'camion-reproductor__avance' }, v.barraAvance, v.contadorAvance),
+    v.notaReproductor);
+}
+
+/**
+ * Pausas del modo paso a paso: el final de cada paso de la Tabla 3, el final de
+ * cada parada (D_i y F_i) y el final del recorrido.
+ */
+function calcularPausas(v) {
+  const pausas = v.fases.filter((f) => f.tipo === 'op' || f.tipo === 'pausa').map((f) => f.t1 - ANTES);
+  pausas.push(v.tl.duration());
+  // Marcas de las paradas en la barra de avance
+  const total = v.tl.duration() || 1;
+  v.marcasAvance.replaceChildren(...v.sim.paradas.map((p, k) => el('span', {
+    class: `camion-reproductor__marca camion-reproductor__marca--p${p.politica === 1 ? 1 : 2}`,
+    style: { left: `${((v.tl.labels[`llega${k}`] / total) * 100).toFixed(2)}%` },
+  })));
+  return pausas;
+}
+
+const siguientePausa = (v, t) => v.pausas.find((p) => p > t + 1e-3) ?? v.tl.duration();
+const pausaAnterior = (v, t) => [...v.pausas].reverse().find((p) => p < t - 1e-3) ?? 0;
+
+function detener(v) {
   v.reproduccion?.kill();
   v.reproduccion = null;
-  if (v.modo === 'reducido' || k < 0) {
-    tl.pause();
-    tl.seek(hasta);
-    sincronizar(v, tl.time());
-    return;
+  v.reproduciendo = false;
+}
+
+/** seek no dispara onUpdate: el panel, el reproductor y el mapa se actualizan aquí. */
+function saltarA(v, t) {
+  v.tl.seek(t);
+  sincronizar(v, v.tl.time());
+}
+
+/** Avanza hasta la próxima pausa (o hasta el final, en modo continuo). */
+function reproducir(v) {
+  const tl = v.tl;
+  if (!tl) return;
+  detener(v);
+  if (tl.time() >= tl.duration() - 1e-3) saltarA(v, 0);
+  else if (tl.time() < 1e-3) llevarAVista(v);
+  v.reproduciendo = true;
+  if (v.modo === 'reducido') {
+    // Sin animación: salta a la próxima pausa; en modo continuo, sigue tras unos segundos.
+    saltarA(v, siguientePausa(v, tl.time()));
+    if (v.continuo && tl.time() < tl.duration() - 1e-3) v.reproduccion = gsap.delayedCall(ESPERA_REDUCIDA, () => reproducir(v));
+    else v.reproduciendo = false;
+  } else {
+    v.reproduccion = tl.tweenTo(v.continuo ? tl.duration() : siguientePausa(v, tl.time()), {
+      onComplete: () => {
+        v.reproduccion = null;
+        v.reproduciendo = false;
+        pintarReproductor(v);
+      },
+    });
   }
-  v.reproduccion = tl.tweenFromTo(desde, hasta, { onUpdate: () => sincronizar(v, tl.time()) });
+  pintarReproductor(v);
+}
+
+function alternar(v) {
+  if (v.reproduciendo) {
+    detener(v);
+    pintarReproductor(v);
+  } else reproducir(v);
+}
+
+/** Salta a un instante de la línea. Si estaba corriendo en modo continuo, sigue desde ahí. */
+function irATiempo(v, t) {
+  const tl = v.tl;
+  if (!tl) return;
+  const seguir = v.reproduciendo && v.continuo;
+  detener(v);
+  saltarA(v, Math.min(tl.duration(), Math.max(0, t)));
+  if (seguir) reproducir(v);
+  else pintarReproductor(v);
+}
+
+function cambiarContinuo(v, continuo) {
+  v.continuo = Boolean(continuo);
+  v.interruptor.setAttribute('aria-checked', String(v.continuo));
+  // Corriendo: se recalcula el destino (el final o la próxima pausa) desde donde va.
+  if (v.reproduciendo) {
+    if (v.modo === 'reducido' && !v.continuo) detener(v);
+    else if (v.modo !== 'reducido') reproducir(v);
+  }
+  pintarReproductor(v);
+}
+
+/** En escritorio, al empezar se alinea la escena bajo la barra para ver mapa y camión completos. */
+function llevarAVista(v) {
+  if (!window.matchMedia('(min-width: 960px)').matches || !window.ScrollToPlugin) return;
+  const arriba = v.escena.getBoundingClientRect().top;
+  if (Math.abs(arriba - 64) < 24) return;
+  gsap.to(window, { scrollTo: { y: v.escena, offsetY: 64, autoKill: true }, duration: movimientoReducido() ? 0 : 0.7, ease: 'power2.inOut' });
+}
+
+function pintarReproductor(v) {
+  const tl = v.tl;
+  if (!tl || !v.pausas.length) return;
+  const t = tl.time();
+  const total = tl.duration();
+  const alFinal = t >= total - 1e-3;
+  const modo = v.reproduciendo ? 'pausar' : t < 1e-3 ? 'iniciar' : alFinal ? 'repetir' : 'continuar';
+  const hechas = v.pausas.filter((p) => p <= t + 1e-3).length;
+  v.relleno.style.transform = `scaleX(${(total > 0 ? t / total : 0).toFixed(4)})`;
+  const clave = `${modo}|${hechas}|${v.continuo}`;
+  if (clave === v.ultimoReproductor) return;
+  v.ultimoReproductor = clave;
+
+  const [texto, nombre] = {
+    iniciar: ['Iniciar', 'reproducir'],
+    pausar: ['Pausar', 'pausar'],
+    continuar: ['Continuar', 'reproducir'],
+    repetir: ['Repetir', 'repetir'],
+  }[modo];
+  v.btnPrincipalTexto.textContent = texto;
+  v.btnPrincipalIcono.replaceChildren(icono(nombre));
+  v.btnPrincipal.dataset.estado = modo;
+  v.btnInicio.disabled = t < 1e-3 && !v.reproduciendo;
+  v.btnAtras.disabled = t < 1e-3;
+  v.contadorAvance.textContent = `${hechas} / ${v.pausas.length}`;
+  v.contadorAvance.title = `Explicación ${hechas} de ${v.pausas.length}`;
+  v.notaReproductor.textContent = {
+    iniciar: v.continuo ? 'Iniciar recorre toda la ruta sin parar.' : 'Iniciar avanza hasta el primer paso y se detiene para leer la explicación.',
+    pausar: v.continuo ? 'Recorriendo la ruta sin parar.' : 'Avanzando hasta el próximo paso…',
+    continuar: v.continuo ? 'En pausa.' : 'Lee la explicación del paso y aprieta Continuar.',
+    repetir: 'Fin del recorrido.',
+  }[modo];
 }
 
 // --- Gráfico de barras ----------------------------------------------------------
