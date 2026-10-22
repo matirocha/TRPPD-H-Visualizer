@@ -120,22 +120,13 @@ code { font-family: var(--f-mono); font-size: 0.88em; background: var(--papel-2)
 }
 .barra__nav a:hover { color: var(--tinta); background: var(--papel-2); }
 .barra__nav a[aria-current='true'] { color: var(--papel); background: var(--tinta); }
-.barra__selector { display: flex; align-items: center; gap: 12px; min-width: 0; }
-.selector-rapido {
-  max-width: 280px; min-width: 0;
-  appearance: none; -webkit-appearance: none;
-  background: var(--superficie) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2317202a' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 12px center;
-  border: 1px solid var(--regla); border-radius: 999px;
-  padding: 7px 32px 7px 14px; font-size: 13px; font-family: var(--f-mono);
-  text-overflow: ellipsis;
-}
+.barra__selector { position: relative; display: flex; align-items: center; min-width: 0; }
 .progreso { position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; }
 .progreso__barra { display: block; height: 100%; background: var(--tinta); transform-origin: 0 50%; transform: scaleX(0); }
 
 @media (max-width: 960px) {
   .barra__nav { display: none; }
   .barra__interior { justify-content: space-between; gap: 12px; }
-  .selector-rapido { max-width: 52vw; }
 }
 
 /* --- Secciones ------------------------------------------------------------ */
@@ -199,15 +190,151 @@ code { font-family: var(--f-mono); font-size: 0.88em; background: var(--papel-2)
 .paso--hecho { border-color: var(--color); color: var(--tinta); }
 .pasos__flecha { color: var(--tinta-3); font-size: 12px; }
 
-/* --- Selector de solución (sección Instancia) ---------------------------- */
-.selector {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px 28px;
-  padding: 22px 24px; background: var(--superficie); border: 1px solid var(--regla-2);
-  border-radius: var(--radio); box-shadow: var(--sombra-s); margin-bottom: 28px;
+/* --- Selector de solución (selector.js) ----------------------------------
+   Botón en la barra superior que abre un panel flotante, y el mismo panel fijo
+   en la sección Instancia. Cada opción muestra el Σ D al que lleva. */
+.selector-monograma {
+  display: inline-grid; place-items: center; flex-shrink: 0;
+  width: 30px; height: 30px; border-radius: 9px;
+  background: var(--tinta); color: var(--papel);
+  font: 600 15px/1 var(--f-titulo); font-variation-settings: 'opsz' 72;
 }
-.selector__grupo { display: grid; gap: 8px; align-content: start; }
-.selector__etiqueta { font: 600 12px/1 var(--f-texto); letter-spacing: 0.08em; text-transform: uppercase; color: var(--tinta-3); }
-.selector__archivo { grid-column: 1 / -1; font: 13px/1.4 var(--f-mono); color: var(--tinta-3); border-top: 1px dashed var(--regla); padding-top: 14px; overflow-wrap: anywhere; }
+
+.selector-boton {
+  display: flex; align-items: center; gap: 10px; min-width: 0; max-width: 100%;
+  height: 44px; padding: 0 12px 0 6px;
+  background: var(--superficie); border: 1px solid var(--regla); border-radius: 14px;
+  box-shadow: var(--sombra-s); text-align: left;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s var(--facil);
+}
+.selector-boton:hover { border-color: var(--tinta-3); }
+.selector-boton:active { transform: scale(0.985); }
+.selector-boton[aria-expanded='true'] { border-color: var(--tinta); box-shadow: 0 0 0 3px rgb(23 32 42 / 0.08); }
+.selector-boton__texto { display: grid; gap: 3px; min-width: 0; }
+.selector-boton__alg { font: 600 13px/1 var(--f-texto); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.selector-boton__detalle { font-size: 11.5px; line-height: 1; color: var(--tinta-2); white-space: nowrap; }
+.selector-boton__valor {
+  flex-shrink: 0; padding: 5px 9px; border-radius: 8px;
+  background: var(--papel-2); font-size: 12.5px; font-weight: 500; white-space: nowrap;
+}
+.selector-boton__flecha {
+  flex-shrink: 0; width: 8px; height: 8px; margin: -4px 2px 0 0;
+  border-right: 1.6px solid var(--tinta-2); border-bottom: 1.6px solid var(--tinta-2);
+  transform: rotate(45deg); transition: transform 0.25s var(--facil), margin 0.25s var(--facil);
+}
+.selector-boton[aria-expanded='true'] .selector-boton__flecha { transform: rotate(-135deg); margin-top: 4px; }
+
+/* Panel: cabecera con Σ D y flechas, una fila por dimensión y el archivo al pie. */
+.selector-panel { display: grid; gap: 16px; min-width: 0; }
+.selector-panel__cabecera { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.selector-panel__resumen { display: grid; gap: 6px; min-width: 0; }
+.selector-panel__titulo { font: 600 11.5px/1 var(--f-texto); letter-spacing: 0.08em; text-transform: uppercase; color: var(--tinta-3); }
+.selector-panel__objetivo { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; font: 500 24px/1.1 var(--f-titulo); letter-spacing: -0.015em; }
+.selector-panel__objetivo .num { font-size: 0.82em; }
+.selector-panel__estado {
+  padding: 3px 9px; border-radius: 999px; background: var(--p1-suave); color: #0b5d57;
+  font: 600 11.5px/1.3 var(--f-texto); letter-spacing: 0.02em;
+}
+.selector-panel__acciones { display: flex; gap: 6px; flex-shrink: 0; }
+.selector-flecha {
+  display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px;
+  border: 1px solid var(--regla); background: var(--superficie); font-size: 15px; color: var(--tinta);
+  transition: border-color 0.2s, background 0.2s, transform 0.2s var(--facil);
+}
+.selector-flecha:hover:not(:disabled) { border-color: var(--tinta-3); background: var(--papel); }
+.selector-flecha:active:not(:disabled) { transform: scale(0.94); }
+.selector-flecha:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.selector-grupo { display: grid; gap: 8px; min-width: 0; }
+.selector-grupo__etiqueta { font: 600 11.5px/1 var(--f-texto); letter-spacing: 0.08em; text-transform: uppercase; color: var(--tinta-3); }
+.selector-grupo__opciones { display: flex; flex-wrap: wrap; gap: 6px; }
+.selector-grupo--alg .selector-grupo__opciones { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
+.selector-grupo--inst .selector-grupo__opciones { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); }
+
+.selector-opcion {
+  position: relative; overflow: hidden; min-width: 0;
+  display: grid; gap: 3px; justify-items: start; text-align: left;
+  padding: 8px 12px 10px; border-radius: 11px;
+  border: 1px solid var(--regla-2); background: var(--papel); color: var(--tinta);
+  transition: background 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s var(--facil);
+}
+.selector-opcion:hover { border-color: var(--tinta-3); background: var(--superficie); }
+.selector-opcion:active { transform: scale(0.97); }
+.selector-opcion__texto { font: 600 14px/1.15 var(--f-texto); }
+.selector-opcion__valor { font-size: 11.5px; color: var(--tinta-2); white-space: nowrap; }
+.selector-opcion[aria-pressed='true'] {
+  background: var(--tinta); border-color: var(--tinta); color: var(--papel);
+  box-shadow: 0 8px 18px -10px rgb(23 32 42 / 0.6);
+}
+.selector-opcion[aria-pressed='true'] .selector-opcion__valor { color: rgb(244 240 232 / 0.72); }
+.selector-opcion--aproximada:not([aria-pressed='true']) { opacity: 0.5; border-style: dashed; }
+
+/* Algoritmo: monograma, nombre y Σ D en una tarjeta ancha */
+.selector-opcion--alg { grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: 10px; padding: 9px 12px 9px 9px; }
+.selector-opcion--alg .selector-monograma { grid-row: span 2; }
+.selector-opcion--alg .selector-opcion__texto { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.selector-opcion--alg[aria-pressed='true'] .selector-monograma { background: var(--papel); color: var(--tinta); }
+
+/* Fichas (n, instancia, h): rótulo grande y Σ D; en la instancia, barra proporcional a Σ D */
+.selector-opcion--ficha { min-width: 64px; }
+.selector-grupo--inst .selector-opcion__texto { font: 500 20px/1 var(--f-titulo); font-variation-settings: 'opsz' 72; }
+.selector-grupo--h .selector-opcion__texto, .selector-grupo--n .selector-opcion__texto { font-family: var(--f-mono); font-weight: 500; font-size: 13.5px; }
+.selector-opcion__barra {
+  position: absolute; left: 0; bottom: 0; height: 3px; width: 100%;
+  background: var(--tinta-3); opacity: 0.45;
+  transform-origin: 0 50%; transform: scaleX(var(--escala, 0));
+}
+.selector-opcion[aria-pressed='true'] .selector-opcion__barra { background: var(--resalte); opacity: 1; }
+
+.selector-panel__archivo {
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px;
+  padding-top: 12px; border-top: 1px dashed var(--regla);
+  font: 12px/1.4 var(--f-mono); color: var(--tinta-3); overflow-wrap: anywhere;
+}
+
+/* Flotante, bajo el botón de la barra */
+.selector-panel--flotante {
+  position: absolute; top: calc(100% + 10px); right: 0; z-index: 60;
+  width: min(600px, calc(100vw - 32px)); max-height: calc(100vh - var(--barra-alto) - 28px); overflow-y: auto;
+  padding: 18px; border-radius: 18px;
+  background: var(--superficie); border: 1px solid var(--regla-2);
+  box-shadow: 0 28px 64px -24px rgb(23 32 42 / 0.5), 0 2px 8px rgb(23 32 42 / 0.08);
+  opacity: 0; visibility: hidden; transform: translateY(-8px) scale(0.98); transform-origin: 100% 0;
+  transition: opacity 0.18s, transform 0.18s, visibility 0s 0.18s;
+}
+.selector-panel--flotante[data-abierto] {
+  opacity: 1; visibility: visible; transform: none;
+  transition: opacity 0.2s, transform 0.28s var(--facil), visibility 0s;
+}
+
+/* Fijo en la sección Instancia */
+.selector-panel--en-linea {
+  padding: 22px 24px; margin-bottom: 28px;
+  background: var(--superficie); border: 1px solid var(--regla-2);
+  border-radius: var(--radio); box-shadow: var(--sombra-s);
+}
+@media (min-width: 760px) {
+  .selector-panel--en-linea {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px 28px;
+    grid-template-areas: 'cab cab' 'alg alg' 'inst inst' 'n h' 'archivo archivo';
+  }
+  .selector-panel--en-linea .selector-panel__cabecera { grid-area: cab; }
+  .selector-panel--en-linea .selector-grupo--alg { grid-area: alg; }
+  .selector-panel--en-linea .selector-grupo--inst { grid-area: inst; }
+  .selector-panel--en-linea .selector-grupo--n { grid-area: n; }
+  .selector-panel--en-linea .selector-grupo--h { grid-area: h; }
+  .selector-panel--en-linea .selector-panel__archivo { grid-area: archivo; }
+}
+
+@media (max-width: 960px) {
+  .selector-boton__detalle { display: none; }
+}
+@media (max-width: 520px) {
+  .selector-boton { gap: 8px; padding-right: 10px; }
+  .selector-boton__texto { display: none; }
+  .selector-panel--flotante { padding: 14px; }
+  .selector-grupo--alg .selector-grupo__opciones { grid-template-columns: minmax(0, 1fr); }
+}
 
 /* --- KPIs ----------------------------------------------------------------- */
 .kpis { display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; margin-bottom: 28px; }

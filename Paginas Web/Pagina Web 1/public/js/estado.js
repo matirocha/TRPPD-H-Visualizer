@@ -3,6 +3,10 @@
 //   sim     resultado de modelo.simular
 //   hover   cliente resaltado en todas las vistas (número o null)
 //   modoNodo 'tiempo' | 'unitario': qué muestran las tarjetas uₐ ℓₐ u_b ℓ_b del mapa
+//   avance  punto del recorrido que muestra la carga del camión: { tramo, viaje, servicio, reloj }
+//           (viaje y servicio de 0 a 1 en el tramo k); el mapa lo sigue
+//   pedirParada { indice } con -1 = depósito, 0..n-1 = paradas, n = regreso: el mapa le pide
+//           a la carga que vaya a esa parada (un objeto nuevo en cada pedido)
 export function crearEstado(inicial = {}) {
   let estado = { ...inicial };
   const oyentes = new Map();

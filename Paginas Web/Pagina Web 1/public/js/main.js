@@ -1,5 +1,5 @@
-// Punto de entrada: carga las soluciones, arma el selector y la sección de la
-// instancia, y entrega la simulación a cada sección visual.
+// Punto de entrada: carga las soluciones, arma el selector (selector.js) y la
+// sección de la instancia, y entrega la simulación a cada sección visual.
 //
 // Cada sección es un módulo con crear(raiz, estado) -> { render(sim, salida), destruir() }.
 // render se llama cada vez que cambia la solución elegida, siempre después de destruir().
@@ -7,6 +7,7 @@ import { cargarManifest, cargarSalida } from './datos.js';
 import { crearEstado } from './estado.js';
 import { PARAMETROS, PARAMETRO_INFO, normalizar, simular } from './modelo.js';
 import { $, $$, PARAM_HTML, avisar, el, fmt, movimientoReducido } from './util.js';
+import { crearSelector } from './selector.js';
 import * as intro from './intro.js';
 import * as mapa from './mapa.js';
 import * as camion from './camion.js';
@@ -14,89 +15,11 @@ import * as tiempos from './tiempos.js';
 
 gsap.registerPlugin(ScrollTrigger, ScrollToPlugin, DrawSVGPlugin, MotionPathPlugin, SplitText);
 
-const estado = crearEstado({ salida: null, sim: null, hover: null, modoNodo: 'tiempo' });
+const estado = crearEstado({ salida: null, sim: null, hover: null, modoNodo: 'tiempo', avance: null });
 let manifest = [];
 let archivoActual = null;
 let modulos = [];
-
-// --- Selector ---------------------------------------------------------------
-
-const DIMENSIONES = [
-  { clave: 'alg', etiqueta: 'Algoritmo', valor: (s) => s.algoritmo.clave, texto: (v, s) => s.algoritmo.nombre },
-  { clave: 'n', etiqueta: 'Clientes |V_c|', valor: (s) => s.instancia.n, texto: (v) => `n = ${v}` },
-  { clave: 'inst', etiqueta: 'Instancia', valor: (s) => s.instancia.id ?? s.instancia.nombre, texto: (v) => (typeof v === 'number' ? `id ${v}` : v) },
-  { clave: 'h', etiqueta: 'Manipulación h = h_a = h_b', valor: (s) => s.instancia.h ?? '—', texto: (v) => (typeof v === 'number' ? fmt(v) : v) },
-];
-
-const claveDe = (s) => Object.fromEntries(DIMENSIONES.map((d) => [d.clave, d.valor(s)]));
-const etiquetaSalida = (s) => {
-  const i = s.instancia;
-  const partes = [`n${i.n}`, i.id != null ? `id${i.id}` : i.nombre, i.h != null ? `h ${fmt(i.h)}` : null].filter(Boolean);
-  return `${partes.join(' · ')}${s.objetivo != null ? ` — Σ D ${fmt(s.objetivo)}` : ''}`;
-};
-
-function buscarSalida(deseada) {
-  // Coincidencia exacta o, si no existe, la que comparte más dimensiones en orden de prioridad.
-  let mejor = null;
-  let puntaje = -1;
-  for (const s of manifest) {
-    const k = claveDe(s);
-    const p = DIMENSIONES.reduce((suma, d, idx) => suma + (k[d.clave] === deseada[d.clave] ? 2 ** (DIMENSIONES.length - idx) : 0), 0);
-    if (p > puntaje) {
-      mejor = s;
-      puntaje = p;
-    }
-  }
-  return mejor;
-}
-
-function construirSelector() {
-  const actual = manifest.find((s) => s.archivo === archivoActual);
-  const clave = actual ? claveDe(actual) : {};
-  const contenedor = $('#selector');
-  contenedor.replaceChildren();
-
-  for (const d of DIMENSIONES) {
-    const valores = new Map();
-    for (const s of manifest) {
-      const v = d.valor(s);
-      if (!valores.has(v)) valores.set(v, d.texto(v, s));
-    }
-    const orden = [...valores.keys()].sort((a, b) => (typeof a === 'number' && typeof b === 'number' ? a - b : String(a).localeCompare(String(b))));
-    const grupo = el('div', { class: 'selector__grupo', role: 'group', 'aria-label': d.etiqueta },
-      el('span', { class: 'selector__etiqueta', html: d.etiqueta.replace(/_([a-z])/g, '<sub>$1</sub>') }),
-      el('div', { class: 'segmentado' }, orden.map((v) => {
-        const deseada = { ...clave, [d.clave]: v };
-        return el('button', {
-          type: 'button',
-          'aria-pressed': String(clave[d.clave] === v),
-          onclick: () => {
-            const destino = buscarSalida(deseada);
-            if (destino) mostrar(destino.archivo);
-          },
-        }, valores.get(v));
-      })));
-    contenedor.append(grupo);
-  }
-  contenedor.append(el('p', { class: 'selector__archivo' }, `Outputs/${archivoActual ?? ''}`));
-
-  const rapido = $('#selector-rapido');
-  rapido.replaceChildren();
-  const porAlgoritmo = Map.groupBy ? Map.groupBy(manifest, (s) => s.algoritmo.nombre) : agrupar(manifest, (s) => s.algoritmo.nombre);
-  for (const [nombre, salidas] of porAlgoritmo) {
-    rapido.append(el('optgroup', { label: nombre }, salidas.map((s) => el('option', { value: s.archivo, selected: s.archivo === archivoActual }, etiquetaSalida(s)))));
-  }
-}
-
-function agrupar(lista, fn) {
-  const mapa = new Map();
-  for (const x of lista) {
-    const k = fn(x);
-    if (!mapa.has(k)) mapa.set(k, []);
-    mapa.get(k).push(x);
-  }
-  return mapa;
-}
+let selector = null;
 
 // --- Sección Instancia ------------------------------------------------------
 
@@ -280,8 +203,8 @@ async function mostrar(archivo, { silencioso = false } = {}) {
   url.searchParams.set('s', archivo);
   history.replaceState(null, '', url);
 
-  estado.set({ salida, sim, hover: null });
-  construirSelector();
+  estado.set({ salida, sim, hover: null, avance: null });
+  selector.pintar(manifest, archivo);
   renderInstancia(sim, salida);
   for (const m of modulos) {
     try {
@@ -331,7 +254,6 @@ function iniciarNavegacion() {
     e.preventDefault();
     gsap.to(window, { duration: movimientoReducido() ? 0 : 1, scrollTo: { y: destino, offsetY: 64 }, ease: 'power2.inOut' });
   });
-  $('#selector-rapido').addEventListener('change', (e) => mostrar(e.target.value));
 }
 
 function iniciarRevelado() {
@@ -358,10 +280,13 @@ async function iniciar() {
     return;
   }
 
+  selector = crearSelector({ barra: $('#selector-barra'), enLinea: $('#selector'), alElegir: (archivo) => mostrar(archivo) });
+
+  // Mapa y carga comparten la escena fijada: la carga lleva el scroll y el mapa la sigue.
   modulos = [
     intro.crear({ hero: $('#hero-fondo'), problema: $('#problema-escena') }, estado),
-    mapa.crear($('#mapa-escena'), estado),
-    camion.crear($('#carga-escena'), estado),
+    mapa.crear($('#mapa-escena'), estado, { vinculado: true }),
+    camion.crear($('#carga-escena'), estado, { fijar: $('#recorrido-escena'), grafico: $('#carga-grafico') }),
     tiempos.crear($('#tiempos-escena'), estado),
   ];
 

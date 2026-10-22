@@ -7,11 +7,11 @@ entregas y costos de manipulación bajo la Política 3 de Battarra et al., 2010)
 
 **"Hoja de ruta técnica"**: papel cálido, tinta oscura y datos en monoespaciada,
 como un cuaderno de campo de logística. La página es un relato con *scroll*: se
-baja y el camión recorre la ruta tres veces, cada vez con una lente distinta.
+baja y el camión recorre la ruta dos veces, cada vez con una lente distinta.
 
-1. **Mapa**: dónde va y cuánto tarda cada tramo.
-2. **Carga**: qué lleva dentro y qué entra o sale por la única puerta.
-3. **Reloj**: cuánto espera cada cliente y de qué está hecha esa espera.
+1. **Mapa y carga, a la vez** (justo después de la portada): dónde va y cuánto
+   tarda cada tramo, y qué lleva dentro y qué entra o sale por la única puerta.
+2. **Reloj**: cuánto espera cada cliente y de qué está hecha esa espera.
 
 ## Identidad visual
 
@@ -42,22 +42,28 @@ para números (con cifras tabulares). Decimales con coma (es-CL).
 
 | # | Sección | Contenido | Animación |
 |---|---|---|---|
-| 00 | Portada | Título, pregunta del problema, ruta de la instancia dibujada de fondo | La ruta se traza sola; paralaje al bajar |
-| 01 | El problema | Tres ideas: latencia (Σ D<sub>i</sub>), una sola puerta (LIFO, Figura 1), Política 3 (Tabla 3) | Se construyen al entrar en pantalla |
-| 02 | La instancia | Selector (algoritmo, n, id, h), KPIs, tabla de clientes, parámetros, verificación, leyenda | Contadores |
-| 03 | Mapa | Nodos con u<sub>a</sub>, ℓ<sub>a</sub>, u<sub>b</sub>, ℓ<sub>b</sub>; arcos con c<sub>ij</sub>; panel con la parada actual | Sección fija: el scroll dibuja la ruta y mueve el camión |
-| 04 | Carga | Camión con las unidades en su posición física, pasos de la Tabla 3, barras de carga por tramo vs Q | Sección fija: el scroll anima cada operación de carga y descarga |
-| 05 | Reloj | Línea de tiempo de la ruta con lupa de servicio y barras de espera D<sub>i</sub> por cliente | Cabezal ligado al scroll; barras que crecen |
-| 06 | Datos | Cómo generar salidas y conectar algoritmos nuevos | — |
+| 00 | Portada | Título, pregunta del problema, ruta de la instancia dibujada sobre papel liso | La ruta se traza sola; paralaje al bajar |
+| 01 | Mapa y carga | A la izquierda, nodos con u<sub>a</sub>, ℓ<sub>a</sub>, u<sub>b</sub>, ℓ<sub>b</sub> y arcos con c<sub>ij</sub>; a la derecha, el camión con las unidades en su posición física y los pasos de la Tabla 3. Debajo, barras de carga por tramo vs Q | Una sola escena fija: el scroll mueve el camión en el mapa y anima cada operación de carga y descarga al mismo tiempo |
+| 02 | El problema | Tres ideas: latencia (Σ D<sub>i</sub>), una sola puerta (LIFO, Figura 1), Política 3 (Tabla 3) | Se construyen al entrar en pantalla |
+| 03 | La instancia | Selector (algoritmo, n, id, h), KPIs, tabla de clientes, parámetros, verificación, leyenda | Contadores |
+| 04 | Reloj | Línea de tiempo de la ruta con lupa de servicio y barras de espera D<sub>i</sub> por cliente | Cabezal ligado al scroll; barras que crecen |
+| 05 | Datos | Cómo generar salidas y conectar algoritmos nuevos | — |
+
+En pantallas de menos de 960 px el mapa y el camión se apilan, cada uno con
+sus botones de paso a paso, y siguen moviéndose juntos.
+
+El selector de soluciones vive en la barra superior (un botón que abre un panel)
+y, el mismo panel, en la sección 03. Cada opción muestra el Σ D de la solución
+a la que lleva; las fichas de instancia tienen una barra proporcional a Σ D.
 
 Lo que pide el enunciado y dónde está:
 
-- **Mapa con un nodo por cliente que muestra u<sub>a</sub>, ℓ<sub>a</sub>, u<sub>b</sub>, ℓ<sub>b</sub>** → sección 03. Cada nodo tiene
+- **Mapa con un nodo por cliente que muestra u<sub>a</sub>, ℓ<sub>a</sub>, u<sub>b</sub>, ℓ<sub>b</sub>** → sección 01. Cada nodo tiene
   una tarjeta 2×2 con los cuatro tiempos. Un control alterna entre el *tiempo
   incurrido* en ese cliente (p. ej. u<sub>a</sub>·α<sub>i</sub>) y el *valor unitario* del parámetro.
 - **Tiempo de viaje en cada arco** → etiqueta c<sub>ij</sub> en el punto medio de cada arco.
-- **Carga del camión para cada cliente** → sección 04 (camión animado y barras w/y/z).
-- **Gráfico del tiempo de cada cliente** → sección 05 (línea de tiempo y espera D<sub>i</sub>).
+- **Carga del camión para cada cliente** → sección 01 (camión animado junto al mapa y barras w/y/z).
+- **Gráfico del tiempo de cada cliente** → sección 04 (línea de tiempo y espera D<sub>i</sub>).
 
 ## Datos
 
@@ -85,11 +91,13 @@ Pagina Web 1/
   scripts/verificar.js simulación JS vs. todas las salidas
   public/
     index.html         esqueleto de secciones
-    css/base.css       tokens y componentes comunes
+    css/base.css       tokens y componentes comunes (incluye el selector)
     css/<seccion>.css  estilos de cada sección
-    js/main.js         arranque, selector, sección Instancia
+    css/recorrido.css  acomodo conjunto de mapa y carga
+    js/main.js         arranque, sección Instancia
+    js/selector.js     selector de soluciones (barra y sección Instancia)
     js/modelo.js       normalización y simulación (Tabla 3)
-    js/estado.js       estado compartido (hover entre vistas)
+    js/estado.js       estado compartido (hover, avance del recorrido)
     js/util.js         formato, DOM/SVG, tooltip
     js/intro.js        portada y "El problema"
     js/mapa.js         mapa de la ruta
@@ -122,6 +130,13 @@ export function crear(raiz, estado) {
 - Resaltado compartido: al pasar sobre un cliente se hace
   `estado.set({ hover: i })` y al salir `estado.set({ hover: null })`; cada vista
   escucha `estado.on('hover', fn)` y marca ese cliente.
+- Mapa y carga van juntos: `camion.crear(raiz, estado, { fijar, grafico })` fija
+  `#recorrido-escena` (las dos vistas) y dibuja las barras en `#carga-grafico`;
+  `mapa.crear(raiz, estado, { vinculado: true })` no tiene pin propio. La carga
+  publica en cada actualización `estado.avance = { tramo, viaje, servicio, reloj }`
+  y el mapa se ubica en ese punto de su línea; al elegir una parada en el mapa
+  se hace `estado.set({ pedirParada: { indice } })` y la carga mueve las dos
+  vistas (scroll, animación o salto, según el modo).
 - Los colores salen siempre de los tokens CSS (clases o `style: { fill: 'var(--a)' }`).
 - Las clases de cada sección llevan prefijo (`intro-`, `mapa-`, `camion-`, `tiempos-`).
 

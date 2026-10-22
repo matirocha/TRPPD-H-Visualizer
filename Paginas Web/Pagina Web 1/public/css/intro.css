@@ -18,19 +18,12 @@
   overflow: hidden;
 }
 
-/* Fondo: cuadrícula cartográfica + ruta; el velo deja legible el texto. */
+/* Fondo: papel liso con la ruta; el velo deja legible el texto. */
 .hero__fondo {
   position: absolute;
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background-image:
-    linear-gradient(rgb(23 32 42 / 0.055) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(23 32 42 / 0.055) 1px, transparent 1px),
-    linear-gradient(rgb(23 32 42 / 0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(23 32 42 / 0.025) 1px, transparent 1px);
-  background-size: 96px 96px, 96px 96px, 24px 24px, 24px 24px;
-  background-position: -1px -1px;
 }
 .hero__fondo::after {
   content: '';

@@ -1,4 +1,4 @@
-// Sección 05 · El reloj.
+// Sección 04 · El reloj.
 //
 // A. Línea de tiempo de la ruta: viajes y servicios sobre un eje de tiempo,
 //    alfileres en cada D_i, un cabezal ligado al scroll y una lupa con los pasos

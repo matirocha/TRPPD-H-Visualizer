@@ -315,7 +315,8 @@
     padding-bottom: 0;
   }
   .camion-medidor { position: sticky; bottom: 0; z-index: 1; background: var(--superficie); padding-bottom: 14px; }
-  .camion-grafico__lienzo { flex: 1 1 auto; height: auto; min-height: 100px; }
+  /* Solo cuando el gráfico va dentro de la escena fija (puede ir aparte, ver recorrido.css). */
+  .camion-escena .camion-grafico__lienzo { flex: 1 1 auto; height: auto; min-height: 100px; }
 
   /* Cabecera de alto constante: el texto de la fase cambia en cada paso y no debe
      mover el camión ni redimensionar el gráfico mientras se hace scroll.

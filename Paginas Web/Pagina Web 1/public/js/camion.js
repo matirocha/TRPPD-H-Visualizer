@@ -1,4 +1,4 @@
-// Sección 04 · Carga del camión.
+// Sección 01 · Carga del camión (junto al mapa).
 //
 // Vista lateral del camión (cabina a la izquierda, puerta trasera a la
 // derecha) con cada unidad en su ranura física, un panel con los pasos de la
@@ -6,6 +6,10 @@
 // Una sola línea de tiempo de GSAP, construida desde sim, anima los viajes y
 // las operaciones: en escritorio la escena queda fija y el scroll la recorre;
 // en móvil o con movimiento reducido se avanza por parada con botones.
+//
+// Esta línea marca el paso del recorrido: en cada actualización publica
+// estado.avance y el mapa se coloca en el mismo punto. Las paradas elegidas
+// desde el mapa llegan como estado.pedirParada.
 import { OPERACIONES } from './modelo.js';
 import { PARAM_HTML, POLITICA_TEXTO, color, conTooltip, el, fmt, movimientoReducido, ocultarTooltip, svg } from './util.js';
 
@@ -158,18 +162,25 @@ function contarAnden(p, segmentos) {
 
 // --- Módulo -----------------------------------------------------------------
 
-export function crear(raiz, estado) {
+/**
+ * fijar: elemento que se fija durante el scroll (por defecto, la escena del camión).
+ * grafico: contenedor aparte para las barras de carga por tramo (por defecto, dentro de la escena).
+ */
+export function crear(raiz, estado, { fijar = null, grafico = null } = {}) {
   let v = null;
   let ctx = null;
   let mm = null;
   let ro = null;
   let quitarHover = null;
+  let quitarPedido = null;
 
   function render(sim, salida) {
     destruir();
     if (!sim?.paradas?.length || !window.gsap) return;
-    v = prepararVista(sim, salida, estado);
+    v = prepararVista(sim, salida, estado, { graficoAparte: Boolean(grafico) });
+    v.fijar = fijar;
     raiz.append(v.nodo);
+    grafico?.append(v.grafico);
 
     ctx = gsap.context(() => {}, raiz);
     v.ctx = ctx;
@@ -196,12 +207,17 @@ export function crear(raiz, estado) {
     });
 
     quitarHover = estado.on('hover', (c) => resaltar(vista, c));
+    quitarPedido = estado.on('pedirParada', (pedido) => {
+      if (pedido) irA(vista, pedido.indice);
+    });
     resaltar(v, estado.get('hover'));
   }
 
   function destruir() {
     quitarHover?.();
     quitarHover = null;
+    quitarPedido?.();
+    quitarPedido = null;
     ro?.disconnect();
     ro = null;
     if (v) {
@@ -214,6 +230,7 @@ export function crear(raiz, estado) {
     ctx = null;
     if (v) ocultarTooltip();
     raiz.replaceChildren();
+    grafico?.replaceChildren();
     v = null;
   }
 
@@ -222,7 +239,7 @@ export function crear(raiz, estado) {
 
 // --- Construcción del DOM -----------------------------------------------------
 
-function prepararVista(sim, salida, estado) {
+function prepararVista(sim, salida, estado, { graficoAparte = false } = {}) {
   const n = sim.paradas.length;
   const v = {
     sim, salida, estado, n,
@@ -232,7 +249,7 @@ function prepararVista(sim, salida, estado) {
     fases: [], iFase: -1, kActual: null, andenActual: null,
     activos: new Set(), barras: [], crecido: false, tamGrafico: '',
     ultimaCarga: '', ultimoReloj: '',
-    tl: null, st: null, modo: null, reproduccion: null, hist: new Map(),
+    tl: null, st: null, modo: null, reproduccion: null, hist: new Map(), piezas: [],
   };
 
   // Cabecera: estado y paradas
@@ -293,7 +310,7 @@ function prepararVista(sim, salida, estado) {
     v.lienzo);
 
   v.nodo = el('div', { class: 'camion' },
-    el('div', { class: 'camion-escena' }, cabecera, figura, controles, v.panel, v.grafico));
+    el('div', { class: 'camion-escena' }, cabecera, figura, controles, v.panel, graficoAparte ? null : v.grafico));
   return v;
 }
 
@@ -683,9 +700,10 @@ function montarLinea(v, modo) {
   const tl = construirLinea(v, true);
   v.tl = tl;
   if (modo === 'fija') {
+    const fijo = v.fijar ?? v.nodo;
     v.st = ScrollTrigger.create({
-      trigger: v.nodo,
-      pin: true,
+      trigger: fijo,
+      pin: fijo,
       start: 'top top+=64',
       end: `+=${v.n * 120}%`,
       scrub: 0.8,
@@ -904,15 +922,31 @@ function construirLinea(v, pausada) {
   fases.push({ ...regreso, t0: t + DUR.viaje / 2, t1: t + DUR.viaje, reloj0: medio, reloj1: ultimo.fin, anden: 0 });
   t += DUR.viaje;
   tl.addLabel('fin', t);
+  // Al terminar no se destaca ningún tramo: el gráfico queda completo.
   fases.push({
     tipo: 'fin', k: n, t0: t, t1: t + DUR.fin, orden: 6, carga0: ultimo.carga, carga1: ultimo.carga,
-    reloj0: sim.regreso, reloj1: sim.regreso, anden: 0, arcos: [n], etiqueta: 'Depósito', clase: '',
+    reloj0: sim.regreso, reloj1: sim.regreso, anden: 0, arcos: [], etiqueta: 'Depósito', clase: '',
     html: `Fin de la ruta · ${fmt(ultimo.carga.total)} recogidas a bordo`,
   });
   tl.to({}, { duration: DUR.fin }, t);
 
+  // Piezas del avance que sigue el mapa: en el tramo k, el viaje va de 0 a 1 y el servicio
+  // en el cliente de llegada de 0 a 0,5 hasta cerrar la puerta y de 0,5 a 1 en la pausa.
+  const L = tl.labels;
+  const piezas = [{ t0: 0, t1: L.p0, tramo: 0, viaje: [0, 0], servicio: [0, 0] }];
+  sim.paradas.forEach((_, k) => {
+    piezas.push(
+      { t0: L[`p${k}`], t1: L[`llega${k}`], tramo: k, viaje: [0, 1], servicio: [0, 0] },
+      { t0: L[`llega${k}`], t1: L[`fin${k}`], tramo: k, viaje: [1, 1], servicio: [0, 0.5] },
+      { t0: L[`fin${k}`], t1: k + 1 < n ? L[`p${k + 1}`] : L.regreso, tramo: k, viaje: [1, 1], servicio: [0.5, 1] });
+  });
+  piezas.push(
+    { t0: L.regreso, t1: L.fin, tramo: n, viaje: [0, 1], servicio: [0, 0] },
+    { t0: L.fin, t1: tl.duration(), tramo: n, viaje: [1, 1], servicio: [0, 1] });
+
   v.fases = fases;
   v.hist = hist;
+  v.piezas = piezas;
   return tl;
 }
 
@@ -939,11 +973,21 @@ function sincronizar(v, t) {
       b.textos[0].textContent = `${tipo}·${b.cliente}`;
     }
   }
-  const reloj = `t = ${fmt(f.reloj0 + (f.reloj1 - f.reloj0) * u, 2)}`;
+  const instante = f.reloj0 + (f.reloj1 - f.reloj0) * u;
+  const reloj = `t = ${fmt(instante, 2)}`;
   if (reloj !== v.ultimoReloj) {
     v.ultimoReloj = reloj;
     v.relojNodo.textContent = reloj;
   }
+  v.estado.set({ avance: avanceEn(v, t, instante) });
+}
+
+/** Punto del recorrido en el instante t de la línea, en las unidades que entiende el mapa. */
+function avanceEn(v, t, reloj) {
+  const pieza = v.piezas.find((p) => t < p.t1) ?? v.piezas[v.piezas.length - 1];
+  const u = pieza.t1 > pieza.t0 ? Math.min(1, Math.max(0, (t - pieza.t0) / (pieza.t1 - pieza.t0))) : 1;
+  const mezcla = ([a, b]) => a + (b - a) * u;
+  return { tramo: pieza.tramo, viaje: mezcla(pieza.viaje), servicio: mezcla(pieza.servicio), reloj };
 }
 
 function aplicarFase(v, f) {

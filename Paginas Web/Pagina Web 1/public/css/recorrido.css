@@ -1,0 +1,83 @@
+/* ==========================================================================
+   01 · Recorrido: mapa y carga a la vez
+   #recorrido-escena reúne la escena del mapa (mapa.js, vinculado) y la de la
+   carga (camion.js). En escritorio van lado a lado: el mapa a la izquierda y,
+   a la derecha, el estado, el camión y los pasos de la Tabla 3. Con movimiento
+   permitido toda la escena se fija bajo la barra y el scroll mueve las dos
+   vistas. En pantallas angostas se apilan, cada una con sus controles.
+   Aquí solo se reacomodan las escenas; sus estilos propios están en mapa.css
+   y camion.css.
+   ========================================================================== */
+
+.seccion--recorrido { padding-top: clamp(56px, 8vw, 104px); }
+.seccion--recorrido .seccion__cabecera { margin-bottom: clamp(24px, 3.5vw, 40px); }
+
+.recorrido { position: relative; width: 100%; }
+
+/* Barras de carga por tramo, debajo de la escena */
+.recorrido__grafico { margin-top: 24px; }
+.recorrido__grafico .camion-grafico__lienzo { height: 260px; }
+
+/* --- Pantallas angostas: una vista bajo la otra --------------------------- */
+@media (max-width: 959.98px) {
+  .recorrido__carga { margin-top: 40px; }
+}
+
+/* --- Escritorio: lado a lado ---------------------------------------------- */
+@media (min-width: 960px) {
+  .recorrido {
+    max-width: 1600px; margin-inline: auto; padding-inline: var(--margen);
+    display: grid; grid-template-columns: minmax(0, 58fr) minmax(0, 42fr); gap: 20px;
+    align-items: start;
+  }
+
+  /* Mapa: una columna; el panel de la parada lo reemplazan el estado y los pasos del camión. */
+  .recorrido .mapa__interior { max-width: none; padding-inline: 0; grid-template-columns: minmax(0, 1fr); }
+  .recorrido .mapa-panel { display: none; }
+  .recorrido .mapa-herramientas__nota { display: none; }
+
+  /* Camión: cabecera, figura, controles y panel en una columna. */
+  .recorrido .camion-escena {
+    max-width: none; padding-inline: 0;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+    grid-template-areas: 'cab' 'fig' 'ctrl' 'panel';
+  }
+
+  /* El reloj del modelo pasa a primer plano: es el único de la escena. */
+  .recorrido .camion-estado__reloj {
+    font-size: 15px; font-weight: 500; color: var(--superficie);
+    background: var(--tinta); border-color: var(--tinta); padding: 5px 12px;
+  }
+}
+
+/* --- Escritorio con scroll: la escena entera queda fija ------------------- */
+@media (min-width: 960px) and (prefers-reduced-motion: no-preference) {
+  .recorrido {
+    height: calc(100vh - var(--barra-alto));
+    padding-block: 12px 16px;
+    align-items: stretch;
+  }
+
+  .recorrido .mapa--fijo { height: 100%; }
+  .recorrido .mapa--fijo .mapa__interior { padding-block: 0; }
+
+  .recorrido .camion { height: 100%; min-height: 0; }
+  .recorrido .camion-escena {
+    height: 100%; padding-block: 0; gap: 12px;
+    grid-template-rows: auto auto minmax(0, 1fr);
+    grid-template-areas: 'cab' 'fig' 'panel';
+    align-content: stretch;
+  }
+  .recorrido .camion-svg { max-height: none; min-height: 0; }
+  .recorrido .camion-figura { padding: 10px 12px 8px; gap: 6px; }
+  .recorrido .camion-leyenda { font-size: 12px; gap: 3px 14px; }
+}
+
+/* Pantallas bajas: la figura del camión y el panel se compactan. */
+@media (min-width: 960px) and (max-height: 820px) and (prefers-reduced-motion: no-preference) {
+  .recorrido { padding-block: 8px 10px; }
+  .recorrido .camion-escena { gap: 9px; }
+  .recorrido .camion-cabecera { gap: 6px; }
+  .recorrido .camion-leyenda li:last-child { display: none; }
+}

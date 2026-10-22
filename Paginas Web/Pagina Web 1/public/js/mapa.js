@@ -1,10 +1,14 @@
-// Sección 03 · Mapa de la ruta.
+// Sección 01 · Mapa de la ruta (junto a la carga).
 //
 // Un nodo por cliente con su tarjeta uₐ ℓₐ u_b ℓ_b, arcos con el tiempo de viaje
-// c_ij y un camión que recorre la ruta. En escritorio la escena se fija y el
-// scroll mueve una timeline de duración n + 1: el tramo k se recorre en
-// [k, k + 0,7] y el camión atiende al cliente en [k + 0,7, k + 1]. En móvil o con
-// movimiento reducido no hay pin: la ruta se ve completa y se avanza con botones.
+// c_ij y un camión que recorre la ruta en una timeline de duración n + 1: el
+// tramo k se recorre en [k, k + 0,7] y el camión atiende al cliente en
+// [k + 0,7, k + 1].
+//
+// Vinculado (como se usa en la página): la timeline sigue a la carga del camión
+// (estado.avance), que es la que tiene el pin y los botones de paso a paso.
+// Solo: en escritorio la escena se fija y el scroll mueve la timeline; en móvil o
+// con movimiento reducido no hay pin, la ruta se ve completa y se avanza con botones.
 import { PARAMETROS, PARAMETRO_INFO } from './modelo.js';
 import {
   PARAM_HTML, POLITICA_TEXTO, conTooltip, el, fmt, mostrarTooltip, movimientoReducido,
@@ -385,7 +389,7 @@ function htmlDeposito(sim) {
 
 // --- Vista -------------------------------------------------------------------
 
-function construirVista({ sim, salida, nombre, fijo, estado, modoArcos, alCambiarArcos }) {
+function construirVista({ sim, salida, nombre, fijo, vinculado, estado, modoArcos, alCambiarArcos }) {
   const perfil = PERFILES[nombre];
   const I = salida.instancia;
   const N = sim.paradas.length;
@@ -402,6 +406,8 @@ function construirVista({ sim, salida, nombre, fijo, estado, modoArcos, alCambia
   const celdas = [];            // { p, q, texto, grupo, claseCero }
   const arcosRef = [];          // { trazo, flecha, pildora, mascara, grupo }
   let irA = () => {};
+  let seguir = () => {};        // modo vinculado: recibe estado.avance
+  let pasoBase = () => pasoActual; // desde dónde cuentan Anterior / Siguiente
   let desplazamiento = null;    // tween scrollTo de la ventana lanzado desde las píldoras o los nodos
   let pasoActual = -1;
   let filasTiempo = [];
@@ -771,9 +777,9 @@ function construirVista({ sim, salida, nombre, fijo, estado, modoArcos, alCambia
     el('div', { class: 'mapa-reloj__pista', 'aria-hidden': 'true' }, avance, marcas),
     el('p', { class: 'mapa-reloj__leyenda', html: '<span class="mapa-reloj__clave" aria-hidden="true"></span>instantes de entrega D<sub>i</sub>' }));
 
-  const anterior = el('button', { type: 'button', class: 'boton', onclick: () => irA(pasoActual - 1) },
+  const anterior = el('button', { type: 'button', class: 'boton', onclick: () => irA(pasoBase() - 1) },
     el('span', { 'aria-hidden': 'true' }, '←'), 'Anterior');
-  const siguiente = el('button', { type: 'button', class: 'boton', onclick: () => irA(pasoActual + 1) },
+  const siguiente = el('button', { type: 'button', class: 'boton', onclick: () => irA(pasoBase() + 1) },
     'Siguiente', el('span', { 'aria-hidden': 'true' }, '→'));
   const navTexto = el('span', { class: 'mapa-navegacion__texto num', 'aria-hidden': 'true' });
   const navegacion = fijo ? null : el('div', { class: 'mapa-navegacion' }, anterior, navTexto, siguiente);
@@ -1100,56 +1106,52 @@ function construirVista({ sim, salida, nombre, fijo, estado, modoArcos, alCambia
     }, en);
   }
 
-  // --- Relato con scroll (escritorio) -------------------------------------------
-  function iniciarScroll() {
-    const facil = gsap.parseEase(SUAVE);
-    const inversa = (y) => {
-      let lo = 0;
-      let hi = 1;
-      for (let i = 0; i < 30; i++) {
-        const m = (lo + hi) / 2;
-        if (facil(m) < y) lo = m;
-        else hi = m;
-      }
-      return (lo + hi) / 2;
-    };
+  // --- Línea del recorrido (escritorio con scroll o vinculada a la carga) ----------
+  const facil = gsap.parseEase(SUAVE);
+  const inversa = (y) => {
+    let lo = 0;
+    let hi = 1;
+    for (let i = 0; i < 30; i++) {
+      const m = (lo + hi) / 2;
+      if (facil(m) < y) lo = m;
+      else hi = m;
+    }
+    return (lo + hi) / 2;
+  };
 
-    const estadoEn = (t) => {
-      if (t >= N + VIAJE) return { paso: N + 1, reloj: sim.regreso, texto: textoPaso(N + 1) };
-      const k = limitar(Math.floor(t), 0, N);
-      const f = t - k;
-      if (f < VIAJE) {
-        const arco = sim.arcos[k];
-        const u = facil(limitar(f / VIAJE, 0, 1));
-        return {
-          paso: k,
-          reloj: arco.inicio + u * arco.c,
-          texto: k === 0 && f < 0.002 ? textoPaso(0) : textoViaje(arco),
-        };
-      }
-      const p = sim.paradas[k];
-      const reloj = p.T + ((f - VIAJE) / (1 - VIAJE)) * (p.F - p.T);
-      return { paso: k + 1, reloj, texto: textoServicio(p, reloj) };
-    };
+  /** Paso, reloj y texto en el instante t de la línea; `reloj` impone el instante del modelo. */
+  const estadoEn = (t, reloj = null) => {
+    if (t >= N + VIAJE) return { paso: N + 1, reloj: reloj ?? sim.regreso, texto: textoPaso(N + 1) };
+    const k = limitar(Math.floor(t), 0, N);
+    const f = t - k;
+    if (f < VIAJE) {
+      const arco = sim.arcos[k];
+      const u = facil(limitar(f / VIAJE, 0, 1));
+      return {
+        paso: k,
+        reloj: reloj ?? arco.inicio + u * arco.c,
+        texto: k === 0 && f < 0.002 ? textoPaso(0) : textoViaje(arco),
+      };
+    }
+    const p = sim.paradas[k];
+    const instante = reloj ?? p.T + ((f - VIAJE) / (1 - VIAJE)) * (p.F - p.T);
+    return { paso: k + 1, reloj: instante, texto: textoServicio(p, instante) };
+  };
 
-    const sincronizar = (t) => {
-      const e = estadoEn(t);
-      if (e.paso !== pasoActual) pintarPaso(e.paso);
-      pintarReloj(e.reloj, e.texto);
-    };
+  const sincronizar = (t, reloj = null) => {
+    const e = estadoEn(t, reloj);
+    if (e.paso !== pasoActual) pintarPaso(e.paso);
+    pintarReloj(e.reloj, e.texto);
+  };
 
+  /** Línea de duración n + 1. Con scrollTrigger la mueve el scroll; sin él queda en pausa. */
+  function lineaRecorrido(scrollTrigger = null) {
     ponerCamion(0);
     const tl = gsap.timeline({
       defaults: { ease: 'none' },
-      scrollTrigger: {
-        trigger: raizVista,
-        pin: true,
-        start: 'top top+=64',
-        end: `+=${(N + 1) * 70}%`,
-        scrub: 0.6,
-        anticipatePin: 1,
-      },
-      onUpdate: () => sincronizar(tl.time()),
+      paused: !scrollTrigger,
+      scrollTrigger: scrollTrigger ?? undefined,
+      onUpdate: scrollTrigger ? () => sincronizar(tl.time()) : undefined,
     });
 
     G.arcos.forEach((A, k) => {
@@ -1191,6 +1193,19 @@ function construirVista({ sim, salida, nombre, fijo, estado, modoArcos, alCambia
       }
     });
     tl.set({}, {}, N + 1);
+    return tl;
+  }
+
+  // --- Relato con scroll (escritorio, mapa solo) ----------------------------------
+  function iniciarScroll() {
+    const tl = lineaRecorrido({
+      trigger: raizVista,
+      pin: true,
+      start: 'top top+=64',
+      end: `+=${(N + 1) * 70}%`,
+      scrub: 0.6,
+      anticipatePin: 1,
+    });
 
     irA = (s) => {
       const st = tl.scrollTrigger;
@@ -1210,6 +1225,31 @@ function construirVista({ sim, salida, nombre, fijo, estado, modoArcos, alCambia
     };
 
     sincronizar(tl.time());
+  }
+
+  // --- Vinculado a la carga del camión ----------------------------------------------
+  // La carga publica estado.avance = { tramo, viaje, servicio, reloj } (fracciones de 0 a 1)
+  // y el mapa se coloca en el mismo punto de su línea. Una parada elegida aquí se le pide
+  // a la carga, que mueve las dos vistas (con scroll, animación o salto, según el modo).
+  function iniciarVinculado() {
+    const tl = lineaRecorrido();
+    // Mientras el camión viaja, Anterior / Siguiente cuentan desde la parada a la que va.
+    let destino = 0;
+    seguir = (avance) => {
+      if (!avance) {
+        destino = 0;
+        tl.time(0);
+        sincronizar(0);
+        return;
+      }
+      destino = limitar(avance.tramo + (avance.viaje > 0 ? 1 : 0), 0, N + 1);
+      const t = limitar(avance.tramo + VIAJE * avance.viaje + (1 - VIAJE) * avance.servicio, 0, N + 1);
+      tl.time(t);
+      sincronizar(t, avance.reloj);
+    };
+    pasoBase = () => destino;
+    irA = (s) => estado.set({ pedirParada: { indice: limitar(s, 0, N + 1) - 1 } });
+    seguir(estado.get('avance'));
   }
 
   // --- Paso a paso (móvil o movimiento reducido) --------------------------------
@@ -1288,17 +1328,20 @@ function construirVista({ sim, salida, nombre, fijo, estado, modoArcos, alCambia
     raiz: raizVista,
     pintarModo,
     resaltar,
+    seguir: (avance) => seguir(avance),
     iniciar(contexto) {
       pintarArcos(modoArcos);
       pintarModo(estado.get('modoNodo'));
       resaltar(estado.get('hover'));
       gsap.set(camion, { transformOrigin: '50% 50%' });
       gsap.set([...discos.values()], { transformOrigin: '50% 50%' });
-      if (fijo) iniciarScroll();
+      if (vinculado) iniciarVinculado();
+      else if (fijo) iniciarScroll();
       else iniciarPasos(contexto);
     },
     limpiar() {
       irA = () => {};
+      seguir = () => {};
       desplazamiento?.kill();
       desplazamiento = null;
       ocultarTooltip();
@@ -1308,7 +1351,8 @@ function construirVista({ sim, salida, nombre, fijo, estado, modoArcos, alCambia
 
 // --- Módulo ------------------------------------------------------------------
 
-export function crear(raiz, estado) {
+/** vinculado: el recorrido lo marca la carga del camión (estado.avance) y no hay pin propio. */
+export function crear(raiz, estado, { vinculado = false } = {}) {
   let ctx = null;
   let mm = null;
   let vista = null;
@@ -1317,7 +1361,7 @@ export function crear(raiz, estado) {
 
   function montar(sim, salida, nombre, fijo, contexto) {
     const v = construirVista({
-      sim, salida, nombre, fijo, estado, modoArcos, alCambiarArcos: (m) => { modoArcos = m; },
+      sim, salida, nombre, fijo, vinculado, estado, modoArcos, alCambiarArcos: (m) => { modoArcos = m; },
     });
     raiz.append(v.raiz);
     vista = v;
@@ -1356,6 +1400,7 @@ export function crear(raiz, estado) {
         estado.on('hover', (cliente) => vista?.resaltar(cliente)),
         estado.on('modoNodo', (modo) => vista?.pintarModo(modo)),
       ];
+      if (vinculado) bajas.push(estado.on('avance', (avance) => vista?.seguir(avance)));
     },
     destruir,
   };

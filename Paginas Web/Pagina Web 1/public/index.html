@@ -17,6 +17,7 @@
   <link rel="stylesheet" href="css/intro.css">
   <link rel="stylesheet" href="css/mapa.css">
   <link rel="stylesheet" href="css/camion.css">
+  <link rel="stylesheet" href="css/recorrido.css">
   <link rel="stylesheet" href="css/tiempos.css">
 
   <script defer src="vendor/gsap/gsap.min.js"></script>
@@ -30,7 +31,7 @@
   <script type="module" src="js/main.js"></script>
 </head>
 <body>
-  <a class="saltar" href="#mapa">Saltar al mapa</a>
+  <a class="saltar" href="#recorrido">Saltar al mapa y la carga</a>
 
   <header class="barra" id="barra">
     <div class="barra__interior">
@@ -41,17 +42,13 @@
         <span class="marca__texto">TRPPD-H<sub>3</sub></span>
       </a>
       <nav class="barra__nav" aria-label="Secciones">
+        <a href="#recorrido">Mapa y carga</a>
         <a href="#problema">Problema</a>
         <a href="#instancia">Instancia</a>
-        <a href="#mapa">Mapa</a>
-        <a href="#carga">Carga</a>
         <a href="#tiempos">Tiempos</a>
         <a href="#datos">Datos</a>
       </nav>
-      <div class="barra__selector">
-        <label class="visualmente-oculto" for="selector-rapido">Solución mostrada</label>
-        <select id="selector-rapido" class="selector-rapido"></select>
-      </div>
+      <div class="barra__selector" id="selector-barra"></div>
     </div>
     <div class="progreso" aria-hidden="true"><span class="progreso__barra" id="progreso"></span></div>
   </header>
@@ -67,14 +64,30 @@
         <p class="hero__pregunta">Un camión con una sola puerta trasera sale con todas las entregas. Cada cliente espera la suya. ¿En qué orden visitarlos, y cómo acomodar la carga, para que la <em>espera total</em> sea mínima?</p>
         <div class="hero__instancia" id="hero-instancia"></div>
       </div>
-      <a class="hero__bajar" href="#problema"><span>Desliza para recorrer la ruta</span><span class="hero__flecha" aria-hidden="true"></span></a>
+      <a class="hero__bajar" href="#recorrido"><span>Desliza para recorrer la ruta</span><span class="hero__flecha" aria-hidden="true"></span></a>
     </section>
 
-    <!-- 01 · Problema -->
+    <!-- 01 · Recorrido: mapa y carga a la vez. La escena entera se fija en escritorio. -->
+    <section class="seccion seccion--recorrido" id="recorrido" aria-labelledby="recorrido-titulo">
+      <div class="contenedor">
+        <header class="seccion__cabecera" data-revelar>
+          <p class="seccion__numero">01 · El recorrido</p>
+          <h2 class="seccion__titulo" id="recorrido-titulo">Mapa y carga, a la vez</h2>
+          <p class="seccion__entrada">El mapa muestra la ruta: cada nodo trae sus tiempos de manipulación u<sub>a</sub>, ℓ<sub>a</sub>, u<sub>b</sub> y ℓ<sub>b</sub>, y cada arco su tiempo de viaje c<sub>ij</sub>. El camión, visto de lado, muestra qué lleva y qué entra o sale por la única puerta en cada paso de la Tabla 3. Al bajar, el camión avanza en las dos vistas al mismo tiempo.</p>
+        </header>
+      </div>
+      <div id="recorrido-escena" class="recorrido">
+        <div id="mapa-escena" class="mapa-escena recorrido__mapa"></div>
+        <div id="carga-escena" class="carga-escena recorrido__carga"></div>
+      </div>
+      <div class="contenedor recorrido__grafico" id="carga-grafico"></div>
+    </section>
+
+    <!-- 02 · Problema -->
     <section class="seccion" id="problema" aria-labelledby="problema-titulo">
       <div class="contenedor">
         <header class="seccion__cabecera" data-revelar>
-          <p class="seccion__numero">01 · El problema</p>
+          <p class="seccion__numero">02 · El problema</p>
           <h2 class="seccion__titulo" id="problema-titulo">Tres ideas para leer una ruta</h2>
           <p class="seccion__entrada">El objetivo no es recorrer menos, sino que los clientes esperen menos. Y la espera depende tanto de los kilómetros como de cuánto cuesta mover la carga detrás de una única puerta.</p>
         </header>
@@ -82,11 +95,11 @@
       </div>
     </section>
 
-    <!-- 02 · Instancia -->
+    <!-- 03 · Instancia -->
     <section class="seccion seccion--instancia" id="instancia" aria-labelledby="instancia-titulo">
       <div class="contenedor">
         <header class="seccion__cabecera" data-revelar>
-          <p class="seccion__numero">02 · La instancia</p>
+          <p class="seccion__numero">03 · La instancia</p>
           <h2 class="seccion__titulo" id="instancia-titulo">Datos y resultado</h2>
           <p class="seccion__entrada">Elige la solución a visualizar. Cada archivo de la carpeta <code>Outputs</code> es la salida de un modelo o algoritmo sobre una instancia de e_vigo adaptada con la regla (79).</p>
         </header>
@@ -106,35 +119,11 @@
       </div>
     </section>
 
-    <!-- 03 · Mapa -->
-    <section class="seccion seccion--mapa" id="mapa" aria-labelledby="mapa-titulo">
-      <div class="contenedor">
-        <header class="seccion__cabecera" data-revelar>
-          <p class="seccion__numero">03 · El recorrido</p>
-          <h2 class="seccion__titulo" id="mapa-titulo">Mapa de la ruta</h2>
-          <p class="seccion__entrada">Cada nodo es un cliente y muestra sus cuatro tiempos de manipulación: u<sub>a</sub> y ℓ<sub>a</sub> (descargar y cargar entregas), u<sub>b</sub> y ℓ<sub>b</sub> (descargar y cargar recogidas). Cada arco indica el tiempo de viaje c<sub>ij</sub>. Al bajar, el camión recorre la ruta.</p>
-        </header>
-      </div>
-      <div id="mapa-escena" class="mapa-escena"></div>
-    </section>
-
-    <!-- 04 · Carga -->
-    <section class="seccion seccion--carga" id="carga" aria-labelledby="carga-titulo">
-      <div class="contenedor">
-        <header class="seccion__cabecera" data-revelar>
-          <p class="seccion__numero">04 · La carga</p>
-          <h2 class="seccion__titulo" id="carga-titulo">Lo que lleva el camión en cada tramo</h2>
-          <p class="seccion__entrada">La carga mantiene el patrón (F, b…b, a…a, b…b, R): recogidas al fondo, entregas pendientes y recogidas junto a la puerta. Al bajar, cada cliente ejecuta los pasos de la Tabla 3 y se ve qué unidades salen y entran por la puerta trasera.</p>
-        </header>
-      </div>
-      <div id="carga-escena" class="carga-escena"></div>
-    </section>
-
-    <!-- 05 · Tiempos -->
+    <!-- 04 · Tiempos -->
     <section class="seccion seccion--tiempos" id="tiempos" aria-labelledby="tiempos-titulo">
       <div class="contenedor">
         <header class="seccion__cabecera" data-revelar>
-          <p class="seccion__numero">05 · El reloj</p>
+          <p class="seccion__numero">04 · El reloj</p>
           <h2 class="seccion__titulo" id="tiempos-titulo">Cuánto espera cada cliente</h2>
           <p class="seccion__entrada">El cliente <em>i</em> queda atendido en D<sub>i</sub>, al terminar la descarga de su entrega. La función objetivo suma esos instantes; aquí se ve de qué está hecho cada uno: viaje y manipulación acumulados.</p>
         </header>
@@ -142,11 +131,11 @@
       <div id="tiempos-escena" class="tiempos-escena"></div>
     </section>
 
-    <!-- 06 · Datos -->
+    <!-- 05 · Datos -->
     <section class="seccion seccion--datos" id="datos" aria-labelledby="datos-titulo">
       <div class="contenedor">
         <header class="seccion__cabecera" data-revelar>
-          <p class="seccion__numero">06 · Agregar resultados</p>
+          <p class="seccion__numero">05 · Agregar resultados</p>
           <h2 class="seccion__titulo" id="datos-titulo">De un algoritmo a esta página</h2>
           <p class="seccion__entrada">El visualizador lee la carpeta <code>Outputs</code> de la raíz del proyecto. Cada archivo nuevo aparece en el selector al recargar la página; en la versión publicada, después de hacer commit y push de <code>Outputs</code>.</p>
         </header>
