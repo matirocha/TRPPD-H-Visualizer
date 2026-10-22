@@ -9,6 +9,15 @@ import { OUTPUTS, RAIZ, VENDOR, listarSalidas, resolverSalida } from '../lib/sal
 
 const destino = path.resolve(process.argv[2] ?? path.join(RAIZ, 'dist'));
 
+// Sin soluciones la página publicada quedaría vacía: mejor que el build falle.
+const salidas = await listarSalidas();
+if (!salidas.length) {
+  console.error(`No se encontraron soluciones en ${OUTPUTS}.`);
+  console.error('En Vercel, activa "Include files outside the root directory in the Build Step" '
+    + '(Settings → Build and Deployment → Root Directory), o define OUTPUTS_DIR.');
+  process.exit(1);
+}
+
 await rm(destino, { recursive: true, force: true });
 await cp(path.join(RAIZ, 'public'), destino, { recursive: true });
 for (const [nombre, carpeta] of Object.entries(VENDOR)) {
@@ -18,7 +27,6 @@ for (const [nombre, carpeta] of Object.entries(VENDOR)) {
   });
 }
 
-const salidas = await listarSalidas();
 await mkdir(path.join(destino, 'datos'), { recursive: true });
 for (const { archivo } of salidas) {
   const salida = path.join(destino, 'datos', archivo);
