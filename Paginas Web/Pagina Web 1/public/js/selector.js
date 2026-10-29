@@ -2,25 +2,39 @@
 //
 // Barra superior: un botón con la solución actual abre un panel flotante.
 // Sección Instancia: el mismo panel, fijo en la página.
-// El panel tiene una fila por dimensión (algoritmo, n, instancia, h) y cada
-// opción muestra el Σ D de la solución a la que lleva; si esa combinación no
-// existe en Outputs se elige la más parecida y la opción se ve atenuada.
+// El panel abre con tres datos grandes (ID de instancia, n y la función
+// objetivo Σ D) y debajo una fila de botones por dimensión (ID, n, h,
+// algoritmo). Si una combinación no existe en Outputs se elige la más parecida
+// y su botón se ve atenuado.
 import { el, fmt } from './util.js';
 
 const DIMENSIONES = [
-  { clave: 'alg', etiqueta: 'Algoritmo', valor: (s) => s.algoritmo.clave, texto: (_, s) => s.algoritmo.nombre },
-  { clave: 'n', etiqueta: 'Clientes |V_c|', valor: (s) => s.instancia.n, texto: (v) => `n = ${v}` },
-  { clave: 'inst', etiqueta: 'Instancia', valor: (s) => s.instancia.id ?? s.instancia.nombre, texto: (v) => (typeof v === 'number' ? String(v) : v) },
-  { clave: 'h', etiqueta: 'Manipulación h = h_a = h_b', valor: (s) => s.instancia.h ?? '—', texto: (v) => (typeof v === 'number' ? `h ${fmt(v)}` : v) },
+  {
+    clave: 'inst', etiqueta: 'ID de instancia', ayuda: 'Instancia 1 a 10 de e_vigo',
+    valor: (s) => s.instancia.id ?? s.instancia.nombre, texto: (v) => String(v),
+  },
+  {
+    clave: 'n', etiqueta: 'Clientes n', ayuda: 'n = |V<sub>c</sub>|',
+    valor: (s) => s.instancia.n, texto: (v) => String(v),
+  },
+  {
+    clave: 'h', etiqueta: 'Manipulación h', ayuda: 'h = h<sub>a</sub> = h<sub>b</sub>',
+    valor: (s) => s.instancia.h ?? '—', texto: (v) => (typeof v === 'number' ? fmt(v) : v),
+  },
+  {
+    clave: 'alg', etiqueta: 'Algoritmo', ayuda: 'Quién resolvió',
+    valor: (s) => s.algoritmo.clave, texto: (_, s) => nombreCorto(s.algoritmo.nombre),
+  },
 ];
+
+// Prioridad al buscar la solución más parecida: el algoritmo se conserva antes que la instancia.
+const PRIORIDAD = ['alg', 'n', 'inst', 'h'];
 
 const ESTADOS = { OPTIMAL: 'óptima', TIME_LIMIT: 'límite de tiempo', SUBOPTIMAL: 'subóptima', FEASIBLE: 'factible' };
 
 const claveDe = (s) => Object.fromEntries(DIMENSIONES.map((d) => [d.clave, d.valor(s)]));
-const conSub = (texto) => texto.replace(/_([a-z])/g, '<sub>$1</sub>');
 const ordenar = (a, b) => (typeof a === 'number' && typeof b === 'number' ? a - b : String(a).localeCompare(String(b)));
 const nombreCorto = (nombre) => nombre.split(' · ')[0];
-const monograma = (nombre) => nombre.trim().charAt(0).toUpperCase();
 const sigma = (v) => (v == null ? '—' : fmt(v));
 
 let contador = 0;
@@ -41,13 +55,13 @@ export function crearSelector({ barra, enLinea, alElegir }) {
     let puntaje = -1;
     for (const s of manifest) {
       const k = claveDe(s);
-      const p = DIMENSIONES.reduce((suma, d, i) => suma + (k[d.clave] === deseada[d.clave] ? 2 ** (DIMENSIONES.length - i) : 0), 0);
+      const p = PRIORIDAD.reduce((suma, c, i) => suma + (k[c] === deseada[c] ? 2 ** (PRIORIDAD.length - i) : 0), 0);
       if (p > puntaje) {
         mejor = s;
         puntaje = p;
       }
     }
-    return { salida: mejor, exacta: puntaje === 2 ** (DIMENSIONES.length + 1) - 2 };
+    return { salida: mejor, exacta: puntaje === 2 ** (PRIORIDAD.length + 1) - 2 };
   }
 
   function valoresDe(d) {
@@ -64,25 +78,16 @@ export function crearSelector({ barra, enLinea, alElegir }) {
   function opcion(d, clave, { valor, texto }) {
     const { salida, exacta } = buscar({ ...clave, [d.clave]: valor });
     const elegida = clave[d.clave] === valor;
-    const comun = {
+    return el('button', {
       type: 'button',
+      class: `selector-opcion${exacta ? '' : ' selector-opcion--aproximada'}`,
       'aria-pressed': String(elegida),
       dataset: { dim: d.clave, valor: String(valor) },
-      title: exacta ? null : 'No hay esta combinación en Outputs: se abre la más parecida',
+      title: exacta ? `Σ D = ${sigma(salida?.objetivo)}` : 'No hay esta combinación en Outputs: se abre la más parecida',
       onclick: () => {
         if (salida && salida.archivo !== actual) alElegir(salida.archivo);
       },
-    };
-    const objetivo = exacta ? salida?.objetivo : null;
-    if (d.clave === 'alg') {
-      return el('button', { ...comun, class: `selector-opcion selector-opcion--alg${exacta ? '' : ' selector-opcion--aproximada'}` },
-        el('span', { class: 'selector-monograma', 'aria-hidden': 'true' }, monograma(texto)),
-        el('span', { class: 'selector-opcion__texto' }, texto),
-        el('span', { class: 'selector-opcion__valor num' }, `Σ D ${sigma(objetivo)}`));
-    }
-    return el('button', { ...comun, class: `selector-opcion selector-opcion--ficha${exacta ? '' : ' selector-opcion--aproximada'}` },
-      el('span', { class: 'selector-opcion__texto' }, texto),
-      el('span', { class: 'selector-opcion__valor num' }, sigma(objetivo)));
+    }, texto);
   }
 
   /** Instancia anterior o siguiente con las demás dimensiones fijas. */
@@ -95,52 +100,51 @@ export function crearSelector({ barra, enLinea, alElegir }) {
     return buscar({ ...clave, inst: valores[j] }).salida;
   }
 
+  const flecha = (destino, texto, simbolo) => el('button', {
+    type: 'button', class: 'selector-flecha', 'aria-label': texto, title: texto, disabled: !destino,
+    onclick: () => destino && alElegir(destino.archivo),
+  }, el('span', { 'aria-hidden': 'true' }, simbolo));
+
+  /** Los tres datos que identifican la solución: ID, n y Σ D. */
+  function resumen(s, clave) {
+    const ids = valoresDe(DIMENSIONES[0]).length;
+    const dato = (modificador, etiqueta, valor, nota) => el('div', { class: `selector-dato selector-dato--${modificador}` },
+      el('span', { class: 'selector-dato__etiqueta', html: etiqueta }),
+      el('span', { class: 'selector-dato__valor num' }, valor),
+      el('span', { class: 'selector-dato__nota' }, nota));
+    return el('div', { class: 'selector-datos' },
+      dato('id', 'ID de instancia', String(clave.inst), `instancia ${clave.inst} de ${ids} del banco e_vigo`),
+      dato('n', 'Clientes', `n = ${clave.n}`, el('span', { html: 'a visitar, |V<sub>c</sub>|' })),
+      dato('obj', 'Función objetivo Σ D<sub>i</sub>', sigma(s.objetivo),
+        el('span', {}, 'espera total',
+          s.estado ? el('span', { class: 'selector-dato__estado' }, ESTADOS[s.estado] ?? s.estado.toLowerCase()) : null)));
+  }
+
   function panel(flotante) {
     const s = manifest.find((x) => x.archivo === actual);
     if (!s) return [];
     const clave = claveDe(s);
-    const grupos = DIMENSIONES.map((d) => {
-      const opciones = valoresDe(d);
+    const filas = DIMENSIONES.map((d) => {
       const id = `selector-${uid}-${flotante ? 'f' : 'l'}-${d.clave}`;
-      const botones = opciones.map((o) => opcion(d, clave, o));
-      // Barras proporcionales a Σ D en las fichas de instancia: se comparan de un vistazo.
-      if (d.clave === 'inst') {
-        const objetivos = opciones.map((o) => {
-          const { salida, exacta } = buscar({ ...clave, inst: o.valor });
-          return exacta ? salida.objetivo ?? 0 : 0;
-        });
-        const maximo = Math.max(...objetivos);
-        botones.forEach((b, i) => b.append(el('span', {
-          class: 'selector-opcion__barra',
-          style: { '--escala': maximo > 0 ? (objetivos[i] / maximo).toFixed(3) : '0' },
-          'aria-hidden': 'true',
-        })));
-      }
-      return el('div', { class: `selector-grupo selector-grupo--${d.clave}`, role: 'group', 'aria-labelledby': id },
-        el('span', { class: 'selector-grupo__etiqueta', id, html: conSub(d.etiqueta) }),
-        el('div', { class: 'selector-grupo__opciones' }, botones));
+      const botones = valoresDe(d).map((o) => opcion(d, clave, o));
+      const opciones = d.clave === 'inst'
+        ? [flecha(vecina(clave, -1), 'Instancia anterior', '←'), ...botones, flecha(vecina(clave, 1), 'Instancia siguiente', '→')]
+        : botones;
+      return el('div', { class: `selector-fila selector-fila--${d.clave}`, role: 'group', 'aria-labelledby': id },
+        el('div', { class: 'selector-fila__rotulo', id },
+          el('span', { class: 'selector-fila__etiqueta' }, d.etiqueta),
+          el('span', { class: 'selector-fila__ayuda', html: d.ayuda })),
+        el('div', { class: 'selector-fila__opciones' }, opciones));
     });
-
-    const anterior = vecina(clave, -1);
-    const siguiente = vecina(clave, 1);
-    const flecha = (destino, texto, simbolo) => el('button', {
-      type: 'button', class: 'selector-flecha', 'aria-label': texto, title: texto, disabled: !destino,
-      onclick: () => destino && alElegir(destino.archivo),
-    }, el('span', { 'aria-hidden': 'true' }, simbolo));
 
     return [
       el('div', { class: 'selector-panel__cabecera' },
-        el('div', { class: 'selector-panel__resumen' },
-          el('p', { class: 'selector-panel__titulo' }, flotante ? 'Elegir solución' : 'Solución mostrada'),
-          el('p', { class: 'selector-panel__objetivo' },
-            el('span', { class: 'num' }, `Σ D = ${sigma(s.objetivo)}`),
-            s.estado ? el('span', { class: 'selector-panel__estado' }, ESTADOS[s.estado] ?? s.estado.toLowerCase()) : null)),
-        el('div', { class: 'selector-panel__acciones' },
-          flecha(anterior, 'Instancia anterior', '←'),
-          flecha(siguiente, 'Instancia siguiente', '→'),
-          flotante ? el('button', { type: 'button', class: 'selector-flecha', 'aria-label': 'Cerrar', title: 'Cerrar', onclick: () => cerrar(true) },
-            el('span', { 'aria-hidden': 'true' }, '×')) : null)),
-      ...grupos,
+        el('p', { class: 'selector-panel__titulo' }, flotante ? 'Elegir solución' : 'Solución mostrada'),
+        el('p', { class: 'selector-panel__algoritmo' }, s.algoritmo.nombre),
+        flotante ? el('button', { type: 'button', class: 'selector-cerrar', 'aria-label': 'Cerrar', title: 'Cerrar', onclick: () => cerrar(true) },
+          el('span', { 'aria-hidden': 'true' }, '×')) : null),
+      resumen(s, clave),
+      el('div', { class: 'selector-filas' }, filas),
       el('p', { class: 'selector-panel__archivo' }, `Outputs/${actual}`, el('span', {}, `${manifest.length} soluciones`)),
     ];
   }
@@ -170,14 +174,17 @@ export function crearSelector({ barra, enLinea, alElegir }) {
     const s = manifest.find((x) => x.archivo === actual);
     if (!s) return;
     const i = s.instancia;
-    const detalle = [i.id != null ? `id ${i.id}` : i.nombre, `n ${i.n}`, i.h != null ? `h ${fmt(i.h)}` : null].filter(Boolean).join(' · ');
-    boton.setAttribute('aria-label', `Solución: ${s.algoritmo.nombre}, ${detalle}, Σ D ${sigma(s.objetivo)}. Cambiar solución`);
+    const id = i.id ?? i.nombre;
+    const h = i.h != null ? `, h ${fmt(i.h)}` : '';
+    boton.setAttribute('aria-label', `Solución: ID ${id}, n ${i.n}, Σ D ${sigma(s.objetivo)} (${s.algoritmo.nombre}${h}). Cambiar solución`);
+    boton.title = `${s.algoritmo.nombre}${h}`;
+    const dato = (modificador, etiqueta, valor) => el('span', { class: `selector-boton__dato selector-boton__dato--${modificador}`, 'aria-hidden': 'true' },
+      el('span', { class: 'selector-boton__etiqueta' }, etiqueta),
+      el('span', { class: 'selector-boton__valor num' }, valor));
     boton.replaceChildren(
-      el('span', { class: 'selector-monograma', 'aria-hidden': 'true' }, monograma(s.algoritmo.nombre)),
-      el('span', { class: 'selector-boton__texto', 'aria-hidden': 'true' },
-        el('span', { class: 'selector-boton__alg' }, nombreCorto(s.algoritmo.nombre)),
-        el('span', { class: 'selector-boton__detalle num' }, detalle)),
-      el('span', { class: 'selector-boton__valor num', 'aria-hidden': 'true' }, `Σ D ${sigma(s.objetivo)}`),
+      dato('id', 'ID', String(id)),
+      dato('n', 'n', String(i.n)),
+      dato('obj', 'Σ D', sigma(s.objetivo)),
       el('span', { class: 'selector-boton__flecha', 'aria-hidden': 'true' }));
   }
 
