@@ -12,6 +12,12 @@
       "runtimeExecutable": "python",
       "runtimeArgs": ["-m", "http.server", "4173", "--directory", "Paginas Web/Pagina Web 1/dist"],
       "port": 4173
+    },
+    {
+      "name": "pagina-web-2",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "Paginas Web/Pagina Web 2", "start"],
+      "port": 3001
     }
   ]
 }

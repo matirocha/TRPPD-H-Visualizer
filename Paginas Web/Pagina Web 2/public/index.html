@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TRPPD-H₃ · Recorrido</title>
+  <meta name="description" content="Visualizador de rutas del TRPPD-H3: mapa de clientes, carga del camión y tiempo por cliente.">
+  <link rel="icon" href="img/icono.svg" type="image/svg+xml">
+
+  <link rel="stylesheet" href="vendor/manrope/index.css">
+  <link rel="stylesheet" href="vendor/jetbrains-mono/index.css">
+  <link rel="stylesheet" href="css/estilos.css">
+
+  <script defer src="vendor/gsap/gsap.min.js"></script>
+  <script defer src="vendor/gsap/ScrollTrigger.min.js"></script>
+  <script defer src="vendor/gsap/ScrollToPlugin.min.js"></script>
+  <script defer src="vendor/gsap/DrawSVGPlugin.min.js"></script>
+  <script defer src="vendor/gsap/MotionPathPlugin.min.js"></script>
+  <script type="module" src="js/main.js"></script>
+</head>
+<body>
+  <header class="barra">
+    <div class="barra__interior">
+      <a class="marca" href="#inicio" aria-label="Inicio">
+        <img src="img/icono.svg" alt="" width="28" height="28">
+        <span>TRPPD-H<sub>3</sub></span>
+      </a>
+      <div class="barra__selector" id="selector"></div>
+    </div>
+  </header>
+
+  <main>
+    <section class="portada" id="inicio">
+      <div class="contenedor portada__interior">
+        <p class="portada__ante" data-aparecer>Visualizador de rutas</p>
+        <h1 class="portada__titulo" id="portada-titulo">Un camión, una puerta, la menor espera.</h1>
+        <p class="portada__texto" data-aparecer>Mira cómo el camión recorre la ruta y mueve su carga en cada cliente.</p>
+        <div class="portada__datos" id="portada-datos" data-aparecer></div>
+        <a class="boton boton--principal portada__ir" href="#recorrido" data-aparecer>
+          Ver el recorrido <span class="portada__flecha" aria-hidden="true">↓</span>
+        </a>
+      </div>
+    </section>
+
+    <section class="recorrido" id="recorrido" aria-label="Recorrido: mapa y carga">
+      <div class="recorrido__escena" id="escena">
+        <div class="recorrido__controles" id="controles"></div>
+        <div class="recorrido__mapa tarjeta" id="mapa"></div>
+        <div class="recorrido__tabla tarjeta" id="tabla"></div>
+        <div class="recorrido__carga" id="carga"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="pie">
+    <div class="contenedor">
+      <p>Battarra, Erdoğan, Laporte y Vigo (2010). <em>The traveling salesman problem with pickups, deliveries, and handling costs</em>. Transportation Science 44(3).</p>
+    </div>
+  </footer>
+
+  <div class="tooltip" id="tooltip" role="tooltip" hidden></div>
+  <div class="avisos" id="avisos" aria-live="polite"></div>
+  <div class="carga-inicial" id="carga-inicial" role="status"><span class="carga-inicial__punto"></span>Cargando soluciones…</div>
+</body>
+</html>

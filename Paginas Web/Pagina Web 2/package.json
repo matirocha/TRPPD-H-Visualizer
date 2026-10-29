@@ -1,0 +1,23 @@
+{
+  "name": "trppdh3-visualizador-2",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Visualizador web de rutas del TRPPD-H3 (diseño 2): mapa, carga del camión y tiempo por cliente, leídos desde la carpeta Outputs.",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "exportar": "node scripts/exportar.js",
+    "verificar": "node scripts/verificar.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@fontsource-variable/jetbrains-mono": "^5.2.0",
+    "@fontsource-variable/manrope": "^5.2.0",
+    "express": "^5.1.0",
+    "gsap": "^3.13.0"
+  }
+}
