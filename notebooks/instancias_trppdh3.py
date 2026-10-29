@@ -16,14 +16,22 @@ demandas a partir de las recogidas p_i con la regla (79):
 Para el TRPPD-H3 se conserva todo lo anterior y se divide h en los tiempos de
 descarga y carga, u = l = h/2, de modo que h_a = u_a + l_a = h.
 
+El banco se amplía a |Vc| en {30, 40, 50, 60} de dos maneras (ver BANCOS):
+
+- Battarra: el mismo procedimiento, con n = 30, 40 y 50 de las instancias de
+  50 clientes y n = 60 de las de 75, porque las de 50 no alcanzan.
+- Erdogan: como Erdoğan et al. (2012, Sección 5), los primeros n clientes de
+  las instancias de 200 clientes con la misma regla (79). Ellos usan
+  h = 20/n; aquí se mantiene h en {0.1, 0.5, 1}.
+
 Las instancias de e_vigo traen solo la matriz de costos. Como son euclidianas,
 las coordenadas del mapa se recuperan con escalamiento multidimensional
-clásico sobre la matriz de 50 clientes, de modo que el mapa de una misma id es
-igual para cualquier n (el error medio en las distancias es de 0,2 unidades,
-por el redondeo de los costos).
+clásico sobre la matriz completa de la instancia base, de modo que el mapa de
+una misma id es igual para todos los n que salen de la misma base (el error
+medio en las distancias es de 0,2 unidades, por el redondeo de los costos).
 
-Cada instancia se guarda en Instancias/vigo_n<n>_id<id>_h<h>.json con los
-datos de la Tabla 1 de la formulación; modelo_trppdh3.py las lee de ahí.
+Cada instancia se guarda en Instancias/vigo_n<n>_id<id>_h<h>[_<sufijo>].json
+con los datos de la Tabla 1 de la formulación; modelo_trppdh3.py las lee de ahí.
 
     python instancias_trppdh3.py
 """
@@ -40,9 +48,22 @@ SEPARADOR = "---------------------"
 
 # Configuración del banco de pruebas de Battarra et al. (2010)
 N_BASE = 50
-TAMANOS = (5, 10, 15, 20, 25)
 IDS = tuple(range(1, 11))
 VALORES_H = (0.1, 0.5, 1.0)
+
+# Bancos de instancias: los primeros n clientes de las instancias de e_vigo con
+# n_base clientes. El sufijo va al final del nombre del archivo.
+BANCOS = (
+    {"sufijo": "", "n_base": N_BASE, "tamanos": (5, 10, 15, 20, 25, 30, 40, 50),
+     "origen": "e_vigo (Gendreau, Laporte y Vigo, 1999) con la regla (79) de "
+               "Battarra et al. (2010)"},
+    {"sufijo": "Battarra", "n_base": 75, "tamanos": (60,),
+     "origen": "e_vigo (Gendreau, Laporte y Vigo, 1999), instancia de 75 clientes, "
+               "con la regla (79) de Battarra et al. (2010)"},
+    {"sufijo": "Erdogan", "n_base": 200, "tamanos": (30, 40, 50, 60),
+     "origen": "e_vigo (Gendreau, Laporte y Vigo, 1999), instancia de 200 clientes "
+               "como en Erdoğan et al. (2012), con la regla (79) de Battarra et al. (2010)"},
+)
 
 
 # --- Lectura de e_vigo -------------------------------------------------------
@@ -113,27 +134,29 @@ def _num(v):
     return int(v) if v.is_integer() else round(v, 6)
 
 
-def nombre_instancia(n, id_, h):
-    return f"vigo_n{n}_id{id_}_h{h:g}"
+def nombre_instancia(n, id_, h, sufijo=""):
+    nombre = f"vigo_n{n}_id{id_}_h{h:g}"
+    return f"{nombre}_{sufijo}" if sufijo else nombre
 
 
-def generar_instancia(n, id_, h, costos=None, coords=None):
-    """Instancia TRPPD-H3 con los primeros n clientes de la instancia id_.
+def generar_instancia(n, id_, h, banco=BANCOS[0], costos=None, coords=None):
+    """Instancia TRPPD-H3 con los primeros n clientes de la instancia id_ del banco.
 
     Devuelve un diccionario con los datos de la Tabla 1: n, Q, alpha, beta,
     los tiempos ua = la = ub = lb = h/2 y la matriz c, más las coordenadas
-    del mapa para el visualizador.
+    del mapa para el visualizador. Si se pasan costos y coords, deben ser
+    los de la instancia base del banco.
     """
-    if not 1 <= n <= N_BASE:
-        raise ValueError(f"n debe estar entre 1 y {N_BASE}")
-    p = leer_recogidas(id_)[:n]
-    costos = costos or leer_costos(id_)
+    n_base = banco["n_base"]
+    if not 1 <= n <= n_base:
+        raise ValueError(f"n debe estar entre 1 y {n_base}")
+    p = leer_recogidas(id_, n_base)[:n]
+    costos = costos or leer_costos(id_, n_base)
     coords = coords or coordenadas_mds(costos)
     alpha, beta = regla_79(p)
     return {
-        "nombre": nombre_instancia(n, id_, h),
-        "origen": "e_vigo (Gendreau, Laporte y Vigo, 1999) con la regla (79) de "
-                  "Battarra et al. (2010)",
+        "nombre": nombre_instancia(n, id_, h, banco["sufijo"]),
+        "origen": banco["origen"],
         "n": n,
         "id": id_,
         "h": h,
@@ -169,14 +192,15 @@ def guardar_instancia(inst, carpeta=CARPETA_INSTANCIAS):
 
 def main():
     total = 0
-    for id_ in IDS:
-        # La matriz y el mapa de 50 clientes se calculan una vez por id
-        costos = leer_costos(id_)
-        coords = coordenadas_mds(costos)
-        for n in TAMANOS:
-            for h in VALORES_H:
-                guardar_instancia(generar_instancia(n, id_, h, costos, coords))
-                total += 1
+    for banco in BANCOS:
+        for id_ in IDS:
+            # La matriz y el mapa de la instancia base se calculan una vez por id
+            costos = leer_costos(id_, banco["n_base"])
+            coords = coordenadas_mds(costos)
+            for n in banco["tamanos"]:
+                for h in VALORES_H:
+                    guardar_instancia(generar_instancia(n, id_, h, banco, costos, coords))
+                    total += 1
     print(f"{total} instancias guardadas en {CARPETA_INSTANCIAS}")
 
 

@@ -22,9 +22,10 @@ import gurobipy as gp
 from gurobipy import GRB
 
 # ======================== Instancia a resolver ========================
-N = 5        # número de clientes: 5, 10, 15, 20 o 25
+N = 5        # número de clientes: 5, 10, 15, 20, 25, 30, 40, 50 o 60
 ID = 1       # instancia de e_vigo: 1 a 10
 H = 0.1      # tiempo de manipulación h = h_a = h_b: 0.1, 0.5 o 1
+BANCO = ""   # sufijo del archivo: "" (n = 5 a 50), "Battarra" (n = 60) o "Erdogan" (n = 30 a 60)
 
 # Restricciones opcionales: True, False o [False, True] para resolver con y
 # sin ellas y comparar los tiempos de ejecución de las variantes.
@@ -35,8 +36,8 @@ LIMITE_TIEMPO = None   # segundos por modelo (None = sin límite)
 HILOS = None           # hilos de Gurobi (None = los que Gurobi decida)
 MOSTRAR_LOG = False    # log de Gurobi en pantalla
 
-# N, ID y H también aceptan listas para resolver varias instancias seguidas,
-# por ejemplo N = [5, 10], ID = range(1, 11), H = [0.1, 0.5, 1].
+# N, ID, H y BANCO también aceptan listas para resolver varias instancias
+# seguidas, por ejemplo N = [5, 10], ID = range(1, 11), H = [0.1, 0.5, 1].
 # ======================================================================
 
 RAIZ = Path(__file__).resolve().parent.parent
@@ -54,8 +55,9 @@ VARIANTES = {
 }
 
 
-def leer_instancia(n, id_, h):
-    archivo = CARPETA_INSTANCIAS / f"vigo_n{n}_id{id_}_h{h:g}.json"
+def leer_instancia(n, id_, h, banco=""):
+    nombre = f"vigo_n{n}_id{id_}_h{h:g}" + (f"_{banco}" if banco else "")
+    archivo = CARPETA_INSTANCIAS / f"{nombre}.json"
     if not archivo.exists():
         raise FileNotFoundError(f"No existe {archivo}; ejecuta instancias_trppdh3.py")
     return json.loads(archivo.read_text(encoding="utf-8"))
@@ -279,23 +281,24 @@ def main():
     with gp.Env(empty=True) as env:
         env.setParam("OutputFlag", 1 if MOSTRAR_LOG else 0)
         env.start()
-        for n in _lista(N):
-            for id_ in _lista(ID):
-                for h in _lista(H):
-                    inst = leer_instancia(n, id_, h)
-                    print(f"\n=== {inst['nombre']}  (N = {n}, ID = {id_}, H = {h:g})")
-                    for r20_23, r24_29 in variantes:
-                        sol = resolver(inst, r20_23, r24_29, env)
-                        etiqueta = VARIANTES[r20_23, r24_29][1]
-                        if "ruta" not in sol:
-                            print(f"  {etiqueta:<22} {sol['estado']}: sin solución, no se guarda")
-                            continue
-                        guardar_salida(inst, sol, r20_23, r24_29)
-                        print(f"  {etiqueta:<22} {sol['estado']:<10} "
-                              f"obj = {sol['objetivo']:<10g} "
-                              f"Gurobi {sol['segundos']:8.3f} s  "
-                              f"total {sol['segundos_total']:8.3f} s  "
-                              f"nodos {sol['nodos']}")
+        for banco in _lista(BANCO):
+            for n in _lista(N):
+                for id_ in _lista(ID):
+                    for h in _lista(H):
+                        inst = leer_instancia(n, id_, h, banco)
+                        print(f"\n=== {inst['nombre']}  (N = {n}, ID = {id_}, H = {h:g})")
+                        for r20_23, r24_29 in variantes:
+                            sol = resolver(inst, r20_23, r24_29, env)
+                            etiqueta = VARIANTES[r20_23, r24_29][1]
+                            if "ruta" not in sol:
+                                print(f"  {etiqueta:<22} {sol['estado']}: sin solución, no se guarda")
+                                continue
+                            guardar_salida(inst, sol, r20_23, r24_29)
+                            print(f"  {etiqueta:<22} {sol['estado']:<10} "
+                                  f"obj = {sol['objetivo']:<10g} "
+                                  f"Gurobi {sol['segundos']:8.3f} s  "
+                                  f"total {sol['segundos_total']:8.3f} s  "
+                                  f"nodos {sol['nodos']}")
 
 
 if __name__ == "__main__":

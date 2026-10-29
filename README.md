@@ -26,7 +26,7 @@ TRPPD-H Visualizer/
 ├── notebooks/
 │   ├── instancias_trppdh3.py crea Instancias/ a partir de e_vigo
 │   └── modelo_trppdh3.py     modelo en Gurobi; guarda las soluciones en Outputs/
-├── Instancias/               150 instancias JSON: n ∈ {5, 10, 15, 20, 25}, id 1–10, h ∈ {0,1; 0,5; 1}
+├── Instancias/               390 instancias JSON: n ∈ {5, 10, 15, 20, 25, 30, 40, 50, 60}, id 1–10, h ∈ {0,1; 0,5; 1}
 ├── Outputs/                  soluciones en formato trppdh3-salida/1 (ver Outputs/README.md)
 │   ├── gurobi/{base, explicitacion, latencia, completo}/
 │   ├── enumeracion/
@@ -44,7 +44,7 @@ Battarra et al. (2010, Sección 5) sobre las instancias euclidianas de
 Gendreau, Laporte y Vigo (1999):
 
 - Se toman las 10 instancias de 50 clientes y se conservan los primeros
-  n ∈ {5, 10, 15, 20, 25}.
+  n ∈ {5, 10, 15, 20, 25}, como en el paper.
 - Las demandas αᵢ (entregas) y βᵢ (recogidas) y la capacidad Q se obtienen
   con la regla (79) del paper.
 - El tiempo de manipulación h se divide en descarga y carga:
@@ -52,7 +52,21 @@ Gendreau, Laporte y Vigo (1999):
 - Como `e_vigo` solo trae la matriz de costos, las coordenadas del mapa se
   recuperan con escalamiento multidimensional clásico.
 
-Cada instancia queda en `Instancias/vigo_n<n>_id<id>_h<h>.json`.
+El banco se amplía a n ∈ {30, 40, 50, 60} de dos maneras, siempre con
+h ∈ {0,1; 0,5; 1}:
+
+| Sufijo del archivo | n              | Instancia base de e_vigo | Referencia                         |
+|--------------------|----------------|--------------------------|------------------------------------|
+| (sin sufijo)       | 30, 40, 50     | 50 clientes              | Battarra et al. (2010)             |
+| `_Battarra`        | 60             | 75 clientes              | Battarra et al. (2010)             |
+| `_Erdogan`         | 30, 40, 50, 60 | 200 clientes             | Erdoğan et al. (2012, Sección 5)   |
+
+Las instancias de distinto tamaño de e_vigo no comparten clientes, así que el
+mapa de una id cambia con la instancia base. Erdoğan et al. usan h = 20/n;
+aquí se mantienen los tres valores de h de Battarra.
+
+Cada instancia queda en `Instancias/vigo_n<n>_id<id>_h<h>[_<sufijo>].json`.
+En `notebooks/modelo_trppdh3.py`, `BANCO` elige el sufijo.
 
 ## Modelo en Gurobi
 
