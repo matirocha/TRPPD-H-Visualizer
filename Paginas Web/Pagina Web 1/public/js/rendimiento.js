@@ -1,4 +1,4 @@
-// Sección 05 · Rendimiento: tiempos de ejecución del modelo de Gurobi con y sin
+// Sección 02 · Rendimiento: tiempos de ejecución del modelo de Gurobi con y sin
 // las restricciones (20)-(23) y (24)-(29).
 //
 // A. Esta instancia: una barra por variante; la que se está mostrando va en tinta.

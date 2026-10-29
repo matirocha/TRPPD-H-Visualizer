@@ -1,8 +1,8 @@
-// Sección 04 · El reloj.
+// Sección 05 · El reloj.
 //
 // A. Línea de tiempo de la ruta: viajes y servicios sobre un eje de tiempo,
-//    alfileres en cada D_i, un cabezal ligado al scroll y una lupa con los pasos
-//    de la Tabla 3 en la parada elegida.
+//    alfileres en cada D_i, un cabezal en la parada elegida y una lupa con los
+//    pasos de la Tabla 3 en esa parada. Nada se mueve con el scroll.
 // B. Espera de cada cliente: D_i descompuesto en viaje y manipulación acumulados.
 //
 // Los servicios (0,05–5) son diminutos frente a los viajes (30–100). En la pista
@@ -15,8 +15,6 @@ import {
   ocultarTooltip, politicaCorta, svg,
 } from './util.js';
 
-const Q_SCRUB = '(min-width: 960px) and (prefers-reduced-motion: no-preference)';
-const Q_ANIMAR = '(prefers-reduced-motion: no-preference)';
 const EPS = 1e-9;
 const COMPONENTES = ['viaje', ...PARAMETROS];
 const OSCUROS = new Set(['la', 'lb']); // fondos oscuros: texto claro encima
@@ -227,14 +225,9 @@ function montar(raiz, estado, sim) {
   const st = {
     modoA: 'ampliado',
     modoB: 'total',
-    scroll: false,        // cabezal ligado al scroll (escritorio sin movimiento reducido)
-    progreso: 0,
-    kCabezal: 0,          // parada bajo el cabezal (la que atiende o la próxima)
-    fuente: 'elegida',    // la lupa sigue al cabezal o a la parada elegida
-    elegida: 0,
+    elegida: 0,           // parada bajo el cabezal y en la lupa (salvo hover)
     hover: estado.get('hover') ?? null,
     lupaK: -1,
-    pasoActual: undefined,
     clavePildoras: null,
     destruyendo: false,
     raf: 0,
@@ -250,7 +243,7 @@ function montar(raiz, estado, sim) {
   const duracion = (d) => (movimientoReducido() ? 0 : d);
 
   // --- Tarjeta A: línea de tiempo -------------------------------------------
-  const instruccionA = el('span', {});
+  const instruccionA = el('span', {}, 'Elige una parada en la pista, en las píldoras o con las flechas para verla en la lupa.');
   const pistaA = el('div', { class: 'tiempos-pista' });
   const notaA = el('p', { class: 'tiempos-nota' });
   const lupa = crearLupa();
@@ -276,50 +269,9 @@ function montar(raiz, estado, sim) {
   maquetarA();
   maquetarB(0);
   actualizarNotaA();
-  actualizarModoUI();
   fijarAltoLupa();
   refrescarLupa(true);
   marcarHover();
-
-  // --- Animaciones según el medio -------------------------------------------
-  const mm = gsap.matchMedia();
-  mm.add(Q_SCRUB, () => {
-    gsap.killTweensOf(cab);
-    st.scroll = true;
-    st.fuente = 'cabezal';
-    st.kCabezal = -1;
-    actualizarModoUI();
-    const proxy = { p: 0 };
-    gsap.to(proxy, {
-      p: 1,
-      ease: 'none',
-      onUpdate: () => moverCabezal(proxy.p),
-      scrollTrigger: { trigger: tarjetaA, start: 'top 75%', end: 'bottom 35%', scrub: 0.5 },
-    });
-    moverCabezal(0);
-    return () => {
-      const base = indiceBase();
-      st.scroll = false;
-      if (st.destruyendo) return;
-      st.elegida = clamp(base, 0, n - 1);
-      st.fuente = 'elegida';
-      st.kCabezal = st.elegida;
-      cab.t = paradas[st.elegida].D;
-      st.clavePildoras = null;
-      actualizarModoUI();
-      colocarCabezal();
-      refrescarLupa();
-    };
-  });
-  mm.add(Q_ANIMAR, () => {
-    const tl = gsap.timeline({ scrollTrigger: { trigger: B.marco, start: 'top 85%', once: true } });
-    tl.fromTo(B.filas.map((f) => f.barra), { clipPath: 'inset(0% 100% 0% 0%)' },
-      { clipPath: 'inset(0% 0% 0% 0%)', duration: 0.9, ease: 'power3.out', stagger: 0.07, clearProps: 'clipPath' }, 0)
-      .fromTo(B.filas.map((f) => f.valor), { autoAlpha: 0 },
-        { autoAlpha: 1, duration: 0.45, ease: 'power1.out', stagger: 0.07, clearProps: 'opacity,visibility' }, 0.4)
-      .fromTo(B.proporcion, { clipPath: 'inset(0% 100% 0% 0%)' },
-        { clipPath: 'inset(0% 0% 0% 0%)', duration: 1, ease: 'power3.out', clearProps: 'clipPath' }, 0.3);
-  });
 
   // --- Resaltado compartido y tamaño ----------------------------------------
   const desuscribir = estado.on('hover', (cliente) => {
@@ -368,7 +320,6 @@ function montar(raiz, estado, sim) {
       ro.disconnect();
       clearTimeout(st.temporizador);
       cancelAnimationFrame(st.raf);
-      mm.revert();
       ctx.revert();
       gsap.killTweensOf([cab, mz]);
       ocultarTooltip();
@@ -489,22 +440,19 @@ function montar(raiz, estado, sim) {
       return { parada: p, k, grupo, halo, fondo, ops, marcaD, hit, alfiler, tallo, circulo, numero, valor, zona };
     });
 
-    const velo = svg('rect', { class: 'tiempos-velo', y: 0, height: yPista + medio + 3, visibility: 'hidden' });
     const altoCaja = movil ? 16 : 18;
     const cabezalCaja = svg('rect', { y: yEje + 3, height: altoCaja, rx: altoCaja / 2 });
     const cabezalTexto = svg('text', { y: yEje + 3 + altoCaja / 2, dy: '0.35em', 'font-size': fNum });
     const cabezal = svg('g', { class: 'tiempos-cabezal', 'aria-hidden': 'true' },
       svg('line', { x1: 0, x2: 0, y1: yTope - 2, y2: yEje }), cabezalCaja, cabezalTexto);
 
-    g.append(svg('g', { class: 'tiempos-guias' }, guias), gEje, base, gArcos, gParadas, ...depositos, gTallos, gAlfileres, velo, cabezal, gHits);
+    g.append(svg('g', { class: 'tiempos-guias' }, guias), gEje, base, gArcos, gParadas, ...depositos, gTallos, gAlfileres, cabezal, gHits);
     raizSvg.append(g);
     pistaA.replaceChildren(raizSvg);
 
     A = {
-      W, H, m, ancho, r, fNum, movil, tramos, ticks, escalaCon, escala: escalaCon(mz.m),
-      niv, yNivel, guias, gEje, arcos, bloques, velo, cabezal, cabezalCaja, cabezalTexto,
-      pausa: ancho * Math.min(0.06, 0.35 / n), // avance de scroll mínimo para cada servicio
-      acum: [0],
+      W, H, m, ancho, r, fNum, movil, ticks, escalaCon, escala: escalaCon(mz.m),
+      niv, yNivel, guias, gEje, arcos, bloques, cabezal, cabezalCaja, cabezalTexto,
     };
     colocarA();
     soltarHuerfano(true);
@@ -566,57 +514,22 @@ function montar(raiz, estado, sim) {
       });
     }
 
-    // Recorrido con scroll: cada servicio recibe un avance mínimo para que la lupa alcance a mostrarlo.
-    A.acum = [0];
-    A.tramos.forEach((s, i) => {
-      const w = Math.max(0, e(s.t1) - e(s.t0));
-      const peso = s.tipo === 'servicio' && s.t1 - s.t0 > EPS ? Math.max(w, A.pausa) : w;
-      A.acum.push(A.acum[i] + peso);
-    });
-
-    if (st.scroll) cab.t = tDesdeProgreso(st.progreso);
     colocarCabezal();
-    if (st.scroll) seguirCabezal();
-  }
-
-  function tDesdeProgreso(p) {
-    const { tramos, acum } = A;
-    const total = acum[acum.length - 1];
-    if (!(total > 0)) return tramos[0].t0;
-    const objetivo = clamp(p, 0, 1) * total;
-    for (let i = 0; i < tramos.length; i++) {
-      if (objetivo <= acum[i + 1] || i === tramos.length - 1) {
-        const w = acum[i + 1] - acum[i];
-        const u = w > 0 ? clamp((objetivo - acum[i]) / w, 0, 1) : 1;
-        return tramos[i].t0 + u * (tramos[i].t1 - tramos[i].t0);
-      }
-    }
-    return tramos[tramos.length - 1].t1;
   }
 
   function colocarCabezal() {
     if (!A) return;
     const x = A.escala(cab.t);
     A.cabezal.setAttribute('transform', `translate(${x},0)`);
-    const texto = `t = ${fmt(cab.t, st.scroll ? 1 : 2)}`;
+    const texto = `t = ${fmt(cab.t, 2)}`;
     if (A.cabezalTexto.textContent !== texto) A.cabezalTexto.textContent = texto;
     const wp = anchoMono(texto, A.fNum) + 14;
     const izq = clamp(x - wp / 2, -A.m.izq + 1, A.ancho + A.m.der - 1 - wp) - x;
     atributos(A.cabezalCaja, { x: izq, width: wp });
     A.cabezalTexto.setAttribute('x', izq + wp / 2);
-    if (st.scroll) atributos(A.velo, { x, width: Math.max(0, A.ancho + A.m.der - x), visibility: 'visible' });
-    else A.velo.setAttribute('visibility', 'hidden');
   }
 
-  function moverCabezal(p) {
-    if (!A) return;
-    st.progreso = p;
-    cab.t = tDesdeProgreso(p);
-    colocarCabezal();
-    seguirCabezal();
-  }
-
-  /** Cabezal sin scroll: se desliza hasta D_i de la parada elegida. */
+  /** El cabezal se desliza hasta D_i de la parada elegida. */
   function moverCabezalA(t) {
     const d = duracion(0.55);
     if (!d) {
@@ -626,16 +539,6 @@ function montar(raiz, estado, sim) {
       return;
     }
     anim(() => gsap.to(cab, { t, duration: d, ease: 'power2.inOut', overwrite: true, onUpdate: colocarCabezal }));
-  }
-
-  function seguirCabezal() {
-    let k = paradas.findIndex((p) => p.F > cab.t + EPS);
-    if (k < 0) k = n - 1;
-    if (k !== st.kCabezal) {
-      st.kCabezal = k;
-      st.fuente = 'cabezal';
-    }
-    refrescarLupa();
   }
 
   function cambiarModoA(modo) {
@@ -658,13 +561,6 @@ function montar(raiz, estado, sim) {
     notaA.textContent = st.modoA === 'ampliado'
       ? `Servicios ampliados a un ancho mínimo para que se vean; en escala real suman ${parte}.`
       : `Escala real: los servicios suman ${parte}. La lupa los muestra en detalle.`;
-  }
-
-  function actualizarModoUI() {
-    contenedor.classList.toggle('tiempos--scroll', st.scroll);
-    instruccionA.textContent = st.scroll
-      ? 'Al bajar, el cabezal recorre la ruta y la lupa muestra la parada bajo él.'
-      : 'Elige una parada en la pista, en las píldoras o con las flechas para verla en la lupa.';
   }
 
   function enlazar(nodo, html, cliente = null) {
@@ -703,8 +599,8 @@ function montar(raiz, estado, sim) {
   // ==========================================================================
 
   function crearLupa() {
-    const anterior = el('button', { type: 'button', class: 'boton boton--icono', 'aria-label': 'Parada anterior', onclick: () => elegir(indiceBase() - 1) }, '‹');
-    const siguiente = el('button', { type: 'button', class: 'boton boton--icono', 'aria-label': 'Parada siguiente', onclick: () => elegir(indiceBase() + 1) }, '›');
+    const anterior = el('button', { type: 'button', class: 'boton boton--icono', 'aria-label': 'Parada anterior', onclick: () => elegir(st.elegida - 1) }, '‹');
+    const siguiente = el('button', { type: 'button', class: 'boton boton--icono', 'aria-label': 'Parada siguiente', onclick: () => elegir(st.elegida + 1) }, '›');
     const conFlechas = n <= 12;
     const flecha = () => (conFlechas ? el('span', { class: 'pasos__flecha', 'aria-hidden': 'true' }, '→') : null);
     const pildoras = paradas.map((p, k) => {
@@ -724,7 +620,6 @@ function montar(raiz, estado, sim) {
       flecha(),
       el('span', { class: 'paso paso--deposito', 'aria-hidden': 'true' }, '0'));
 
-    // El estado cambia con el scroll: va en una fila de alto fijo para no mover la página.
     const estadoTxt = el('span', { class: 'tiempos-ficha__estado num' });
     const ficha = el('div', { class: 'tiempos-ficha' });
     const grafico = el('div', { class: 'tiempos-lupa__grafico' });
@@ -737,7 +632,7 @@ function montar(raiz, estado, sim) {
         el('h4', { class: 'tiempos-lupa__titulo', id: 'tiempos-lupa-titulo' }, 'Lupa · servicio en una parada'),
         el('div', { class: 'tiempos-lupa__nav' }, anterior, pasos, siguiente)),
       cuerpo);
-    return { nodo, anterior, siguiente, pildoras, estado: estadoTxt, ficha, grafico, grupos, cuerpo, filas: new Map(), svg: null };
+    return { nodo, anterior, siguiente, pildoras, estado: estadoTxt, ficha, grafico, grupos, cuerpo };
   }
 
   /** Alto mínimo de la lupa = el de la parada más alta, para que el scroll no cambie de largo. */
@@ -753,24 +648,15 @@ function montar(raiz, estado, sim) {
     st.lupaK = -1;
   }
 
-  /** Parada de la lupa sin contar el hover: la del cabezal (con scroll) o la elegida. */
-  function indiceBase() {
-    return st.scroll && st.fuente === 'cabezal' ? Math.max(0, st.kCabezal) : st.elegida;
-  }
-
   function indiceLupa() {
     const kh = st.hover == null ? -1 : paradas.findIndex((p) => p.cliente === st.hover);
-    return kh >= 0 ? kh : indiceBase();
+    return kh >= 0 ? kh : st.elegida;
   }
 
   function elegir(k) {
     if (k < 0 || k >= n) return;
     st.elegida = k;
-    st.fuente = 'elegida';
-    if (!st.scroll) {
-      st.kCabezal = k;
-      moverCabezalA(paradas[k].D);
-    }
+    moverCabezalA(paradas[k].D);
     refrescarLupa();
   }
 
@@ -782,7 +668,8 @@ function montar(raiz, estado, sim) {
       dibujarLupa(paradas[k]);
       for (const b of A?.bloques ?? []) b.grupo.classList.toggle('es-lupa', b.k === k);
     }
-    actualizarCursorLupa();
+    const texto = `Parada ${paradas[k].k} de ${n}`;
+    if (lupa.estado.textContent !== texto) lupa.estado.textContent = texto;
     actualizarPildoras();
   }
 
@@ -803,9 +690,7 @@ function montar(raiz, estado, sim) {
         dato(`F<sub>${c}</sub> salida`, fmt(p.F)),
         dato('Servicio F − T', fmt(p.servicio, 3))));
     dibujarGraficoLupa(p);
-    lupa.filas = new Map();
     lupa.grupos.replaceChildren(grupoPasos(p, true, quedan), grupoPasos(p, false, quedan - 1));
-    st.pasoActual = undefined;
   }
 
   function dibujarGraficoLupa(p) {
@@ -876,8 +761,6 @@ function montar(raiz, estado, sim) {
         }, ...contenido));
       }
     });
-    const cursorVelo = svg('rect', { class: 'tiempos-lupa-velo', y: yB, height: hB, x: xF, width: 0, visibility: 'hidden' });
-    barra.append(cursorVelo);
     nodo.append(barra);
     if (dur <= EPS) {
       nodo.append(svg('text', { class: 'tiempos-lupa-vacio', x: W / 2, y: yB + hB / 2, dy: '0.35em' }, 'Sin manipulación en esta parada'));
@@ -918,9 +801,6 @@ function montar(raiz, estado, sim) {
         svg('text', { class: 'tiempos-lupa-etq', x: xF, y: 102, 'font-size': f, 'text-anchor': 'end' }, ...textoSub('F', c, ` = ${fmt(p.F)}`, f)));
     }
 
-    const cursorLinea = svg('line', { class: 'tiempos-lupa-cursor', x1: xT, x2: xT, y1: yB - 6, y2: yB + hB + 6, visibility: 'hidden' });
-    nodo.append(cursorLinea);
-    lupa.svg = { x, xF, cursorVelo, cursorLinea };
     lupa.grafico.replaceChildren(nodo);
     soltarHuerfano();
   }
@@ -959,7 +839,6 @@ function montar(raiz, estado, sim) {
         el('span', { class: 'tiempos-paso__etiqueta' }, el('span', { class: 'visualmente-oculto' }, `Paso ${s.paso}: `), op?.etiqueta ?? s.etiqueta),
         el('span', { class: 'tiempos-paso__meta', html: meta }),
         el('span', { class: 'tiempos-paso__calculo num', html: calculo }));
-      lupa.filas.set(s.paso, fila);
       return fila;
     });
 
@@ -971,56 +850,15 @@ function montar(raiz, estado, sim) {
       el('ol', { class: 'tiempos-pasos', start: lista[0].paso }, filas));
   }
 
-  function actualizarCursorLupa() {
-    const p = paradas[st.lupaK];
-    if (!p) return;
-    const siguiendo = st.scroll && st.hover == null && st.fuente === 'cabezal' && st.lupaK === st.kCabezal;
-    const t = cab.t;
-    let texto;
-    let paso = null;
-    if (!siguiendo) texto = `Parada ${p.k} de ${n}`;
-    else if (t < p.T - EPS) texto = `En camino · llega en t = ${fmt(p.T)}`;
-    else if (t < p.F - EPS) {
-      const op = p.ops.find((o) => o.duracion > EPS && t >= o.inicio - EPS && t < o.fin - EPS);
-      paso = op?.paso ?? null;
-      texto = `${t < p.D - EPS ? 'Atendiendo' : 'Entregado'}${paso ? ` · paso ${paso}` : ''}`;
-    } else if (p.k === n) texto = `Atendido · regresa al depósito en t = ${fmt(sim.regreso)}`;
-    else texto = `Atendido · salió en t = ${fmt(p.F)}`;
-    if (lupa.estado.textContent !== texto) lupa.estado.textContent = texto;
-    lupa.estado.classList.toggle('tiempos-ficha__estado--vivo', paso != null);
-
-    const S = lupa.svg;
-    const dentro = siguiendo && p.F - p.T > EPS && t >= p.T - EPS && t <= p.F + EPS;
-    if (S) {
-      if (dentro) {
-        const xc = S.x(clamp(t, p.T, p.F));
-        atributos(S.cursorLinea, { x1: xc, x2: xc });
-        atributos(S.cursorVelo, { x: xc, width: Math.max(0, S.xF - xc) });
-      }
-      const vis = dentro ? 'visible' : 'hidden';
-      S.cursorLinea.setAttribute('visibility', vis);
-      S.cursorVelo.setAttribute('visibility', vis);
-    }
-    if (paso !== st.pasoActual) {
-      st.pasoActual = paso;
-      lupa.filas.forEach((fila, s) => {
-        if (s === paso) fila.setAttribute('aria-current', 'step');
-        else fila.removeAttribute('aria-current');
-      });
-    }
-  }
-
   function actualizarPildoras() {
-    const base = indiceBase();
-    const atendidos = st.scroll ? paradas.filter((p) => p.D <= cab.t + EPS).length : -1;
-    const clave = `${st.lupaK}|${atendidos}|${base}|${st.scroll}`;
+    const base = st.elegida;
+    const clave = `${st.lupaK}|${base}`;
     if (clave === st.clavePildoras) return;
     st.clavePildoras = clave;
     lupa.pildoras.forEach((b, k) => {
       if (k === st.lupaK) b.setAttribute('aria-current', 'step');
       else b.removeAttribute('aria-current');
-      const hecho = st.scroll ? k < atendidos : k < st.lupaK;
-      b.classList.toggle('paso--hecho', hecho && k !== st.lupaK);
+      b.classList.toggle('paso--hecho', k < st.lupaK);
     });
     lupa.anterior.disabled = base <= 0;
     lupa.siguiente.disabled = base >= n - 1;

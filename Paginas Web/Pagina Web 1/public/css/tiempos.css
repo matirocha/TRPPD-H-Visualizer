@@ -92,7 +92,6 @@
 .tiempos--hover .tiempos-alfiler:not(.es-activo),
 .tiempos--hover .tiempos-alfiler__tallo:not(.es-activo) { opacity: 0.35; }
 
-.tiempos-velo { fill: var(--superficie); opacity: 0.6; pointer-events: none; }
 .tiempos-cabezal { pointer-events: none; }
 .tiempos-cabezal line { stroke: var(--tinta); stroke-width: 1.5; }
 .tiempos-cabezal rect { fill: var(--tinta); }
@@ -151,7 +150,6 @@
   font-size: 12.5px; line-height: 1.3; color: var(--tinta-2); background: var(--papel); border: 1px solid var(--regla-2);
   transition: background 0.2s, color 0.2s, border-color 0.2s;
 }
-.tiempos-ficha__estado--vivo { background: var(--tinta); color: var(--superficie); border-color: var(--tinta); }
 .tiempos-ficha__tiempos { display: flex; flex-wrap: wrap; gap: 4px 22px; margin: 0; }
 .tiempos-ficha__tiempos div { display: flex; align-items: baseline; gap: 7px; }
 .tiempos-ficha__tiempos dt { font-size: 12.5px; color: var(--tinta-2); }
@@ -169,8 +167,6 @@
 .tiempos-lupa-etq--d { fill: var(--tinta); font-weight: 600; }
 .tiempos-lupa-svg .tiempos-lupa-region { fill: var(--tinta-2); font-family: var(--f-texto); }
 .tiempos-lupa-tick { stroke: var(--tinta-3); stroke-width: 1; }
-.tiempos-lupa-velo { fill: var(--superficie); opacity: 0.62; pointer-events: none; }
-.tiempos-lupa-cursor { stroke: var(--tinta); stroke-width: 1.5; pointer-events: none; }
 .tiempos-lupa-svg .tiempos-lupa-vacio { fill: var(--tinta-2); font-family: var(--f-texto); font-size: 13px; text-anchor: middle; }
 
 /* Pasos de la Tabla 3, agrupados antes y después de D_i */
@@ -204,7 +200,6 @@
 .tiempos-paso__calculo { grid-area: calc; font-size: 13px; color: var(--tinta-2); text-align: right; white-space: nowrap; }
 .tiempos-paso__calculo strong { color: var(--tinta); font-weight: 600; }
 .tiempos-paso__por { color: var(--tinta-2); }
-.tiempos-paso[aria-current='step'] { background: rgb(255 226 138 / 0.5); }
 .tiempos-paso--na .tiempos-paso__num { background: transparent; border: 1.5px dashed var(--regla); color: var(--tinta-3); }
 .tiempos-paso--na .tiempos-paso__etiqueta { color: var(--tinta-3); }
 

@@ -45,11 +45,10 @@
       </a>
       <nav class="barra__nav" aria-label="Secciones">
         <a href="#recorrido">Mapa y carga</a>
+        <a href="#rendimiento">Rendimiento</a>
         <a href="#problema">Problema</a>
         <a href="#instancia">Instancia</a>
         <a href="#tiempos">Tiempos</a>
-        <a href="#rendimiento">Rendimiento</a>
-        <a href="#datos">Datos</a>
       </nav>
       <div class="barra__selector" id="selector-barra"></div>
     </div>
@@ -88,11 +87,23 @@
       <div class="contenedor recorrido__grafico" id="carga-grafico"></div>
     </section>
 
-    <!-- 02 · Problema -->
+    <!-- 02 · Rendimiento -->
+    <section class="seccion seccion--rendimiento" id="rendimiento" aria-labelledby="rendimiento-titulo">
+      <div class="contenedor">
+        <header class="seccion__cabecera" data-revelar>
+          <p class="seccion__numero">02 · Rendimiento</p>
+          <h2 class="seccion__titulo" id="rendimiento-titulo">Cuánto tarda cada variante del modelo</h2>
+          <p class="seccion__entrada">Las restricciones (20)–(23) explicitan las cargas al salir y al volver al depósito y las transiciones de cada política; las (24)–(29) agregan la desigualdad válida de latencia. Ninguna cambia el óptimo, pero sí cuánto tarda Gurobi en encontrarlo. Con los interruptores del selector se activan por separado o juntas.</p>
+        </header>
+      </div>
+      <div id="rendimiento-escena"></div>
+    </section>
+
+    <!-- 03 · Problema -->
     <section class="seccion" id="problema" aria-labelledby="problema-titulo">
       <div class="contenedor">
         <header class="seccion__cabecera" data-revelar>
-          <p class="seccion__numero">02 · El problema</p>
+          <p class="seccion__numero">03 · El problema</p>
           <h2 class="seccion__titulo" id="problema-titulo">Tres ideas para leer una ruta</h2>
           <p class="seccion__entrada">El objetivo no es recorrer menos, sino que los clientes esperen menos. Y la espera depende tanto de los kilómetros como de cuánto cuesta mover la carga detrás de una única puerta.</p>
         </header>
@@ -100,11 +111,11 @@
       </div>
     </section>
 
-    <!-- 03 · Instancia -->
+    <!-- 04 · Instancia -->
     <section class="seccion seccion--instancia" id="instancia" aria-labelledby="instancia-titulo">
       <div class="contenedor">
         <header class="seccion__cabecera" data-revelar>
-          <p class="seccion__numero">03 · La instancia</p>
+          <p class="seccion__numero">04 · La instancia</p>
           <h2 class="seccion__titulo" id="instancia-titulo">Datos y resultado</h2>
           <p class="seccion__entrada">Elige la solución a visualizar. Cada archivo de la carpeta <code>Outputs</code> es la salida de un modelo o algoritmo sobre una instancia de e_vigo adaptada con la regla (79).</p>
         </header>
@@ -124,64 +135,16 @@
       </div>
     </section>
 
-    <!-- 04 · Tiempos -->
+    <!-- 05 · Tiempos -->
     <section class="seccion seccion--tiempos" id="tiempos" aria-labelledby="tiempos-titulo">
       <div class="contenedor">
-        <header class="seccion__cabecera" data-revelar>
-          <p class="seccion__numero">04 · El reloj</p>
+        <header class="seccion__cabecera">
+          <p class="seccion__numero">05 · El reloj</p>
           <h2 class="seccion__titulo" id="tiempos-titulo">Cuánto espera cada cliente</h2>
           <p class="seccion__entrada">El cliente <em>i</em> queda atendido en D<sub>i</sub>, al terminar la descarga de su entrega. La función objetivo suma esos instantes; aquí se ve de qué está hecho cada uno: viaje y manipulación acumulados.</p>
         </header>
       </div>
       <div id="tiempos-escena" class="tiempos-escena"></div>
-    </section>
-
-    <!-- 05 · Rendimiento -->
-    <section class="seccion seccion--rendimiento" id="rendimiento" aria-labelledby="rendimiento-titulo">
-      <div class="contenedor">
-        <header class="seccion__cabecera" data-revelar>
-          <p class="seccion__numero">05 · Rendimiento</p>
-          <h2 class="seccion__titulo" id="rendimiento-titulo">Cuánto tarda cada variante del modelo</h2>
-          <p class="seccion__entrada">Las restricciones (20)–(23) explicitan las cargas al salir y al volver al depósito y las transiciones de cada política; las (24)–(29) agregan la desigualdad válida de latencia. Ninguna cambia el óptimo, pero sí cuánto tarda Gurobi en encontrarlo. Con los interruptores del selector se activan por separado o juntas.</p>
-        </header>
-      </div>
-      <div id="rendimiento-escena"></div>
-    </section>
-
-    <!-- 06 · Datos -->
-    <section class="seccion seccion--datos" id="datos" aria-labelledby="datos-titulo">
-      <div class="contenedor">
-        <header class="seccion__cabecera" data-revelar>
-          <p class="seccion__numero">06 · Agregar resultados</p>
-          <h2 class="seccion__titulo" id="datos-titulo">De un algoritmo a esta página</h2>
-          <p class="seccion__entrada">El visualizador lee la carpeta <code>Outputs</code> de la raíz del proyecto. Cada archivo nuevo aparece en el selector al recargar la página; en la versión publicada, después de hacer commit y push de <code>Outputs</code>.</p>
-        </header>
-        <div class="datos__rejilla">
-          <div class="tarjeta" data-revelar>
-            <h3 class="tarjeta__titulo">1 · Resolver</h3>
-            <p>Desde <code>notebooks/</code>: el primero crea las instancias en <code>Instancias/</code>; el segundo resuelve las que indiquen N, ID y H al inicio del archivo y escribe en <code>Outputs/gurobi/&lt;variante&gt;/</code>.</p>
-            <pre class="codigo"><code>python instancias_trppdh3.py
-python modelo_trppdh3.py</code></pre>
-          </div>
-          <div class="tarjeta" data-revelar>
-            <h3 class="tarjeta__titulo">2 · Un algoritmo nuevo</h3>
-            <p>Basta con copiar la instancia de <code>Instancias/</code> y entregar la ruta y el vector <em>s</em>; la página calcula los instantes con la Tabla 3.</p>
-            <pre class="codigo"><code>salida = {"formato": "trppdh3-salida/1",
-          "algoritmo": {"clave": "mi_heuristica"},
-          "instancia": inst,
-          "solucion": {"ruta": [0, 2, 1, 5, 4, 3, 0],
-                       "politica": {2: 1, 1: 1, 5: 1, 4: 0, 3: 0}}}</code></pre>
-          </div>
-          <div class="tarjeta" data-revelar>
-            <h3 class="tarjeta__titulo">3 · Visualizar</h3>
-            <p>Desde <code>Paginas Web/Pagina Web 1</code>:</p>
-            <pre class="codigo"><code>npm install
-npm start          # http://localhost:3000
-npm run verificar  # simulación JS vs. Outputs
-npm run exportar   # versión estática en dist/</code></pre>
-          </div>
-        </div>
-      </div>
     </section>
   </main>
 

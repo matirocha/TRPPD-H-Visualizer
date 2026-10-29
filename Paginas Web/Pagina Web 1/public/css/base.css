@@ -418,16 +418,6 @@ code { font-family: var(--f-mono); font-size: 0.88em; background: var(--papel-2)
 .muestra--anillo { width: 16px; height: 16px; border-radius: 50%; background: var(--superficie); border: 3px solid var(--color); }
 .muestra--cuadro { width: 16px; height: 16px; border-radius: 3px; background: var(--deposito); }
 
-/* --- Sección de datos ----------------------------------------------------- */
-.datos__rejilla { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
-.datos__rejilla .tarjeta { display: grid; gap: 12px; align-content: start; }
-@media (max-width: 960px) { .datos__rejilla { grid-template-columns: 1fr; } }
-.codigo {
-  margin: 4px 0 0; padding: 14px 16px; border-radius: var(--radio-s); background: var(--tinta); color: #e9e4d8;
-  font: 12.5px/1.65 var(--f-mono); overflow-x: auto;
-}
-.codigo code { background: none; padding: 0; color: inherit; font-size: inherit; }
-
 /* --- Pie ------------------------------------------------------------------ */
 .pie { border-top: 1px solid var(--regla); padding-block: 40px 56px; font-size: 13.5px; color: var(--tinta-2); }
 .pie__interior { display: grid; gap: 8px; }

@@ -2,10 +2,11 @@
 //
 // Una fila por cliente en el orden de la ruta con el tiempo de viaje c_ij, los
 // cuatro tiempos de manipulación u_a, ℓ_a, u_b, ℓ_b, el tiempo en el cliente
-// (F_i − T_i) y el total (viaje + cliente); al final, el regreso al depósito y
-// las sumas. Sigue el reloj del modelo que publica la carga (estado.avance):
-// cada celda muestra lo que lleva hasta ese instante, así se ve crecer el
-// tiempo del cliente que se está atendiendo.
+// (F_i − T_i), el total (viaje + cliente) y los instantes D_i (fin de la
+// entrega) y F_i (salida); al final, el regreso al depósito y las sumas. Sigue
+// el reloj del modelo que publica la carga (estado.avance): cada celda muestra
+// lo que lleva hasta ese instante, así se ve crecer el tiempo del cliente que
+// se está atendiendo, y D_i y F_i aparecen cuando el reloj los alcanza.
 import { PARAMETROS, PARAMETRO_INFO } from './modelo.js';
 import { PARAM_HTML, conTooltip, el, fmt, ocultarTooltip, politicaCorta } from './util.js';
 
@@ -89,6 +90,8 @@ function construir(sim, estado) {
     const segmentos = Object.fromEntries(PARAMETROS.map((q) => [q, el('span', { class: 'crono-pila__seg', style: { background: `var(--op-${q})` } })]));
     servicio.nodo.append(el('span', { class: 'crono-pila', 'aria-hidden': 'true' }, PARAMETROS.map((q) => segmentos[q])));
     const total = celda('crono-celda--total');
+    const instD = celda('crono-celda--instante crono-celda--d');
+    const instF = celda('crono-celda--instante');
     const tr = el('tr', {
       class: `crono-fila crono-fila--p${p.politica === 1 ? 1 : 2}`,
       tabindex: 0,
@@ -106,9 +109,9 @@ function construir(sim, estado) {
     el('th', { scope: 'row', class: 'crono-parada' },
       el('span', { class: 'crono-orden num' }, `#${p.k}`),
       el('span', { class: `cliente-chip crono-chip${p.politica === 1 ? '' : ' cliente-chip--p2'}` }, String(p.cliente))),
-    viaje.nodo, PARAMETROS.map((q) => params[q].nodo), servicio.nodo, total.nodo);
+    viaje.nodo, PARAMETROS.map((q) => params[q].nodo), servicio.nodo, total.nodo, instD.nodo, instF.nodo);
     conTooltip(tr, () => htmlCliente(p));
-    return { p, k, tr, viaje, bViaje, params, servicio, segmentos, total, estado: '' };
+    return { p, k, tr, viaje, bViaje, params, servicio, segmentos, total, instD, instF, estado: '' };
   });
 
   // Regreso al depósito (solo viaje) y sumas de la ruta hasta el instante actual
@@ -121,12 +124,14 @@ function construir(sim, estado) {
     onclick: () => estado.set({ pedirParada: { indice: n } }),
   },
   el('th', { scope: 'row', class: 'crono-parada' }, el('span', { class: 'crono-deposito', 'aria-hidden': 'true' }, '0'), 'Regreso'),
-  rViaje.nodo, el('td', { colspan: PARAMETROS.length + 1, class: 'crono-nota' }, 'no pesa en Σ D'), rTotal.nodo);
-  const sumas = { viaje: celda(), servicio: celda(), total: celda('crono-celda--total') };
+  rViaje.nodo, el('td', { colspan: PARAMETROS.length + 1, class: 'crono-nota' }, 'no pesa en Σ D'), rTotal.nodo,
+  el('td', { class: 'crono-celda--instante crono-celda--d' }), el('td', { class: 'crono-celda--instante' }));
+  const sumas = { viaje: celda(), servicio: celda(), total: celda('crono-celda--total'), D: celda('crono-celda--instante crono-celda--d') };
   const sumasParam = Object.fromEntries(PARAMETROS.map((q) => [q, celda()]));
   const filaSumas = el('tr', { class: 'crono-sumas' },
     el('th', { scope: 'row' }, 'Σ ruta'),
-    sumas.viaje.nodo, PARAMETROS.map((q) => sumasParam[q].nodo), sumas.servicio.nodo, sumas.total.nodo);
+    sumas.viaje.nodo, PARAMETROS.map((q) => sumasParam[q].nodo), sumas.servicio.nodo, sumas.total.nodo,
+    sumas.D.nodo, el('td', { class: 'crono-celda--instante' }));
 
   const cabecera = (html, titulo, color) => el('th', { scope: 'col', title: titulo },
     color ? el('span', { class: 'crono-muestra', style: { background: color }, 'aria-hidden': 'true' }) : null,
@@ -138,7 +143,9 @@ function construir(sim, estado) {
       cabecera('Viaje c<sub>ij</sub>', 'Tiempo de viaje desde la parada anterior', 'var(--viaje)'),
       PARAMETROS.map((q) => cabecera(PARAM_HTML[q], `${PARAMETRO_INFO[q].nombre}: ${PARAMETRO_INFO[q].detalle} × unidades`, `var(--op-${q})`)),
       cabecera('En el cliente', 'F_i − T_i: suma de los cuatro tiempos de manipulación'),
-      cabecera('Total', 'Viaje + tiempo en el cliente'))),
+      cabecera('Total', 'Viaje + tiempo en el cliente'),
+      cabecera('D<sub>i</sub> entrega', 'D_i: instante en que termina la descarga de la entrega del cliente (suma en la función objetivo)'),
+      cabecera('F<sub>i</sub> salida', 'F_i: instante en que el camión sale del cliente'))),
     el('tbody', {}, filas.map((f) => f.tr), filaRegreso),
     el('tfoot', {}, filaSumas));
   const desplazable = el('div', { class: 'crono-desplazable' }, tabla);
@@ -156,7 +163,7 @@ function construir(sim, estado) {
   function pintar(avance) {
     const t = avance?.reloj ?? 0;
     const actual = avance && (avance.viaje > 0 || avance.servicio > 0) ? avance.tramo : null;
-    const acum = { viaje: 0, servicio: 0, ...Object.fromEntries(PARAMETROS.map((q) => [q, 0])) };
+    const acum = { viaje: 0, servicio: 0, D: 0, ...Object.fromEntries(PARAMETROS.map((q) => [q, 0])) };
 
     for (const f of filas) {
       const { p } = f;
@@ -176,8 +183,12 @@ function construir(sim, estado) {
       }
       escribir(f.servicio, servicio, { pendiente: !llego });
       escribir(f.total, viaje + servicio, { pendiente: !empezo });
+      const entregado = llego && t >= p.D - EPS;
+      escribir(f.instD, p.D, { pendiente: !entregado });
+      escribir(f.instF, p.F, { pendiente: !(llego && t >= p.F - EPS) });
       acum.viaje += viaje;
       acum.servicio += servicio;
+      if (entregado) acum.D += p.D;
 
       const estadoFila = actual === f.k ? 'actual' : !empezo ? 'pendiente' : 'hecha';
       if (estadoFila !== f.estado) {
@@ -199,6 +210,7 @@ function construir(sim, estado) {
     for (const q of PARAMETROS) escribir(sumasParam[q], acum[q]);
     escribir(sumas.servicio, acum.servicio);
     escribir(sumas.total, acum.viaje + acum.servicio);
+    escribir(sumas.D, acum.D);
     const textoInstante = `t = ${fmt(t)} de ${fmt(sim.regreso)}`;
     if (instante.textContent !== textoInstante) instante.textContent = textoInstante;
 

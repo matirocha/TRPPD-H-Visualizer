@@ -44,11 +44,10 @@ para números (con cifras tabulares). Decimales con coma (es-CL).
 |---|---|---|---|
 | 00 | Portada | Título, pregunta del problema, ruta de la instancia dibujada sobre papel liso | La ruta se traza sola; paralaje al bajar |
 | 01 | Mapa y carga | A la izquierda, nodos con u<sub>a</sub>, ℓ<sub>a</sub>, u<sub>b</sub>, ℓ<sub>b</sub> y arcos con c<sub>ij</sub>; bajo el mapa, el tiempo por cliente; a la derecha, el camión con las unidades en su posición física y los pasos de la Tabla 3. Debajo, barras de carga por tramo vs Q | Reproductor (ver abajo): el camión se mueve en el mapa y cada operación de carga y descarga se anima al mismo tiempo |
-| 02 | El problema | Tres ideas: latencia (Σ D<sub>i</sub>), una sola puerta (LIFO, Figura 1), Política 3 (Tabla 3) | Se construyen al entrar en pantalla |
-| 03 | La instancia | Selector (algoritmo, n, id, h), KPIs, tabla de clientes, parámetros, verificación, leyenda | Contadores |
-| 04 | Reloj | Línea de tiempo de la ruta con lupa de servicio y barras de espera D<sub>i</sub> por cliente | Cabezal ligado al scroll; barras que crecen |
-| 05 | Rendimiento | Tiempo de ejecución de las cuatro variantes del modelo: barras para la instancia mostrada, puntos y mediana para todas las instancias con el mismo n, y tabla resumen. Medida: resolución, total o nodos B&B | Barras que crecen; puntos que aparecen |
-| 06 | Datos | Cómo generar salidas y conectar algoritmos nuevos | — |
+| 02 | Rendimiento | Tiempo de ejecución de las cuatro variantes del modelo: barras para la instancia mostrada, puntos y mediana para todas las instancias con el mismo n, y tabla resumen. Medida: resolución, total o nodos B&B | Barras que crecen; puntos que aparecen |
+| 03 | El problema | Tres ideas: latencia (Σ D<sub>i</sub>), una sola puerta (LIFO, Figura 1), Política 3 (Tabla 3) | Se construyen al entrar en pantalla |
+| 04 | La instancia | Selector (algoritmo, n, id, h), KPIs, tabla de clientes, parámetros, verificación, leyenda | Contadores |
+| 05 | Reloj | Línea de tiempo de la ruta con lupa de servicio y barras de espera D<sub>i</sub> por cliente | Sin animaciones de scroll: el cabezal se mueve al elegir una parada |
 
 La sección 01 no depende del scroll: un reproductor sobre la escena tiene
 **volver al inicio**, **explicación anterior**, **Iniciar / Pausar / Continuar /
@@ -91,7 +90,7 @@ Lo que pide el enunciado y dónde está:
 - **Tiempo de viaje en cada arco** → etiqueta c<sub>ij</sub> en el punto medio de cada arco.
 - **Carga del camión para cada cliente** → sección 01 (camión animado junto al mapa y barras w/y/z).
 - **Gráfico del tiempo de cada cliente** → sección 01 (tabla de tiempo por cliente,
-  en vivo) y sección 04 (línea de tiempo y espera D<sub>i</sub>).
+  en vivo, con los instantes D<sub>i</sub> y F<sub>i</sub>) y sección 05 (línea de tiempo y espera D<sub>i</sub>).
 
 ## Datos
 
@@ -153,9 +152,7 @@ export function crear(raiz, estado) {
 - `main.js` llama `destruir()` y luego `render()` cada vez que se elige otra
   solución, y después `ScrollTrigger.refresh()`.
 - Todo lo de GSAP se crea dentro de `gsap.context(() => …, raiz)` y se revierte
-  con `ctx.revert()` en `destruir()`. Los *scrub* ligados al scroll (sección del
-  reloj) solo en escritorio (`gsap.matchMedia()`, `(min-width: 960px)` y sin
-  `prefers-reduced-motion`); en móvil o con movimiento reducido hay botones.
+  con `ctx.revert()` en `destruir()`.
 - La barra superior mide 64 px: los pines empiezan en `top top+=64`.
 - Resaltado compartido: al pasar sobre un cliente se hace
   `estado.set({ hover: i })` y al salir `estado.set({ hover: null })`; cada vista
