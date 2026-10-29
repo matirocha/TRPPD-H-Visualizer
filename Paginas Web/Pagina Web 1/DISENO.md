@@ -74,8 +74,10 @@ Iniciar se alinea bajo la barra. En pantallas de menos de 960 px el mapa y el ca
 el reproductor queda pegado bajo la barra superior.
 
 El selector de soluciones vive en la barra superior (un botón que abre un panel)
-y, el mismo panel, en la sección 03. Cada opción muestra el Σ D de la solución
-a la que lleva; las fichas de instancia tienen una barra proporcional a Σ D.
+y, el mismo panel, en la sección 03. El botón muestra el ID de la instancia, n y
+Σ D; el panel abre con esos tres datos en grande (Σ D destacado como función
+objetivo) y debajo una fila de botones simples por dimensión: ID (con flechas
+anterior/siguiente), n, h y algoritmo. El Σ D de cada opción queda en su tooltip.
 
 Lo que pide el enunciado y dónde está:
 
