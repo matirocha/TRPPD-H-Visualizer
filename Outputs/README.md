@@ -6,41 +6,54 @@ Salidas de los modelos y algoritmos aplicados al TRPPD-H₃. El visualizador web
 
 ```
 Outputs/
-  gurobi/          modelo (1)-(19) en Gurobi (notebooks/correr_trppdh3.py)
-  enumeracion/     enumeración exhaustiva, n <= 7 (notebooks/correr_enumeracion.py)
-  <algoritmo>/     cualquier algoritmo futuro
-  resumenes/       un CSV por corrida de correr_trppdh3.py
+  gurobi/
+    base/           modelo (1)-(19)
+    explicitacion/  (1)-(19) + (20)-(23)
+    latencia/       (1)-(19) + (24)-(29)
+    completo/       (1)-(29)
+  enumeracion/      enumeración exhaustiva, n = 5 (generada con un script anterior)
+  <algoritmo>/      cualquier algoritmo futuro
+  resumenes/        CSV de corridas anteriores
 ```
 
-Cada archivo se llama `<algoritmo>/<instancia>.json`, por ejemplo
-`gurobi/vigo_n5_id1_h0.5.json`.
+Cada archivo se llama `<carpeta>/<instancia>.json`, por ejemplo
+`gurobi/base/vigo_n5_id1_h0.5.json`.
 
 ## Contenido actual
 
 Las 30 instancias con n = 5 del banco de Battarra et al. (2010): ids 1 a 10 y
-h ∈ {0,1; 0,5; 1}, con u_a = ℓ_a = u_b = ℓ_b = h/2. Las soluciones de Gurobi se
-generaron con las restricciones de explicitación (20)–(23), para que los flujos
-w, y, z guardados correspondan a la carga física. En las 30 instancias Gurobi y
-la enumeración obtienen el mismo óptimo y la misma ruta.
+h ∈ {0,1; 0,5; 1}, con u_a = ℓ_a = u_b = ℓ_b = h/2, resueltas con Gurobi en las
+cuatro variantes del modelo. Las restricciones (20)–(29) no cambian el óptimo:
+en las 30 instancias las cuatro variantes y la enumeración obtienen el mismo
+Σ D_i. Lo que cambia es el tiempo de ejecución, que la página compara en la
+sección Rendimiento.
 
 ```bash
 cd notebooks
-python correr_trppdh3.py --n 5 --explicitacion --silencioso
-python correr_enumeracion.py --n 5
+python instancias_trppdh3.py   # crea Instancias/ (una vez)
+python modelo_trppdh3.py       # resuelve la instancia N, ID, H del inicio del archivo
 ```
+
+En `modelo_trppdh3.py`, `RESTRICCIONES_20_23` y `RESTRICCIONES_24_29` aceptan
+`True`, `False` o `[False, True]` (resuelve con y sin ellas), y `N`, `ID` y `H`
+aceptan listas para resolver varias instancias seguidas.
 
 ## Formato `trppdh3-salida/1`
 
 ```jsonc
 {
   "formato": "trppdh3-salida/1",
-  "generado": "2026-10-21T13:12:34",
+  "generado": "2026-10-29T14:16:51",
   "algoritmo": {
-    "clave": "gurobi",                      // nombre de la subcarpeta
-    "nombre": "Gurobi · modelo (1)-(19)",   // texto que muestra la página
-    "parametros": { "explicitacion": true } // libre
+    "clave": "gurobi",                          // algoritmo (fila "Algoritmo" del selector)
+    "nombre": "Gurobi · (1)-(19) + (24)-(29)",  // texto que muestra la página
+    "parametros": {                             // libre; explicitacion y latencia
+      "variante": "latencia",                   // mueven los interruptores de la página
+      "explicitacion": false, "latencia": true,
+      "limite_tiempo": null, "hilos": null
+    }
   },
-  "instancia": {
+  "instancia": {                                // copia de Instancias/<instancia>.json
     "nombre": "vigo_n5_id1_h0.5",
     "n": 5, "id": 1, "h": 0.5,
     "Q": 32,
@@ -54,7 +67,12 @@ python correr_enumeracion.py --n 5
     "ruta": [0, 2, 1, 5, 4, 3, 0],                   // obligatoria
     "politica": { "2": 1, "1": 1, "5": 1, "4": 0, "3": 0 },  // obligatoria: 1 = P1, 0 = P2
     "objetivo": 717.75,                              // Σ D_i
-    "estado": "OPTIMAL", "cota": 717.75, "gap": 0, "segundos": 0.05, "nodos": 134,
+    "estado": "OPTIMAL", "cota": 717.75, "gap": 0,
+    "segundos": 0.017,                 // resolución en Gurobi (Runtime)
+    "segundos_construccion": 0.0042,   // armar el modelo
+    "segundos_total": 0.0218,          // construcción + resolución + lectura
+    "nodos": 1, "iteraciones": 167,
+    "variables": 182, "binarias": 35, "restricciones": 165,
     "T": { "2": 35, ... }, "D": { ... }, "F": { ... }, "q": { ... },
     "cargas": [{ "arco": [0, 2], "w": 0, "y": 32, "z": 0 }, ...],
     "viaje": 336, "manipulacion_adicional": 7.5, "regreso": 355.5
@@ -68,16 +86,23 @@ formulación y compara su resultado con todo lo que el archivo informe.
 
 ## Agregar un algoritmo
 
+Basta con copiar la instancia de `Instancias/` y entregar la ruta y el vector
+*s*; la página calcula T, D, F y el objetivo con la Tabla 3.
+
 ```python
-from instancias_vigo import generar_instancia
-from salidas import construir_salida, guardar_salida
+import json
+from pathlib import Path
 
-inst = generar_instancia(5, 1, 0.5)
-sol = {"ruta": [0, 2, 1, 5, 4, 3, 0], "politica": {2: 1, 1: 1, 5: 1, 4: 0, 3: 0},
-       "segundos": 0.8}
-guardar_salida(construir_salida(inst, sol, "mi_heuristica", "Mi heurística"))
+inst = json.loads(Path("Instancias/vigo_n5_id1_h0.5.json").read_text(encoding="utf-8"))
+salida = {
+    "formato": "trppdh3-salida/1",
+    "algoritmo": {"clave": "mi_heuristica", "nombre": "Mi heurística"},
+    "instancia": inst,
+    "solucion": {"ruta": [0, 2, 1, 5, 4, 3, 0],
+                 "politica": {2: 1, 1: 1, 5: 1, 4: 0, 3: 0},
+                 "segundos": 0.8},
+}
+destino = Path("Outputs/mi_heuristica") / f"{inst['nombre']}.json"
+destino.parent.mkdir(parents=True, exist_ok=True)
+destino.write_text(json.dumps(salida, indent=2, ensure_ascii=False), encoding="utf-8")
 ```
-
-`construir_salida` completa T, D, F, el objetivo y los términos de costo con
-`enumeracion.evaluar`, y agrega la matriz c y las coordenadas del mapa
-(escalamiento multidimensional de la matriz de 50 clientes de la misma id).

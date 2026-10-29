@@ -26,4 +26,4 @@ para ver sus soluciones. En la versión publicada (Vercel), los cambios en
 | `npm run exportar` | copia la página, sus librerías y las soluciones en `dist/` para un hosting estático |
 
 La página acepta `?s=<algoritmo>/<instancia>.json` en la URL para abrir una
-solución concreta, por ejemplo `?s=gurobi/vigo_n5_id3_h1.json`.
+solución concreta, por ejemplo `?s=gurobi/base/vigo_n5_id3_h1.json`.

@@ -47,7 +47,8 @@ para números (con cifras tabulares). Decimales con coma (es-CL).
 | 02 | El problema | Tres ideas: latencia (Σ D<sub>i</sub>), una sola puerta (LIFO, Figura 1), Política 3 (Tabla 3) | Se construyen al entrar en pantalla |
 | 03 | La instancia | Selector (algoritmo, n, id, h), KPIs, tabla de clientes, parámetros, verificación, leyenda | Contadores |
 | 04 | Reloj | Línea de tiempo de la ruta con lupa de servicio y barras de espera D<sub>i</sub> por cliente | Cabezal ligado al scroll; barras que crecen |
-| 05 | Datos | Cómo generar salidas y conectar algoritmos nuevos | — |
+| 05 | Rendimiento | Tiempo de ejecución de las cuatro variantes del modelo: barras para la instancia mostrada, puntos y mediana para todas las instancias con el mismo n, y tabla resumen. Medida: resolución, total o nodos B&B | Barras que crecen; puntos que aparecen |
+| 06 | Datos | Cómo generar salidas y conectar algoritmos nuevos | — |
 
 La sección 01 no depende del scroll: un reproductor sobre la escena tiene
 **volver al inicio**, **explicación anterior**, **Iniciar / Pausar / Continuar /
@@ -78,6 +79,9 @@ y, el mismo panel, en la sección 03. El botón muestra el ID de la instancia, n
 Σ D; el panel abre con esos tres datos en grande (Σ D destacado como función
 objetivo) y debajo una fila de botones simples por dimensión: ID (con flechas
 anterior/siguiente), n, h y algoritmo. El Σ D de cada opción queda en su tooltip.
+Para el modelo de Gurobi, la última fila tiene dos interruptores que agregan a
+(1)–(19) las restricciones (20)–(23) y (24)–(29); con los dos encendidos se ve
+el modelo (1)–(29). Se apagan en algoritmos sin variantes (enumeración).
 
 Lo que pide el enunciado y dónde está:
 
@@ -128,6 +132,7 @@ Pagina Web 1/
     js/cronometro.js   tiempo por cliente (sigue estado.avance)
     js/camion.js       carga del camión
     js/tiempos.js      reloj
+    js/rendimiento.js  tiempos de ejecución por variante (lee el manifest)
 ```
 
 GSAP 3 (ScrollTrigger, DrawSVG, MotionPath, SplitText, ScrollTo), d3 y KaTeX

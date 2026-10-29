@@ -30,12 +30,21 @@ function resumir(archivo, d) {
   const i = d.instancia ?? {};
   const s = d.solucion ?? {};
   const clave = a.clave ?? archivo.split('/')[0];
+  const p = a.parametros ?? {};
+  // Variante del modelo de Gurobi: con o sin (20)-(23) y (24)-(29); null en otros algoritmos.
+  const variante = typeof p.explicitacion === 'boolean' && typeof p.latencia === 'boolean'
+    ? { explicitacion: p.explicitacion, latencia: p.latencia }
+    : null;
   return {
     archivo,
-    algoritmo: { clave, nombre: a.nombre ?? clave },
+    algoritmo: { clave, nombre: a.nombre ?? clave, variante },
     instancia: { nombre: i.nombre ?? path.basename(archivo, '.json'), n: i.n, id: i.id ?? null, h: i.h ?? null },
     objetivo: s.objetivo ?? null,
     estado: s.estado ?? null,
+    // Tiempos de ejecución, para comparar variantes sin abrir cada archivo
+    segundos: s.segundos ?? null,
+    segundosTotal: s.segundos_total ?? null,
+    nodos: s.nodos ?? null,
     generado: d.generado ?? null,
   };
 }

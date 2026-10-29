@@ -5,8 +5,9 @@
 // El panel abre con tres datos grandes (ID de instancia, n y la función
 // objetivo Σ D) y debajo una fila de botones por dimensión (ID, n, h,
 // algoritmo). Si una combinación no existe en Outputs se elige la más parecida
-// y su botón se ve atenuado.
-import { el, fmt } from './util.js';
+// y su botón se ve atenuado. Para el modelo de Gurobi, dos interruptores
+// agregan las restricciones (20)-(23) y (24)-(29) a (1)-(19).
+import { VARIANTES, claveVariante, el, fmt } from './util.js';
 
 const DIMENSIONES = [
   {
@@ -25,10 +26,23 @@ const DIMENSIONES = [
     clave: 'alg', etiqueta: 'Algoritmo', ayuda: 'Quién resolvió',
     valor: (s) => s.algoritmo.clave, texto: (_, s) => nombreCorto(s.algoritmo.nombre),
   },
+  {
+    clave: 'var', etiqueta: 'Restricciones', ayuda: '(1)–(19) siempre',
+    valor: (s) => claveVariante(s.algoritmo.variante) ?? SIN_VARIANTE, texto: (v) => v,
+  },
 ];
 
-// Prioridad al buscar la solución más parecida: el algoritmo se conserva antes que la instancia.
-const PRIORIDAD = ['alg', 'n', 'inst', 'h'];
+// Prioridad al buscar la solución más parecida: el algoritmo se conserva antes que la
+// instancia, y la instancia antes que las restricciones.
+const PRIORIDAD = ['alg', 'n', 'inst', 'h', 'var'];
+
+// Algoritmos sin variantes (enumeración, etc.): coinciden con cualquier combinación de interruptores.
+const SIN_VARIANTE = '—';
+const coincide = (dim, a, b) => a === b || (dim === 'var' && (a === SIN_VARIANTE || b === SIN_VARIANTE));
+const INTERRUPTORES = [
+  { indice: 0, numeros: '(20)–(23)', nombre: 'Explicitación de las cargas' },
+  { indice: 1, numeros: '(24)–(29)', nombre: 'Desigualdad de latencia' },
+];
 
 const ESTADOS = { OPTIMAL: 'óptima', TIME_LIMIT: 'límite de tiempo', SUBOPTIMAL: 'subóptima', FEASIBLE: 'factible' };
 
@@ -55,7 +69,7 @@ export function crearSelector({ barra, enLinea, alElegir }) {
     let puntaje = -1;
     for (const s of manifest) {
       const k = claveDe(s);
-      const p = PRIORIDAD.reduce((suma, c, i) => suma + (k[c] === deseada[c] ? 2 ** (PRIORIDAD.length - i) : 0), 0);
+      const p = PRIORIDAD.reduce((suma, c, i) => suma + (coincide(c, k[c], deseada[c]) ? 2 ** (PRIORIDAD.length - i) : 0), 0);
       if (p > puntaje) {
         mejor = s;
         puntaje = p;
@@ -88,6 +102,40 @@ export function crearSelector({ barra, enLinea, alElegir }) {
         if (salida && salida.archivo !== actual) alElegir(salida.archivo);
       },
     }, texto);
+  }
+
+  /** Interruptores (20)-(23) y (24)-(29): cada uno cambia un dígito de la clave de variante. */
+  function interruptores(clave) {
+    const bits = clave.var === SIN_VARIANTE ? null : clave.var;
+    const botones = INTERRUPTORES.map(({ indice, numeros, nombre }) => {
+      const activo = bits?.[indice] === '1';
+      const nuevo = bits && [...bits].map((b, i) => (i === indice ? (activo ? '0' : '1') : b)).join('');
+      const { salida, exacta } = nuevo ? buscar({ ...clave, var: nuevo }) : { salida: null, exacta: false };
+      const titulo = !bits
+        ? 'Solo para el modelo de Gurobi'
+        : exacta
+          ? `${activo ? 'Quitar' : 'Agregar'} ${numeros}: ${fmt(salida.segundos, 3)} s en Gurobi`
+          : 'No hay esta combinación en Outputs para esta instancia';
+      return el('button', {
+        type: 'button',
+        role: 'switch',
+        class: 'selector-interruptor',
+        'aria-checked': String(activo),
+        disabled: !bits || !exacta,
+        dataset: { dim: 'var', valor: String(indice) },
+        title: titulo,
+        onclick: () => {
+          if (exacta && salida.archivo !== actual) alElegir(salida.archivo);
+        },
+      },
+      el('span', { class: 'selector-interruptor__pista', 'aria-hidden': 'true' }, el('span', { class: 'selector-interruptor__perilla' })),
+      el('span', { class: 'selector-interruptor__texto' },
+        el('span', { class: 'selector-interruptor__numeros num' }, numeros),
+        el('span', { class: 'selector-interruptor__nombre' }, nombre)));
+    });
+    const modelo = VARIANTES.find((v) => v.clave === bits);
+    return [...botones,
+      el('span', { class: 'selector-interruptor__modelo' }, modelo ? `Modelo ${modelo.etiqueta}` : 'Sin variantes en este algoritmo')];
   }
 
   /** Instancia anterior o siguiente con las demás dimensiones fijas. */
@@ -124,12 +172,17 @@ export function crearSelector({ barra, enLinea, alElegir }) {
     const s = manifest.find((x) => x.archivo === actual);
     if (!s) return [];
     const clave = claveDe(s);
-    const filas = DIMENSIONES.map((d) => {
+    const hayVariantes = manifest.some((x) => x.algoritmo.variante);
+    const filas = DIMENSIONES.filter((d) => d.clave !== 'var' || hayVariantes).map((d) => {
       const id = `selector-${uid}-${flotante ? 'f' : 'l'}-${d.clave}`;
-      const botones = valoresDe(d).map((o) => opcion(d, clave, o));
-      const opciones = d.clave === 'inst'
-        ? [flecha(vecina(clave, -1), 'Instancia anterior', '←'), ...botones, flecha(vecina(clave, 1), 'Instancia siguiente', '→')]
-        : botones;
+      let opciones;
+      if (d.clave === 'var') opciones = interruptores(clave);
+      else {
+        const botones = valoresDe(d).map((o) => opcion(d, clave, o));
+        opciones = d.clave === 'inst'
+          ? [flecha(vecina(clave, -1), 'Instancia anterior', '←'), ...botones, flecha(vecina(clave, 1), 'Instancia siguiente', '→')]
+          : botones;
+      }
       return el('div', { class: `selector-fila selector-fila--${d.clave}`, role: 'group', 'aria-labelledby': id },
         el('div', { class: 'selector-fila__rotulo', id },
           el('span', { class: 'selector-fila__etiqueta' }, d.etiqueta),

@@ -20,6 +20,7 @@
   <link rel="stylesheet" href="css/cronometro.css">
   <link rel="stylesheet" href="css/recorrido.css">
   <link rel="stylesheet" href="css/tiempos.css">
+  <link rel="stylesheet" href="css/rendimiento.css">
 
   <script defer src="vendor/gsap/gsap.min.js"></script>
   <script defer src="vendor/gsap/ScrollTrigger.min.js"></script>
@@ -47,6 +48,7 @@
         <a href="#problema">Problema</a>
         <a href="#instancia">Instancia</a>
         <a href="#tiempos">Tiempos</a>
+        <a href="#rendimiento">Rendimiento</a>
         <a href="#datos">Datos</a>
       </nav>
       <div class="barra__selector" id="selector-barra"></div>
@@ -134,28 +136,41 @@
       <div id="tiempos-escena" class="tiempos-escena"></div>
     </section>
 
-    <!-- 05 · Datos -->
+    <!-- 05 · Rendimiento -->
+    <section class="seccion seccion--rendimiento" id="rendimiento" aria-labelledby="rendimiento-titulo">
+      <div class="contenedor">
+        <header class="seccion__cabecera" data-revelar>
+          <p class="seccion__numero">05 · Rendimiento</p>
+          <h2 class="seccion__titulo" id="rendimiento-titulo">Cuánto tarda cada variante del modelo</h2>
+          <p class="seccion__entrada">Las restricciones (20)–(23) explicitan las cargas al salir y al volver al depósito y las transiciones de cada política; las (24)–(29) agregan la desigualdad válida de latencia. Ninguna cambia el óptimo, pero sí cuánto tarda Gurobi en encontrarlo. Con los interruptores del selector se activan por separado o juntas.</p>
+        </header>
+      </div>
+      <div id="rendimiento-escena"></div>
+    </section>
+
+    <!-- 06 · Datos -->
     <section class="seccion seccion--datos" id="datos" aria-labelledby="datos-titulo">
       <div class="contenedor">
         <header class="seccion__cabecera" data-revelar>
-          <p class="seccion__numero">05 · Agregar resultados</p>
+          <p class="seccion__numero">06 · Agregar resultados</p>
           <h2 class="seccion__titulo" id="datos-titulo">De un algoritmo a esta página</h2>
           <p class="seccion__entrada">El visualizador lee la carpeta <code>Outputs</code> de la raíz del proyecto. Cada archivo nuevo aparece en el selector al recargar la página; en la versión publicada, después de hacer commit y push de <code>Outputs</code>.</p>
         </header>
         <div class="datos__rejilla">
           <div class="tarjeta" data-revelar>
             <h3 class="tarjeta__titulo">1 · Resolver</h3>
-            <p>Desde <code>notebooks/</code>, el modelo de Gurobi y la enumeración escriben en <code>Outputs/&lt;algoritmo&gt;/&lt;instancia&gt;.json</code>.</p>
-            <pre class="codigo"><code>python correr_trppdh3.py --n 5 --explicitacion
-python correr_enumeracion.py --n 5</code></pre>
+            <p>Desde <code>notebooks/</code>: el primero crea las instancias en <code>Instancias/</code>; el segundo resuelve las que indiquen N, ID y H al inicio del archivo y escribe en <code>Outputs/gurobi/&lt;variante&gt;/</code>.</p>
+            <pre class="codigo"><code>python instancias_trppdh3.py
+python modelo_trppdh3.py</code></pre>
           </div>
           <div class="tarjeta" data-revelar>
             <h3 class="tarjeta__titulo">2 · Un algoritmo nuevo</h3>
-            <p>Basta con entregar la ruta y el vector <em>s</em>; <code>salidas.py</code> completa los instantes con la Tabla 3.</p>
-            <pre class="codigo"><code>from salidas import construir_salida, guardar_salida
-sol = {"ruta": [0, 2, 1, 5, 4, 3, 0],
-       "politica": {2: 1, 1: 1, 5: 1, 4: 0, 3: 0}}
-guardar_salida(construir_salida(inst, sol, "mi_heuristica"))</code></pre>
+            <p>Basta con copiar la instancia de <code>Instancias/</code> y entregar la ruta y el vector <em>s</em>; la página calcula los instantes con la Tabla 3.</p>
+            <pre class="codigo"><code>salida = {"formato": "trppdh3-salida/1",
+          "algoritmo": {"clave": "mi_heuristica"},
+          "instancia": inst,
+          "solucion": {"ruta": [0, 2, 1, 5, 4, 3, 0],
+                       "politica": {2: 1, 1: 1, 5: 1, 4: 0, 3: 0}}}</code></pre>
           </div>
           <div class="tarjeta" data-revelar>
             <h3 class="tarjeta__titulo">3 · Visualizar</h3>

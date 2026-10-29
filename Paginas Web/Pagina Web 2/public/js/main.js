@@ -150,7 +150,7 @@ async function iniciar() {
 
   const pedido = new URL(location.href).searchParams.get('s');
   const inicial = manifest.find((s) => s.archivo === pedido)
-    ?? manifest.find((s) => s.archivo === 'gurobi/vigo_n5_id1_h0.5.json')
+    ?? manifest.find((s) => s.archivo === 'gurobi/base/vigo_n5_id1_h0.5.json')
     ?? manifest[0];
   iniciarNavegacion();
   await mostrar(inicial.archivo);

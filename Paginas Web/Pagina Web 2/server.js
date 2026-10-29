@@ -1,7 +1,7 @@
 // Servidor del visualizador TRPPD-H3.
 //
 //   GET /api/salidas           lista de soluciones encontradas en Outputs
-//   GET /api/salidas/<archivo> contenido de una solución (p. ej. gurobi/vigo_n5_id1_h0.5.json)
+//   GET /api/salidas/<archivo> contenido de una solución (p. ej. gurobi/base/vigo_n5_id1_h0.5.json)
 //
 // Los cambios en Outputs se ven al recargar la página.
 // Uso: npm start  (PORT y OUTPUTS_DIR son opcionales)

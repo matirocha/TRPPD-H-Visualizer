@@ -83,6 +83,16 @@ export const POLITICA_TEXTO = {
 };
 export const politicaCorta = (s) => (s === 1 ? 'P1' : 'P2');
 
+// Variantes del modelo de Gurobi: (1)-(19) con o sin (20)-(23) y (24)-(29).
+// La clave junta los dos interruptores: '10' = con (20)-(23) y sin (24)-(29).
+export const VARIANTES = [
+  { clave: '00', explicitacion: false, latencia: false, etiqueta: '(1)–(19)' },
+  { clave: '10', explicitacion: true, latencia: false, etiqueta: '(1)–(19) + (20)–(23)' },
+  { clave: '01', explicitacion: false, latencia: true, etiqueta: '(1)–(19) + (24)–(29)' },
+  { clave: '11', explicitacion: true, latencia: true, etiqueta: '(1)–(29)' },
+];
+export const claveVariante = (v) => (v ? `${v.explicitacion ? 1 : 0}${v.latencia ? 1 : 0}` : null);
+
 export const TIPO_CARGA = {
   y: 'Entregas (a) pendientes',
   w: 'Recogidas (b) al fondo',

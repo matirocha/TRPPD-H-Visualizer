@@ -1,7 +1,7 @@
 // Normalización de las salidas de Outputs y simulación de la ruta.
 //
 // La simulación reproduce, cliente a cliente, la secuencia de operaciones de
-// la Tabla 3 de la formulación (y la función evaluar de notebooks/enumeracion.py):
+// la Tabla 3 de la formulación:
 //
 //   1. retirar las recogidas junto a la puerta      u_b · z
 //   2. descargar las α_i unidades del cliente       u_a · α_i      -> D_i

@@ -13,6 +13,7 @@ import * as mapa from './mapa.js';
 import * as cronometro from './cronometro.js';
 import * as camion from './camion.js';
 import * as tiempos from './tiempos.js';
+import * as rendimiento from './rendimiento.js';
 
 gsap.registerPlugin(ScrollTrigger, ScrollToPlugin, DrawSVGPlugin, MotionPathPlugin, SplitText);
 
@@ -277,7 +278,7 @@ async function iniciar() {
   }
   if (!manifest.length) {
     aviso.classList.add('carga-inicial--error');
-    aviso.innerHTML = 'No se encontraron soluciones en <code>Outputs</code>.<br>Ejecuta <code>python correr_trppdh3.py --n 5 --explicitacion</code> desde <code>notebooks/</code> y recarga.';
+    aviso.innerHTML = 'No se encontraron soluciones en <code>Outputs</code>.<br>Ejecuta <code>python modelo_trppdh3.py</code> desde <code>notebooks/</code> y recarga.';
     return;
   }
 
@@ -293,11 +294,14 @@ async function iniciar() {
       escena: $('#recorrido-escena'), controles: $('#recorrido-controles'), grafico: $('#carga-grafico'),
     }),
     tiempos.crear($('#tiempos-escena'), estado),
+    rendimiento.crear($('#rendimiento-escena'), estado, {
+      manifest: () => manifest, actual: () => archivoActual, elegir: (archivo) => mostrar(archivo),
+    }),
   ];
 
   const pedido = new URL(location.href).searchParams.get('s');
   const inicial = manifest.find((s) => s.archivo === pedido)
-    ?? manifest.find((s) => s.archivo === 'gurobi/vigo_n5_id1_h0.5.json')
+    ?? manifest.find((s) => s.archivo === 'gurobi/base/vigo_n5_id1_h0.5.json')
     ?? manifest[0];
   iniciarNavegacion();
   await mostrar(inicial.archivo, { silencioso: true });
