@@ -34,14 +34,14 @@ const PERFILES = {
   ancho: {
     W: 940, H: 700, margen: { izq: 190, der: 190, sup: 108, inf: 120 },
     r: 20, rDep: 16, fNodo: 15, fPildora: 12.5, altoPildora: 21, insignia: 1, camion: 1, flecha: 1,
-    fEscala: 12, pasoMin: 34, tarjetas: true,
+    pasoMin: 34, tarjetas: true,
   },
   // A 360 px la lámina se ve a ~0,55×: insignias y márgenes más holgados para que
-  // P1/P2 y #k sigan legibles y no choquen con la barra de escala.
+  // P1/P2 y #k sigan legibles.
   estrecho: {
-    W: 600, H: 540, margen: { izq: 56, der: 56, sup: 60, inf: 112 },
+    W: 600, H: 540, margen: { izq: 56, der: 56, sup: 60, inf: 84 },
     r: 24, rDep: 19, fNodo: 19, fPildora: 17, altoPildora: 27, insignia: 1.45, camion: 1.3, flecha: 1.35,
-    fEscala: 16, pasoMin: 30, tarjetas: false,
+    pasoMin: 30, tarjetas: false,
   },
 };
 
@@ -82,12 +82,6 @@ function fmtCelda(v) {
 const anchoMono = (texto, tam) => texto.length * tam * 0.6;
 const anchoTexto = (texto, tam) => texto.length * tam * 0.58;
 
-/** Menor paso de la serie 1, 2, 5 × 10^k que no baja de `minimo`. */
-function pasoBonito(minimo) {
-  const base = 10 ** Math.floor(Math.log10(minimo));
-  for (const m of [1, 2, 5]) if (m * base >= minimo - 1e-12) return m * base;
-  return 10 * base;
-}
 
 // --- Geometría ---------------------------------------------------------------
 
@@ -142,31 +136,35 @@ function areaFuera(c, W, H) {
   return (c.x1 - c.x0) * (c.y1 - c.y0) - interseccion(c, { x0: 4, y0: 4, x1: W - 4, y1: H - 4 });
 }
 
-function calcularGeometria(sim, salida, perfil) {
-  const I = salida.instancia;
+/**
+ * Posiciones en un polígono regular: el depósito arriba y los clientes en el
+ * sentido de las agujas del reloj según el orden de visita, así la ruta dibuja el
+ * polígono. Las distancias del dibujo no representan c_ij (va en cada arco).
+ */
+function posicionesPoligono(sim, cx, cy, R) {
+  const orden = sim.ruta.slice(0, -1); // 0, primer cliente, …, último cliente
+  const pos = [];
+  orden.forEach((nodo, j) => {
+    const angulo = -Math.PI / 2 + (2 * Math.PI * j) / orden.length;
+    pos[nodo] = [cx + R * Math.cos(angulo), cy + R * Math.sin(angulo)];
+  });
+  return pos;
+}
+
+function calcularGeometria(sim, perfil) {
   const { W, H, margen } = perfil;
-  const xs = I.coords.map((c) => c[0]);
-  const ys = I.coords.map((c) => c[1]);
-  const minX = Math.min(...xs);
-  const maxX = Math.max(...xs);
-  const minY = Math.min(...ys);
-  const maxY = Math.max(...ys);
   const ai = W - margen.izq - margen.der;
   const hi = H - margen.sup - margen.inf;
-  let s = Math.min(maxX - minX > 1e-9 ? ai / (maxX - minX) : Infinity, maxY - minY > 1e-9 ? hi / (maxY - minY) : Infinity);
-  if (!Number.isFinite(s) || s <= 0) s = 1;
   const cx = margen.izq + ai / 2;
   const cy = margen.sup + hi / 2;
-  const mx = (minX + maxX) / 2;
-  const my = (minY + maxY) / 2;
-  // Eje y invertido: el norte queda arriba.
-  const aVista = ([x, y]) => [cx + (x - mx) * s, cy - (y - my) * s];
-  const aDatos = (X, Y) => [mx + (X - cx) / s, my - (Y - cy) / s];
-  const pos = I.coords.map(aVista);
+  const pos = posicionesPoligono(sim, cx, cy, Math.min(ai, hi) / 2);
   const radio = (i) => (i === 0 ? perfil.rDep * 1.25 : perfil.r);
+  // Con dos o más clientes cada par aparece una sola vez en la ruta: lados rectos.
+  // Con uno, ida y vuelta se curvan para no pisarse.
+  const combaRuta = sim.paradas.length > 1 ? 0 : 0.1;
 
   // Curva leve hacia la izquierda del sentido de viaje: i → j y j → i no se pisan.
-  const curvaEntre = (i, j, comba = 0.1) => {
+  const curvaEntre = (i, j, comba = combaRuta) => {
     const P0 = pos[i];
     const P1 = pos[j];
     const dx = P1[0] - P0[0];
@@ -194,17 +192,6 @@ function calcularGeometria(sim, salida, perfil) {
     return `M${r2(x0 + ux * a)} ${r2(y0 + uy * a)} L${r2(x1 - ux * b)} ${r2(y1 - uy * b)}`;
   };
 
-  // Barra de escala abajo a la izquierda y flecha norte abajo a la derecha, por debajo del
-  // margen inferior de los nodos (y de sus insignias #k).
-  const valorEscala = 20 * s >= 70 && 20 * s <= 230 ? 20 : pasoBonito(90 / s);
-  const fe = perfil.fEscala;
-  const escala = { x: 24, y: H - fe * 2.9, largo: valorEscala * s, valor: valorEscala };
-  const norte = { x: W - 30, y: H - fe * 2.7 };
-  const decor = [
-    { x0: escala.x - 8, y0: escala.y - fe * 2, x1: escala.x + Math.max(escala.largo, fe * 11) + 10, y1: escala.y + fe * 2.6 },
-    { x0: norte.x - fe * 1.6, y0: norte.y - fe * 3, x1: norte.x + fe * 1.6, y1: norte.y + fe * 1.2 },
-  ];
-
   // Nodos con sus insignias P1/P2 y #k (y el rótulo bajo el depósito): las píldoras no deben taparlos.
   const cajasNodo = pos.map(([x, y], i) => {
     const m = radio(i) + 9 * perfil.insignia;
@@ -218,7 +205,7 @@ function calcularGeometria(sim, salida, perfil) {
     const texto = fmt(arco.c);
     const h = perfil.altoPildora;
     const w = Math.max(h * 1.5, texto.length * perfil.fPildora * 0.62 + perfil.fPildora * 1.1);
-    // Píldora en el punto medio salvo que tape un nodo, otra píldora o la escala: entonces se desliza por la curva.
+    // Píldora en el punto medio salvo que tape un nodo u otra píldora: entonces se desliza por la curva.
     let mejor = null;
     for (const f of FRACCIONES_PILDORA) {
       const [px, py] = geo.puntoEn(f);
@@ -226,7 +213,6 @@ function calcularGeometria(sim, salida, perfil) {
       let costo = Math.abs(f - 0.5) * 600;
       for (const cn of cajasNodo) costo += interseccion(c, cn) * 4;
       for (const otra of pildorasPuestas) costo += interseccion(c, otra) * 2;
-      for (const d of decor) costo += interseccion(c, d) * 2;
       if (!mejor || costo < mejor.costo) mejor = { f, px, py, c, costo };
       if (costo === 0) break;
     }
@@ -243,22 +229,18 @@ function calcularGeometria(sim, salida, perfil) {
     return { arco, geo, a, texto, fFlecha, fPildora: mejor.f, pildora: { x: mejor.px, y: mejor.py, w, h } };
   });
 
-  // Cuadrícula cada `paso` unidades del sistema de coordenadas (10 y 50 en e_vigo).
+  // Cuadrícula de papel centrada en el polígono (cada `paso` unidades del viewBox).
   // Se extiende fuera del viewBox para cubrir el área sobrante de "meet".
-  const paso = pasoBonito(perfil.pasoMin / s);
+  const paso = perfil.pasoMin;
   const rejilla = { fina: '', gruesa: '' };
-  const [dx0, dy1] = aDatos(-W, -H);
-  const [dx1, dy0] = aDatos(2 * W, 2 * H);
-  for (let i = Math.ceil(dx0 / paso); i <= Math.floor(dx1 / paso); i++) {
-    const X = r2(aVista([i * paso, 0])[0]);
-    rejilla[i % 5 === 0 ? 'gruesa' : 'fina'] += `M${X} ${-H}V${2 * H}`;
+  for (let i = Math.ceil((-W - cx) / paso); i <= Math.floor((2 * W - cx) / paso); i++) {
+    rejilla[i % 5 === 0 ? 'gruesa' : 'fina'] += `M${r2(cx + i * paso)} ${-H}V${2 * H}`;
   }
-  for (let i = Math.ceil(dy0 / paso); i <= Math.floor(dy1 / paso); i++) {
-    const Y = r2(aVista([0, i * paso])[1]);
-    rejilla[i % 5 === 0 ? 'gruesa' : 'fina'] += `M${-W} ${Y}H${2 * W}`;
+  for (let i = Math.ceil((-H - cy) / paso); i <= Math.floor((2 * H - cy) / paso); i++) {
+    rejilla[i % 5 === 0 ? 'gruesa' : 'fina'] += `M${-W} ${r2(cy + i * paso)}H${2 * W}`;
   }
 
-  const G = { W, H, s, pos, radio, curvaEntre, rectaEntre, arcos, rejilla, paso, escala, norte, decor };
+  const G = { W, H, pos, radio, curvaEntre, rectaEntre, arcos, rejilla };
   G.tarjetas = perfil.tarjetas ? colocarTarjetas(sim, G) : new Map();
   return G;
 }
@@ -270,7 +252,7 @@ function calcularGeometria(sim, salida, perfil) {
  * solapamiento con tarjetas, nodos, etiquetas y arcos.
  */
 function colocarTarjetas(sim, G) {
-  const { pos, radio, arcos, decor, W, H } = G;
+  const { pos, radio, arcos, W, H } = G;
   const n = sim.paradas.length;
   const e = n <= 8 ? 1 : n <= 14 ? 0.86 : n <= 20 ? 0.76 : 0.7;
   const deslizar = n > 8;
@@ -298,7 +280,6 @@ function colocarTarjetas(sim, G) {
   const obstaculos = [
     ...items.map((it) => ({ caja: caja(it.x, it.y, it.r + 12, it.r + 12), peso: 5, id: it.id })),
     ...arcos.map((A) => ({ caja: caja(A.pildora.x, A.pildora.y, A.pildora.w / 2 + 5, A.pildora.h / 2 + 5), peso: 3, id: null })),
-    ...decor.map((d) => ({ caja: d, peso: 3, id: null })),
   ];
   const puntos = arcos.flatMap((A) => A.geo.muestras(12));
   const centro = [pos.reduce((a, p) => a + p[0], 0) / pos.length, pos.reduce((a, p) => a + p[1], 0) / pos.length];
@@ -395,7 +376,7 @@ function construirVista({ sim, salida, nombre, fijo, vinculado, estado, modoArco
   const perfil = PERFILES[nombre];
   const I = salida.instancia;
   const N = sim.paradas.length;
-  const G = calcularGeometria(sim, salida, perfil);
+  const G = calcularGeometria(sim, perfil);
   const uid = ++contador;
   const totalReloj = sim.regreso > 0 ? sim.regreso : 1;
 
@@ -461,18 +442,6 @@ function construirVista({ sim, salida, nombre, fijo, vinculado, estado, modoArco
   const fondo = svg('g', { class: 'mapa-fondo', 'aria-hidden': 'true' },
     G.rejilla.fina ? svg('path', { class: 'mapa-rejilla mapa-rejilla--fina', d: G.rejilla.fina, 'vector-effect': 'non-scaling-stroke' }) : null,
     G.rejilla.gruesa ? svg('path', { class: 'mapa-rejilla mapa-rejilla--gruesa', d: G.rejilla.gruesa, 'vector-effect': 'non-scaling-stroke' }) : null);
-
-  const E = G.escala;
-  const fe = perfil.fEscala;
-  const decoracion = svg('g', { class: 'mapa-decoracion', 'aria-hidden': 'true' },
-    svg('text', { class: 'mapa-escala__titulo', x: E.x, y: r2(E.y - fe * 0.7), 'font-size': fe }, `${fmt(E.valor)} u. de tiempo`),
-    svg('rect', { class: 'mapa-escala__llena', x: E.x, y: E.y, width: r2(E.largo / 2), height: r2(fe * 0.5) }),
-    svg('rect', { class: 'mapa-escala__vacia', x: r2(E.x + E.largo / 2), y: E.y, width: r2(E.largo / 2), height: r2(fe * 0.5) }),
-    svg('text', { class: 'mapa-escala__nota', x: E.x, y: r2(E.y + fe * 1.9), 'font-size': r2(fe * 0.9) },
-      'distancia ≈ c', svg('tspan', { 'baseline-shift': 'sub', 'font-size': '72%' }, 'ij')),
-    svg('g', { class: 'mapa-norte', transform: `translate(${r2(G.norte.x)} ${r2(G.norte.y)}) scale(${r2(fe / 12)})` },
-      svg('path', { d: 'M0 -15L6.5 7L0 2.5L-6.5 7Z' }),
-      svg('text', { y: -20, 'text-anchor': 'middle', 'font-size': 12 }, 'N')));
 
   // Grafo completo (control "Arcos: Todos"): una línea por par si c_ij = c_ji.
   const capaTodos = svg('g', { class: 'mapa-todos' });
@@ -697,7 +666,7 @@ function construirVista({ sim, salida, nombre, fijo, vinculado, estado, modoArco
       svg('rect', { class: 'mapa-camion__cabina', x: 7, y: -6.5, width: 8, height: 13, rx: 2.5 }),
       svg('rect', { class: 'mapa-camion__vidrio', x: 11.6, y: -5, width: 2, height: 10, rx: 1 })));
 
-  raizSVG.append(defs, fondo, decoracion, capaTodos, capaFantasmas, capaArcos, capaGuias, capaTarjetas,
+  raizSVG.append(defs, fondo, capaTodos, capaFantasmas, capaArcos, capaGuias, capaTarjetas,
     capaPildoras, capaNodos, svg('g', { class: 'mapa-capa-camion' }, camion));
 
   // --- Barra de herramientas y pie del mapa -------------------------------------
@@ -735,7 +704,7 @@ function construirVista({ sim, salida, nombre, fijo, vinculado, estado, modoArco
     el('span', { class: 'mapa-pie__item' }, el('span', { class: 'mapa-pie__linea mapa-pie__linea--regreso', 'aria-hidden': 'true' }), 'Regreso'),
     el('span', {
       class: 'mapa-pie__fuente',
-      html: I.coordsCalculadas ? 'Posiciones por escalamiento multidimensional de c<sub>ij</sub>' : 'Coordenadas de la instancia',
+      html: 'Nodos en un polígono regular según el orden de la ruta; el largo de los arcos no es c<sub>ij</sub>',
     }));
 
   const lamina = el('figure', { class: 'mapa-lamina' }, raizSVG);

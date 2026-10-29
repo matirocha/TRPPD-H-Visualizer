@@ -1,9 +1,10 @@
 // Portada (#inicio) y "El problema" (#problema).
 //
-// Portada: la ruta de la solución actual se dibuja de fondo (DrawSVG), los
-// nodos aparecen en orden de visita y un marcador la recorre en bucle
-// (MotionPath). Al bajar hay paralaje (solo escritorio). La entrada del título
-// (SplitText) ocurre una sola vez, fuera del contexto de render.
+// Portada: de fondo se dibuja la ruta de la solución actual (DrawSVG) y un
+// marcador la recorre (MotionPath). Luego, en bucle, los nodos se mueven a
+// posiciones al azar y se traza y recorre un circuito tipo vendedor viajero
+// (vecino más cercano + 2-opt). Al bajar hay paralaje (solo escritorio). La
+// entrada del título (SplitText) ocurre una sola vez, fuera del contexto de render.
 //
 // El problema: tres ideas con una visual que se construye al entrar en pantalla.
 //   1. La espera (Σ D_i): un retraso temprano empuja a todos los clientes siguientes.
@@ -127,6 +128,67 @@ function escalaRedonda(objetivo) {
   return opciones.filter((v) => v <= objetivo).pop() ?? potencia;
 }
 
+const distancia = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+
+/**
+ * Posiciones al azar para los nodos `ids` dentro de [M + izq, W − M] × [M, H − M], con
+ * una separación mínima que se relaja si no caben. `izq` aleja los nodos del título,
+ * que en escritorio llega hasta el borde izquierdo del dibujo.
+ */
+function posicionesAlAzar(ids, W, H, M, r) {
+  const izq = 0.14 * W;
+  const ancho = W - 2 * M - izq;
+  const area = ancho * (H - 2 * M);
+  let minimo = Math.max(3.4 * r, 0.62 * Math.sqrt(area / ids.length));
+  const puntos = [];
+  for (let i = 0; i < ids.length; i++) {
+    let punto = null;
+    for (let intento = 0; !punto; intento++) {
+      const p = [M + izq + Math.random() * ancho, M + Math.random() * (H - 2 * M)];
+      if (puntos.every((q) => distancia(p, q) >= minimo)) punto = p;
+      else if (intento % 120 === 119) minimo *= 0.9;
+    }
+    puntos.push(punto);
+  }
+  const pos = [];
+  ids.forEach((id, i) => { pos[id] = puntos[i]; });
+  return pos;
+}
+
+/**
+ * Circuito tipo vendedor viajero que sale del depósito y vuelve a él: vecino más
+ * cercano y luego 2-opt hasta que ningún cruce mejore. Devuelve [0, …, 0].
+ */
+function circuitoVendedor(ids, pos) {
+  const d = (a, b) => distancia(pos[a], pos[b]);
+  const pendientes = new Set(ids.filter((id) => id !== 0));
+  const t = [0];
+  while (pendientes.size) {
+    const ultimo = t[t.length - 1];
+    let mejor = null;
+    for (const id of pendientes) if (mejor == null || d(ultimo, id) < d(ultimo, mejor)) mejor = id;
+    t.push(mejor);
+    pendientes.delete(mejor);
+  }
+  const m = t.length;
+  for (let mejora = true; mejora;) {
+    mejora = false;
+    for (let i = 1; i < m - 1; i++) {
+      for (let k = i + 1; k < m; k++) {
+        const a = t[i - 1];
+        const b = t[i];
+        const c = t[k];
+        const e = t[(k + 1) % m];
+        if (d(a, c) + d(b, e) < d(a, b) + d(c, e) - 1e-6) {
+          t.splice(i, k - i + 1, ...t.slice(i, k + 1).reverse());
+          mejora = true;
+        }
+      }
+    }
+  }
+  return [...t, 0];
+}
+
 function construirHero(sim, salida, estado) {
   const I = salida.instancia;
   const n = sim.n;
@@ -147,7 +209,8 @@ function construirHero(sim, salida, estado) {
   const r = limitar(58 / Math.sqrt(n), 12, 24);
   const conEtiquetas = n <= 12;
 
-  // Marco cartográfico: norte y barra de escala (unidades de la matriz c).
+  // Marco cartográfico: norte y barra de escala (unidades de la matriz c). Solo vale
+  // para el primer circuito, el de la instancia.
   const largoEscala = escalaRedonda(Math.max(ancho, alto) * 0.2);
   const xe1 = W - 40;
   const xe0 = xe1 - largoEscala * k;
@@ -160,119 +223,196 @@ function construirHero(sim, salida, estado) {
       svg('path', { d: `M${xe0},${ye - 6} V${ye} H${xe1} V${ye - 6}` }),
       svg('text', { x: (xe0 + xe1) / 2, y: ye - 12, 'text-anchor': 'middle' }, `${fmt(largoEscala)} u de viaje`)));
 
-  // Arcos: los de la ruta en tinta; el regreso al depósito, punteado.
   const capaArcos = svg('g', { class: 'intro-hero__arcos' });
-  const arcos = sim.arcos.map((arco) => {
-    const geo = curva(P[arco.desde], P[arco.hasta]);
-    if (!arco.regreso) {
-      const trazo = svg('path', { d: geo.d, class: 'intro-hero__arco' });
-      capaArcos.append(trazo);
-      return { ...geo, regreso: false, trazo, guia: trazo, puntos: [] };
-    }
-    const guia = svg('path', { d: geo.d, class: 'intro-hero__guia' });
-    const puntos = puntosA(geo.muestras, 13).map(([x, y]) => svg('circle', { cx: x.toFixed(1), cy: y.toFixed(1), r: 2.3, class: 'intro-hero__punto' }));
-    capaArcos.append(guia, ...puntos);
-    return { ...geo, regreso: true, trazo: null, guia, puntos };
-  });
-
   const marcador = svg('g', { class: 'intro-hero__marcador' },
     svg('circle', { r: 15, class: 'intro-hero__halo' }),
     svg('circle', { r: 6.5, class: 'intro-hero__carro' }));
 
+  // Cada nodo se dibuja centrado en (0, 0) y se mueve con su atributo transform
+  // (translate + scale), que pinta() escribe desde el estado { x, y, s }.
+  const nodos = new Map();
+  const agregar = (id, grupo, rotulo, pulso) => {
+    const [x, y] = P[id];
+    const nodo = { id, grupo, rotulo, pulso, x, y, s: 1 };
+    nodo.pintar = () => grupo.setAttribute('transform', `translate(${nodo.x.toFixed(1)} ${nodo.y.toFixed(1)}) scale(${nodo.s.toFixed(3)})`);
+    nodo.pintar();
+    nodos.set(id, nodo);
+  };
+
   // Depósito
-  const [dx0, dy0] = P[0];
   const lado = r * 1.7;
   const deposito = svg('g', { class: 'intro-hero__deposito' },
-    svg('rect', { x: dx0 - lado / 2, y: dy0 - lado / 2, width: lado, height: lado, rx: 3 }),
-    svg('text', { x: dx0, y: dy0, dy: '0.36em', 'text-anchor': 'middle', 'font-size': r * 0.85 }, '0'),
-    svg('text', { x: dx0, y: dy0 + lado / 2 + 22, 'text-anchor': 'middle', class: 'intro-hero__rotulo' }, 'depósito'));
+    svg('rect', { x: -lado / 2, y: -lado / 2, width: lado, height: lado, rx: 3 }),
+    svg('text', { x: 0, y: 0, dy: '0.36em', 'text-anchor': 'middle', 'font-size': r * 0.85 }, '0'),
+    svg('text', { x: 0, y: lado / 2 + 22, 'text-anchor': 'middle', class: 'intro-hero__rotulo' }, 'depósito'));
   conTooltip(deposito, () => `<div class="tt-titulo">Depósito 0</div>
     <div class="tt-fila"><span>Sale con</span><span>${fmt(sim.cargaInicial.total)} de Q = ${fmt(sim.Q)}</span></div>
     <div class="tt-fila"><span>Regreso</span><span>${num(sim.regreso)}</span></div>`);
+  agregar(0, deposito, null, null);
 
   // Clientes en orden de visita
-  const nodos = sim.paradas.map((p) => {
-    const [x, y] = P[p.cliente];
+  const grupos = sim.paradas.map((p) => {
     const politica = p.politica === 1 ? 'p1' : 'p2';
+    const pulso = svg('circle', { cx: 0, cy: 0, r, class: `intro-hero__pulso intro-hero__pulso--${politica}` });
+    const rotulo = conEtiquetas
+      ? svg('text', { x: r + 9, y: -r * 0.35, class: 'intro-hero__rotulo' }, ...subSVG('D', p.cliente), ` ${num(p.D)}`)
+      : null;
     const grupo = svg('g', {
       class: `intro-hero__nodo intro-hero__nodo--${politica}`,
       dataset: { cliente: p.cliente },
       onpointerenter: () => estado.set({ hover: p.cliente }),
       onpointerleave: () => estado.set({ hover: null }),
     },
-      svg('circle', { cx: x, cy: y, r, class: 'intro-hero__anillo' }),
-      svg('text', { x, y, dy: '0.36em', 'text-anchor': 'middle', 'font-size': r * 0.82, class: 'intro-hero__numero' }, String(p.cliente)),
-      conEtiquetas
-        ? svg('text', { x: x + r + 9, y: y - r * 0.35, class: 'intro-hero__rotulo' }, ...subSVG('D', p.cliente), ` ${num(p.D)}`)
-        : null);
+      pulso,
+      svg('circle', { cx: 0, cy: 0, r, class: 'intro-hero__anillo' }),
+      svg('text', { x: 0, y: 0, dy: '0.36em', 'text-anchor': 'middle', 'font-size': r * 0.82, class: 'intro-hero__numero' }, String(p.cliente)),
+      rotulo);
     conTooltip(grupo, () => htmlCliente(p, n));
-    const pulso = svg('circle', { cx: x, cy: y, r, class: `intro-hero__pulso intro-hero__pulso--${politica}` });
-    return { grupo, pulso, cliente: p.cliente, origen: `${x} ${y}` };
+    agregar(p.cliente, grupo, rotulo, pulso);
+    return grupo;
   });
 
   const lienzo = svg('svg', { viewBox: `0 0 ${W} ${H}`, class: 'intro-hero__svg', focusable: 'false', 'aria-hidden': 'true' },
     marco,
     capaArcos,
-    svg('g', { class: 'intro-hero__pulsos' }, nodos.map((nd) => nd.pulso)),
     marcador,
     deposito,
-    svg('g', { class: 'intro-hero__nodos' }, nodos.map((nd) => nd.grupo)));
+    svg('g', { class: 'intro-hero__nodos' }, grupos));
 
   const envoltura = el('div', { class: 'intro-hero' }, lienzo);
-  return { envoltura, marco, arcos, marcador, deposito, origenDeposito: `${dx0} ${dy0}`, nodos };
+  const v = { envoltura, marco, capaArcos, marcador, nodos, W, H, M, r, rutaInstancia: sim.ruta, posInstancia: P, arcos: [] };
+  v.trazar = (ruta, pos) => trazarCircuito(v, ruta, pos);
+  v.trazar(sim.ruta, P);
+  return v;
 }
 
-function animarHero(v, primera, seccionHero) {
-  if (movimientoReducido()) return; // la ruta queda dibujada, sin marcador
+/** Arcos de un circuito: los tramos en tinta; el regreso al depósito, punteado. */
+function trazarCircuito(v, ruta, pos) {
+  v.capaArcos.replaceChildren();
+  v.arcos = ruta.slice(0, -1).map((desde, i) => {
+    const hasta = ruta[i + 1];
+    const geo = curva(pos[desde], pos[hasta]);
+    if (i < ruta.length - 2) {
+      const trazo = svg('path', { d: geo.d, class: 'intro-hero__arco' });
+      v.capaArcos.append(trazo);
+      return { ...geo, hasta, regreso: false, trazo, guia: trazo, puntos: [] };
+    }
+    const guia = svg('path', { d: geo.d, class: 'intro-hero__guia' });
+    const puntos = puntosA(geo.muestras, 13).map(([x, y]) => svg('circle', { cx: x.toFixed(1), cy: y.toFixed(1), r: 2.3, class: 'intro-hero__punto' }));
+    v.capaArcos.append(guia, ...puntos);
+    return { ...geo, hasta, regreso: true, trazo: null, guia, puntos };
+  });
+}
+
+/** Dibuja los arcos de v.arcos uno tras otro desde `t`; `alLlegar(arco, t)` al terminar cada uno. */
+function dibujarArcos(tl, v, t, duracionTotal, alLlegar = null) {
   const total = sumar(v.arcos.map((a) => a.largo)) || 1;
-  const tl = gsap.timeline({ delay: primera ? 0.6 : 0.15 });
-  tl.from(v.deposito, { scale: 0.2, autoAlpha: 0, svgOrigin: v.origenDeposito, duration: 0.55, ease: 'back.out(2)' }, 0);
-  tl.from(v.marco, { autoAlpha: 0, duration: 1 }, 0.3);
-  let t = 0.3;
-  v.arcos.forEach((arco, k) => {
-    const dur = (2.5 * arco.largo) / total;
+  for (const arco of v.arcos) {
+    const dur = (duracionTotal * arco.largo) / total;
     if (arco.regreso) {
       if (arco.puntos.length) tl.from(arco.puntos, { autoAlpha: 0, duration: 0.1, ease: 'none', stagger: dur / Math.max(1, arco.puntos.length) }, t);
     } else {
       tl.fromTo(arco.trazo, { drawSVG: '0%' }, { drawSVG: '100%', duration: dur, ease: 'none' }, t);
     }
     t += dur;
-    const nodo = v.nodos[k];
-    if (!arco.regreso && nodo) {
-      tl.from(nodo.grupo, { scale: 0.2, autoAlpha: 0, svgOrigin: nodo.origen, duration: 0.5, ease: 'back.out(2.4)' }, t - 0.08);
-    }
-  });
+    alLlegar?.(arco, t);
+  }
+  return t;
+}
 
-  // Marcador en bucle: recorre cada arco y hace latir al cliente al llegar.
-  gsap.set(v.marcador, { autoAlpha: 0 });
-  const vuelta = gsap.timeline({ paused: true, repeat: -1, repeatDelay: 1 });
+/** El marcador recorre el circuito una vez y hace latir a cada cliente al llegar. */
+function recorrer(tl, v, t) {
+  const total = sumar(v.arcos.map((a) => a.largo)) || 1;
   const velocidad = total / 9;
-  let cursor = 0;
-  vuelta.set(v.marcador, { autoAlpha: 1 }, 0);
-  v.arcos.forEach((arco, k) => {
+  tl.set(v.marcador, { autoAlpha: 1 }, t);
+  for (const arco of v.arcos) {
     const dur = limitar(arco.largo / velocidad, 0.5, 3.2);
-    vuelta.to(v.marcador, { motionPath: { path: arco.guia }, duration: dur, ease: 'sine.inOut' }, cursor);
-    cursor += dur;
-    const nodo = v.nodos[k];
-    if (!arco.regreso && nodo) {
-      vuelta.fromTo(nodo.pulso, { scale: 1, autoAlpha: 0.75 }, { scale: 2.1, autoAlpha: 0, duration: 0.9, ease: 'power2.out', svgOrigin: nodo.origen, immediateRender: false }, cursor - 0.05);
-      cursor += 0.4;
+    tl.to(v.marcador, { motionPath: { path: arco.guia }, duration: dur, ease: 'sine.inOut' }, t);
+    t += dur;
+    const nodo = arco.regreso ? null : v.nodos.get(arco.hasta);
+    if (nodo?.pulso) {
+      tl.fromTo(nodo.pulso, { attr: { r: v.r }, autoAlpha: 0.75 }, { attr: { r: v.r * 2.1 }, autoAlpha: 0, duration: 0.9, ease: 'power2.out', immediateRender: false }, t - 0.05);
+      t += 0.4;
     }
-  });
-  vuelta.to(v.marcador, { autoAlpha: 0, duration: 0.35 }, cursor);
+  }
+  tl.to(v.marcador, { autoAlpha: 0, duration: 0.35 }, t);
+  return t + 0.35;
+}
+
+/**
+ * Portada en bucle: primero la ruta de la instancia; después, en cada vuelta, los
+ * nodos se mueven a posiciones al azar, se traza un circuito tipo vendedor viajero
+ * y el marcador lo recorre. Cada etapa es una timeline que crea la siguiente al
+ * terminar, dentro del contexto (enCtx) para que destruir() la revierta.
+ */
+function animarHero(v, primera, seccionHero, enCtx) {
+  if (movimientoReducido()) return; // la ruta de la instancia queda dibujada, sin marcador
+  const nodos = [...v.nodos.values()];
+  const ids = nodos.map((nd) => nd.id);
+  const pintarTodos = () => nodos.forEach((nd) => nd.pintar());
+  gsap.set(v.marcador, { autoAlpha: 0 });
 
   // El bucle solo corre con la portada en pantalla.
-  let listo = false;
+  let actual = null;
   const vigia = ScrollTrigger.create({
     trigger: seccionHero,
     start: 'top bottom',
     end: 'bottom top',
-    onToggle: (st) => (st.isActive && listo ? vuelta.play() : vuelta.pause()),
+    onToggle: (st) => (st.isActive ? actual?.play() : actual?.pause()),
   });
-  tl.call(() => {
-    listo = true;
-    if (vigia.isActive) vuelta.play();
-  }, null, t + 0.3);
+  const etapa = (opciones = {}) => {
+    actual = gsap.timeline({ ...opciones, paused: !vigia.isActive });
+    return actual;
+  };
+  const despues = (fn) => () => enCtx(fn);
+
+  // Recorre el circuito ya dibujado y pasa a la vuelta i + 1.
+  const cerrar = (tl, t, i) => {
+    t = recorrer(tl, v, t);
+    tl.call(despues(() => mover(i + 1)), null, t + 1.2);
+  };
+
+  // Vuelta 0: entrada con la ruta de la instancia.
+  const tl = gsap.timeline({ delay: primera ? 0.6 : 0.15 });
+  actual = tl;
+  const dep = v.nodos.get(0);
+  tl.fromTo(dep, { s: 0.2 }, { s: 1, duration: 0.55, ease: 'back.out(2)', onUpdate: dep.pintar }, 0);
+  tl.from(dep.grupo, { autoAlpha: 0, duration: 0.3 }, 0);
+  tl.from(v.marco, { autoAlpha: 0, duration: 1 }, 0.3);
+  const fin = dibujarArcos(tl, v, 0.3, 2.5, (arco, llegada) => {
+    const nodo = arco.regreso ? null : v.nodos.get(arco.hasta);
+    if (!nodo) return;
+    tl.fromTo(nodo, { s: 0.2 }, { s: 1, duration: 0.5, ease: 'back.out(2.4)', onUpdate: nodo.pintar }, llegada - 0.08);
+    tl.from(nodo.grupo, { autoAlpha: 0, duration: 0.25 }, llegada - 0.08);
+  });
+  cerrar(tl, fin + 0.3, 0);
+
+  // Vuelta i ≥ 1: se borra el circuito y los nodos viajan a posiciones nuevas.
+  function mover(i) {
+    const pos = posicionesAlAzar(ids, v.W, v.H, v.M, v.r);
+    const ruta = circuitoVendedor(ids, pos);
+    const tl = etapa();
+    tl.to(v.capaArcos, { autoAlpha: 0, duration: 0.5, ease: 'power1.in' }, 0);
+    // El marco y los D_i describen la instancia: no valen para los circuitos al azar.
+    if (i === 1) tl.to([v.marco, ...nodos.map((nd) => nd.rotulo).filter(Boolean)], { autoAlpha: 0, duration: 0.5 }, 0);
+    tl.to(nodos, {
+      x: (j) => pos[nodos[j].id][0],
+      y: (j) => pos[nodos[j].id][1],
+      duration: 1.4,
+      ease: 'power3.inOut',
+      stagger: { amount: 0.25, from: 'random' },
+      onUpdate: pintarTodos,
+    }, 0.35);
+    tl.call(despues(() => dibujar(i, ruta, pos)), null, '+=0.15');
+  }
+
+  // Traza el circuito nuevo, lo recorre y sigue con la próxima vuelta.
+  function dibujar(i, ruta, pos) {
+    v.trazar(ruta, pos);
+    const tl = etapa();
+    tl.set(v.capaArcos, { autoAlpha: 1 }, 0);
+    cerrar(tl, dibujarArcos(tl, v, 0, 2.2) + 0.2, i);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1001,7 +1141,7 @@ export function crear(raiz, estado) {
     if (escena) escena.replaceChildren(el('div', { class: 'intro-ideas' }, ideas.map((i) => i.nodo)));
 
     ctx = gsap.context(() => {
-      if (hero) animarHero(hero, primera, seccionHero);
+      if (hero) animarHero(hero, primera, seccionHero, enCtx);
       for (const idea of ideas) idea.animar();
     });
 

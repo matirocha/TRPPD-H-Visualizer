@@ -236,7 +236,8 @@ svg .mono{font-family:var(--mono)}
 /* ================= s3 · ejemplo ================= */
 .s3g{display:grid;grid-template-columns:560px 1fr;gap:34px;margin-top:10px}
 #s3svg{width:560px;height:360px;display:block}
-.s3side{display:grid;gap:16px;align-content:start;padding-top:16px}
+.s3side{display:grid;gap:12px;align-content:start;padding-top:0}
+.s3side .facts{margin-top:0}
 .dt{border-collapse:separate;border-spacing:0;background:var(--card);border-radius:10px;overflow:hidden;width:100%}
 .dt th,.dt td{padding:7px 12px;text-align:center;font:500 15px var(--mono);border-bottom:1px solid var(--line)}
 .dt th{font:600 12px var(--sans);color:var(--slate);letter-spacing:.06em}
@@ -245,11 +246,20 @@ svg .mono{font-family:var(--mono)}
 .dt td:last-child{color:var(--crimson);font-weight:600}
 .s3side .callout{max-width:none;min-height:0}
 .e3{transition:opacity .4s}
-#s3.at3 .e3.off{opacity:.25}
+#s3.at4 .e3.off{opacity:.25}
 #s3 .rte{stroke-dasharray:1;stroke-dashoffset:1;opacity:0}
-#s3.at3 .rte{opacity:1;animation:draw 1.6s ease forwards}
+#s3.at4 .rte{opacity:1;animation:draw 1.6s ease forwards}
 #s3 .ab{opacity:0;transition:opacity .4s}
-#s3.at1 .ab{opacity:1}
+#s3.at2 .ab{opacity:1}
+#s3 .cl3 rect{fill:var(--card);stroke:var(--line);transition:stroke .4s,fill .4s}
+#s3 .cl3 text{transition:fill .4s}
+#s3.at1:not(.at2) .cl3 rect{stroke:var(--crimson);stroke-width:1.5}
+#s3.at1:not(.at2) .cl3 text{fill:var(--crimson-deep)}
+.s3side h4 .nc{text-transform:none;font-family:var(--mono);font-size:14px}
+.cdef{font-size:14px;line-height:1.4;color:var(--ink-2);margin:0 0 8px}
+.dt.cm th,.dt.cm td{padding:4px 10px;font-size:14px}
+.dt.cm td:last-child{color:inherit;font-weight:500}
+.dt.cm td.dg{color:var(--slate-2)}
 
 /* ================= s4 · parámetros ================= */
 .s4g{display:grid;grid-template-columns:1fr 520px;gap:40px;margin-top:20px}
@@ -461,6 +471,24 @@ svg .mono{font-family:var(--mono)}
 .sum4 .n{font:600 13px var(--mono);color:var(--crimson-on-dark)}
 .sum4 h3{font-size:19px;margin:6px 0 4px}
 .sum4 p{font-size:14.5px}
+
+/* ================= sU · U y M ================= */
+#sUsvg{width:1136px;height:210px;display:block;margin-top:18px}
+#sUsvg .ax{font:500 11px var(--mono);fill:var(--slate)}
+#sUsvg .lb{font:600 13px var(--mono)}
+#sUsvg .sl{font:500 12px var(--mono)}
+#sUsvg .useg{transform-box:fill-box;transform-origin:left center;transform:scaleX(0);transition:transform .7s cubic-bezier(.2,.7,.3,1)}
+#sUsvg .useg.on{transform:scaleX(1)}
+#sUsvg .ul{opacity:0;transition:opacity .4s .5s}
+#sUsvg .ul.on{opacity:1}
+#sUsvg g.st{opacity:0;transition:opacity .45s}
+#sUsvg g.st.on{opacity:1}
+.uterms{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:6px}
+.ut{background:var(--card);border-radius:10px;padding:10px 14px;border-top:4px solid var(--cl)}
+.ut .fx{display:block;font-size:13.5px;background:transparent;padding:0}
+.ut .fx b{color:var(--cl);font-size:16px}
+.ut p{font-size:13.5px;line-height:1.42;margin-top:4px}
+#cU{max-width:none;min-height:66px;margin-top:12px;font-size:15px}
 </style>
 </head>
 <body>
@@ -503,6 +531,17 @@ svg .mono{font-family:var(--mono)}
     <svg id="s3svg" viewBox="0 0 560 360" role="img" aria-label="Grafo del ejemplo con depósito y tres clientes"></svg>
     <div class="s3side">
       <div class="frag" data-f="1">
+        <h4>Tiempos de viaje <span class="nc">c<sub>ij</sub></span></h4>
+        <p class="cdef"><b class="mono">c<sub>ij</sub></b> = tiempo que tarda el vehículo en ir del nodo i al nodo j. Es el número sobre cada arista; aquí es simétrico, <span class="mono">c<sub>ij</sub> = c<sub>ji</sub></span>.</p>
+        <table class="dt cm">
+          <tr><th>c<sub>ij</sub></th><th>j = 0</th><th>1</th><th>2</th><th>3</th></tr>
+          <tr><td class="m">i = 0</td><td class="dg">—</td><td>2</td><td>3</td><td>3</td></tr>
+          <tr><td class="m">1</td><td>2</td><td class="dg">—</td><td>1</td><td>3</td></tr>
+          <tr><td class="m">2</td><td>3</td><td>1</td><td class="dg">—</td><td>2</td></tr>
+          <tr><td class="m">3</td><td>3</td><td>3</td><td>2</td><td class="dg">—</td></tr>
+        </table>
+      </div>
+      <div class="frag" data-f="2">
         <h4>Demandas</h4>
         <table class="dt">
           <tr><th></th><th>1</th><th>2</th><th>3</th><th>Σ</th></tr>
@@ -510,12 +549,12 @@ svg .mono{font-family:var(--mono)}
           <tr><td class="m">β<sub>i</sub> recogidas</td><td>1</td><td>2</td><td>1</td><td>4</td></tr>
         </table>
       </div>
-      <div class="facts frag" data-f="2">
+      <div class="facts frag" data-f="3">
         <span><b>Q = 4</b>capacidad</span>
         <span><b>u = ℓ = 0,5</b>por unidad</span>
         <span><b>h = 1</b>operación adicional</span>
       </div>
-      <div class="callout frag" data-f="3">Solución que seguiremos: ruta <b class="mono">0 → 1 → 2 → 3 → 0</b> con políticas <b class="mono">s = (1, 0, 1)</b>. Da <b>Σ D<sub>i</sub> = 19</b>, el óptimo de esta instancia.</div>
+      <div class="callout frag" data-f="4">Solución que seguiremos: ruta <b class="mono">0 → 1 → 2 → 3 → 0</b> con políticas <b class="mono">s = (1, 0, 1)</b>. Da <b>Σ D<sub>i</sub> = 19</b>, el óptimo de esta instancia.</div>
     </div>
   </div>
   <p class="tiny" style="margin-top:6px">Instancia ilustrativa, construida para esta presentación. Óptimo verificado enumerando las 6 rutas y las 8 combinaciones de políticas.</p>
@@ -579,6 +618,19 @@ svg .mono{font-family:var(--mono)}
     </div>
   </div>
   <p class="tiny frag" data-f="3" style="margin-top:12px">T<sub>i</sub> y F<sub>i</sub> existen también para el depósito (T<sub>0</sub> = F<sub>0</sub> = 0); D<sub>i</sub> solo para clientes. Los valores son los de la solución del ejemplo.</p>
+</section>
+
+<!-- ======================= 5b · U Y M ======================= -->
+<section class="slide" id="sU" data-sec="Datos" data-steps="6">
+  <div class="kicker">Parte 1 · Las constantes U y M en el ejemplo</div>
+  <h2>U acota cualquier instante; M apaga (13) en los arcos no usados</h2>
+  <svg id="sUsvg" viewBox="0 0 1136 210" role="img" aria-label="Eje de tiempo con la solución del ejemplo, la cota U y la constante M"></svg>
+  <div class="uterms">
+    <div class="ut frag" data-f="1" style="--cl:var(--c5-f)"><div class="fx">n · max c<sub>ij</sub> = 3 · 3 = <b>9</b></div><p>El viaje más largo posible: n arcos, todos con el costo máximo.</p></div>
+    <div class="ut frag" data-f="2" style="--cl:var(--c1-f)"><div class="fx">(u<sub>a</sub> + n h<sub>a</sub>) Σα = 3,5 · 4 = <b>14</b></div><p>Descargar cada entrega una vez y, en cada cliente, mover a lo sumo todas.</p></div>
+    <div class="ut frag" data-f="3" style="--cl:var(--c2-f)"><div class="fx">(ℓ<sub>b</sub> + n h<sub>b</sub>) Σβ = 3,5 · 4 = <b>14</b></div><p>Cargar cada recogida una vez y, en cada cliente, mover a lo sumo todas.</p></div>
+  </div>
+  <div class="callout" id="cU"></div>
 </section>
 
 <!-- ======================= 6 · OBJETIVO ======================= -->
@@ -982,7 +1034,7 @@ const MK=(id,c)=>`<marker id="${id}" viewBox="0 0 10 10" refX="8" refY="5" marke
   Object.entries(COST).forEach(([k,c])=>{const [i,j]=k.split('-').map(Number),[x1,y1]=GP[i],[x2,y2]=GP[j];
     const onR=ROUTE.some(([a,b])=>(a===i&&b===j)||(a===j&&b===i));
     const L=Math.hypot(x2-x1,y2-y1),nx=-(y2-y1)/L,ny=(x2-x1)/L,fr=onR?.5:.3,mx=x1+(x2-x1)*fr+nx*14,my=y1+(y2-y1)*fr+ny*14;
-    s+=`<g class="e3${onR?'':' off'}"><line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="var(--slate-2)" stroke-width="1.5" stroke-dasharray="${onR?'':'4 5'}"/><text x="${mx}" y="${my+4}" text-anchor="middle" class="mono" font-size="13" font-weight="600" fill="var(--slate)">${c}</text></g>`;});
+    s+=`<g class="e3${onR?'':' off'}"><line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="var(--slate-2)" stroke-width="1.5" stroke-dasharray="${onR?'':'4 5'}"/><g class="cl3"><title>c${i}${j} = c${j}${i} = ${c}</title><rect x="${mx-10}" y="${my-10}" width="20" height="20" rx="10"/><text x="${mx}" y="${my+4.5}" text-anchor="middle" class="mono" font-size="13" font-weight="600" fill="var(--slate)">${c}</text></g></g>`;});
   ROUTE.forEach(([i,j])=>s+=`<path class="rte" pathLength="1" d="${arcD(i,j,0)}" fill="none" stroke="var(--crimson)" stroke-width="3" marker-end="url(#m3)"/>`);
   s+=nodesSVG();
   const AB={1:'α=2 · β=1',2:'α=1 · β=2',3:'α=1 · β=1'};
@@ -1229,6 +1281,50 @@ H.s19={
     G19.R[4].classList.toggle('on',n>=3);
   }
 };
+
+/* =====================================================================
+   5b · U y M sobre un eje de tiempo
+   ===================================================================== */
+(function(){
+  const X=t=>60+t*24,Y=150;let s=`<defs>${MK('mU','var(--crimson)')}${MK('mUb','var(--slate)')}${MK('mUa','var(--amber)')}</defs>`;
+  /* eje */
+  s+=`<line x1="${X(0)}" x2="${X(42)}" y1="${Y}" y2="${Y}" stroke="var(--slate-2)" stroke-width="1.5"/>`;
+  for(let t=0;t<=42;t+=2)s+=`<line x1="${X(t)}" x2="${X(t)}" y1="${Y-4}" y2="${Y+4}" stroke="var(--slate-2)"/><text class="ax" x="${X(t)}" y="${Y+19}" text-anchor="middle">${t}</text>`;
+  s+=`<text class="ax" x="${X(42)+10}" y="${Y+4}">t</text>`;
+  /* solución real: instantes T, D, F */
+  s+=`<rect x="${X(0)}" y="${Y-10}" width="${X(11)-X(0)}" height="20" rx="4" fill="var(--green)" fill-opacity=".14"/>`;
+  [2,3,3.5,4.5,5.5,8,10,10.5,11].forEach(t=>s+=`<circle cx="${X(t)}" cy="${Y}" r="4" fill="var(--green)"/>`);
+  s+=`<text class="sl" x="${X(5.5)}" y="${Y+40}" text-anchor="middle" fill="var(--green)">instantes de la solución: 0 a 11</text>`;
+  /* U en tres tramos */
+  const seg=[[0,9,'5','9'],[9,23,'1','14'],[23,37,'2','14']];
+  seg.forEach(([a,b,c,v],i)=>s+=`<g><rect class="useg" id="us${i}" x="${X(a)}" y="${Y-74}" width="${X(b)-X(a)-2}" height="30" rx="4" fill="var(--c${c}-b)"/><text class="sl ul" id="ul${i}" x="${(X(a)+X(b))/2}" y="${Y-54}" text-anchor="middle" fill="var(--c${c}-f)" font-weight="600">${v}</text></g>`);
+  /* marcadores U y M */
+  s+=`<g class="st" id="uMk"><line x1="${X(37)}" x2="${X(37)}" y1="${Y-96}" y2="${Y}" stroke="var(--crimson)" stroke-width="2"/><text class="lb" x="${X(37)-6}" y="${Y-102}" text-anchor="end" fill="var(--crimson)">U = 37</text>`+
+     `<line x1="${X(40)}" x2="${X(40)}" y1="${Y-96}" y2="${Y}" stroke="var(--ink)" stroke-width="2"/><text class="lb" x="${X(40)+6}" y="${Y-102}" fill="var(--ink)">M = 40</text>`+
+     `<path d="M${X(37)} ${Y-30} Q${X(38.5)} ${Y-44} ${X(40)-2} ${Y-30}" fill="none" stroke="var(--slate)" stroke-width="1.5" marker-end="url(#mUb)"/><text class="ax" x="${X(38.5)}" y="${Y-46}" text-anchor="middle">+3</text></g>`;
+  /* paso 5: peor caso con x = 0 */
+  s+=`<g class="st" id="uS5"><path d="M${X(40)} ${Y-14} L${X(0)+6} ${Y-14}" stroke="var(--crimson)" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#mU)"/><text class="lb" x="${X(20)}" y="${Y-22}" text-anchor="middle" fill="var(--crimson)">peor caso: F + c ≤ 37 + 3 = 40;  − M = − 40  ⇒  cota ≤ 0</text></g>`;
+  /* paso 6: M demasiado chico */
+  s+=`<g class="st" id="uS6"><line x1="${X(10)}" x2="${X(10)}" y1="${Y-96}" y2="${Y}" stroke="var(--amber)" stroke-width="2" stroke-dasharray="4 3"/><text class="lb" x="${X(10)}" y="${Y-102}" text-anchor="middle" fill="var(--amber)">M = 10 ✕</text>`+
+     `<path d="M${X(14)} ${Y-14} L${X(4)+4} ${Y-14}" stroke="var(--amber)" stroke-width="2" marker-end="url(#mUa)"/><text class="lb" x="${X(20)}" y="${Y-20}" fill="var(--amber)">11 + 3 − 10 = 4</text>`+
+     `<line x1="${X(4)}" x2="${X(4)}" y1="${Y-26}" y2="${Y}" stroke="var(--amber)" stroke-width="2"/><circle cx="${X(2)}" cy="${Y}" r="7" fill="none" stroke="var(--crimson)" stroke-width="2.5"/><text class="lb" x="${X(13)}" y="${Y+40}" fill="var(--crimson)">exige T₁ ≥ 4, pero en el óptimo T₁ = 2 ✕</text></g>`;
+  $('#sUsvg').innerHTML=s;
+})();
+const SUTXT=[
+  'En la solución del ejemplo, todos los instantes T, D y F caen entre 0 y 11. U debe servir para <b>cualquier</b> ruta y política, así que se construye con el peor caso.',
+  'Primer tramo: antes de completar la última visita el vehículo recorre n = 3 arcos; en el peor caso, todos cuestan max c<sub>ij</sub> = 3.',
+  'Segundo tramo: las 4 entregas se descargan una vez (u<sub>a</sub>Σα = 2) y, en cada uno de los 3 clientes, a lo sumo se mueven todas (n h<sub>a</sub>Σα = 12).',
+  'Tercer tramo: lo mismo con las 4 recogidas: ℓ<sub>b</sub>Σβ = 2 de carga obligatoria y n h<sub>b</sub>Σβ = 12 de manipulación adicional como máximo.',
+  '<b>U = 37</b>: ningún instante de servicio puede superarlo. <b>M = U + max c<sub>ij</sub> = 40</b> deja margen para sumar un viaje más.',
+  'Si x<sub>ij</sub> = 0, (13) queda T<sub>j</sub> ≥ F<sub>i</sub> + c<sub>ij</sub> − 40. Como F<sub>i</sub> ≤ 37 y c<sub>ij</sub> ≤ 3, el lado derecho es a lo sumo 0: la restricción no limita. Con x<sub>ij</sub> = 1, M desaparece.',
+  '¿Y un M pequeño? Con M = 10, el arco no usado (3, 1) exigiría T<sub>1</sub> ≥ F<sub>3</sub> + c<sub>31</sub> − 10 = 4, pero en el óptimo T<sub>1</sub> = 2. Un M demasiado chico elimina soluciones válidas.'];
+H.sU={step(n){
+  [0,1,2].forEach(i=>{$('#us'+i).classList.toggle('on',n>=i+1);$('#ul'+i).classList.toggle('on',n>=i+1);});
+  $('#uMk').classList.toggle('on',n>=4&&n<6);
+  $('#uS5').classList.toggle('on',n===5);
+  $('#uS6').classList.toggle('on',n===6);
+  $('#cU').innerHTML=SUTXT[n];
+}};
 
 /* =====================================================================
    Inicio (admite enlaces #n o #n.paso)

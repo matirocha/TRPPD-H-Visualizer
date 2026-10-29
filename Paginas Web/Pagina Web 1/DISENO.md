@@ -42,7 +42,7 @@ para números (con cifras tabulares). Decimales con coma (es-CL).
 
 | # | Sección | Contenido | Animación |
 |---|---|---|---|
-| 00 | Portada | Título, pregunta del problema, ruta de la instancia dibujada sobre papel liso | La ruta se traza sola; paralaje al bajar |
+| 00 | Portada | Título, pregunta del problema y, de fondo, circuitos que cambian: primero la ruta de la instancia, luego los nodos se mueven a posiciones al azar y se traza un recorrido tipo vendedor viajero (vecino más cercano + 2-opt), en bucle | Los nodos se desplazan, el circuito se traza y un marcador lo recorre; paralaje al bajar |
 | 01 | Mapa y carga | A la izquierda, nodos con u<sub>a</sub>, ℓ<sub>a</sub>, u<sub>b</sub>, ℓ<sub>b</sub> y arcos con c<sub>ij</sub>; bajo el mapa, el tiempo por cliente; a la derecha, el camión con las unidades en su posición física y los pasos de la Tabla 3. Debajo, barras de carga por tramo vs Q | Reproductor (ver abajo): el camión se mueve en el mapa y cada operación de carga y descarga se anima al mismo tiempo |
 | 02 | Rendimiento | Tiempo de ejecución de las cuatro variantes del modelo: barras para la instancia mostrada, puntos y mediana para todas las instancias con el mismo n, y tabla resumen. Medida: resolución, total o nodos B&B | Barras que crecen; puntos que aparecen |
 | 03 | El problema | Tres ideas: latencia (Σ D<sub>i</sub>), una sola puerta (LIFO, Figura 1), Política 3 (Tabla 3) | Se construyen al entrar en pantalla |
@@ -104,9 +104,9 @@ Lo que pide el enunciado y dónde está:
   compara T<sub>i</sub>, D<sub>i</sub>, F<sub>i</sub>, q<sub>i</sub> y Σ D<sub>i</sub> con lo reportado. Las cargas físicas (w, y, z)
   también salen de esa simulación, porque sin (20)–(23) los flujos del modelo
   no son únicos.
-- Las instancias de e_vigo solo traen la matriz de costos; las coordenadas del
-  mapa se recuperan con escalamiento multidimensional clásico (error medio de
-  0,2 unidades frente a c<sub>ij</sub>).
+- El mapa de la sección 01 no usa coordenadas: ubica el depósito arriba y los
+  clientes en un polígono regular, en el orden de la ruta, así la ruta dibuja el
+  polígono. El largo de los arcos no representa c<sub>ij</sub>; el valor va en cada arco.
 
 ## Arquitectura del código
 

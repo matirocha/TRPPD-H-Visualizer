@@ -51,14 +51,6 @@
 .mapa-rejilla--fina { stroke: rgb(23 32 42 / 0.045); }
 .mapa-rejilla--gruesa { stroke: rgb(23 32 42 / 0.1); }
 
-.mapa-decoracion { pointer-events: none; }
-.mapa-escala__titulo { font-family: var(--f-mono); font-weight: 500; fill: var(--tinta-2); letter-spacing: 0.02em; }
-.mapa-escala__llena { fill: var(--tinta); }
-.mapa-escala__vacia { fill: var(--superficie); stroke: var(--tinta); stroke-width: 1; }
-.mapa-escala__nota { font-family: var(--f-texto); fill: var(--tinta-2); }
-.mapa-norte path { fill: var(--tinta-2); }
-.mapa-norte text { font-family: var(--f-mono); font-weight: 600; fill: var(--tinta-2); }
-
 /* --- Grafo completo (Arcos: Todos) --------------------------------------- */
 .mapa-todos { display: none; }
 .mapa-svg--todos .mapa-todos { display: inline; }
