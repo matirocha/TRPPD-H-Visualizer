@@ -270,6 +270,13 @@ svg .mono{font-family:var(--mono)}
 .us span{font:500 11px var(--mono);white-space:nowrap}
 #s4.at2 .us{animation:grow .5s cubic-bezier(.2,.7,.3,1) forwards;animation-delay:var(--d)}
 #s4.at3 .us.frag{animation:grow .5s cubic-bezier(.2,.7,.3,1) forwards}
+.fbox{background:var(--card);border-radius:10px;padding:10px 14px;display:grid;gap:6px;margin-bottom:14px}
+.fbox .fl{font-family:var(--math);font-style:italic;font-size:17px;color:var(--ink);white-space:nowrap}
+.fbox .t{border-bottom:3px solid var(--cl);padding-bottom:1px}
+.ucalc{display:grid;grid-template-columns:10px max-content max-content;gap:4px 10px;align-items:center;margin-top:10px;font:500 13px var(--mono);color:var(--ink-2)}
+.ucalc .r{display:contents}
+.ucalc .r i{width:10px;height:10px;border-radius:3px;background:var(--cl)}
+.ucalc .r b{color:var(--ink);font-weight:600}
 .ulab{margin-top:10px;font-size:17px;color:var(--ink-2)}
 .ulab .m{font-size:21px;color:var(--ink)}
 .ulab b{font-family:var(--mono);color:var(--crimson)}
@@ -569,19 +576,30 @@ svg .mono{font-family:var(--mono)}
       <div class="def"><div class="sym">V = {0,…,n}</div><div><h3>Nodos</h3><p>0 es el depósito. Ejemplo: <span class="mono">V = {0, 1, 2, 3}</span>.</p></div></div>
       <div class="def"><div class="sym">V<sub>c</sub> = V \ {0}</div><div><h3>Clientes</h3><p><span class="mono">n = |V<sub>c</sub>| = 3</span>.</p></div></div>
       <div class="def"><div class="sym">A</div><div><h3>Arcos del grafo completo dirigido</h3><p>Todo par ordenado (i, j) con i ≠ j: <span class="mono">4 · 3 = 12</span> arcos.</p></div></div>
-      <div class="def frag" data-f="1"><div class="sym">h<sub>a</sub> = u<sub>a</sub> + ℓ<sub>a</sub></div><div><h3>Operación adicional sobre una a</h3><p>Descargarla y volver a cargarla: <span class="mono">0,5 + 0,5 = 1</span>. Igual para h<sub>b</sub>.</p></div></div>
+      <div class="def frag" data-f="1"><div class="sym">h<sub>a</sub> = u<sub>a</sub> + ℓ<sub>a</sub><br>h<sub>b</sub> = u<sub>b</sub> + ℓ<sub>b</sub></div><div><h3>Operación adicional sobre una a o una b</h3><p>Descargarla y volver a cargarla:<br><span class="mono">h<sub>a</sub> = 0,5 + 0,5 = 1</span><br><span class="mono">h<sub>b</sub> = 0,5 + 0,5 = 1</span></p></div></div>
+      <div class="def frag" data-f="1"><div class="sym">max c<sub>ij</sub></div><div><h3>Arco más largo</h3><p>El mayor valor de la matriz de viaje: <span class="mono">c<sub>02</sub> = c<sub>03</sub> = c<sub>13</sub> = 3</span>.</p></div></div>
     </div>
     <div>
-      <h4>Cota U de los instantes · ejemplo</h4>
+      <h4>Fórmulas</h4>
+      <div class="fbox">
+        <div class="fl">U = <span class="t" style="--cl:var(--c5-f)">n · max c<sub>ij</sub></span> + <span class="t" style="--cl:var(--c1-f)">(u<sub>a</sub> + n h<sub>a</sub>) Σα<sub>i</sub></span> + <span class="t" style="--cl:var(--c2-f)">(ℓ<sub>b</sub> + n h<sub>b</sub>) Σβ<sub>i</sub></span></div>
+        <div class="fl">M = U + <span class="t" style="--cl:var(--x1)">max c<sub>ij</sub></span></div>
+      </div>
+      <h4>Cálculo en el ejemplo</h4>
       <div class="ubar frag" data-f="2">
         <div class="us" data-c="5" style="width:108px;--d:.05s"><b>9</b><span>n·max c</span></div>
         <div class="us" data-c="1" style="width:168px;--d:.3s"><b>14</b><span>(u<sub>a</sub>+n h<sub>a</sub>)Σα</span></div>
         <div class="us" data-c="2" style="width:168px;--d:.55s"><b>14</b><span>(ℓ<sub>b</sub>+n h<sub>b</sub>)Σβ</span></div>
         <div class="us frag" data-f="3" data-c="x1" style="width:36px"><b>3</b></div>
       </div>
+      <div class="ucalc frag" data-f="2">
+        <div class="r" style="--cl:var(--c5-f)"><i></i><span>n · max c<sub>ij</sub> = 3 · 3</span><b>= 9</b></div>
+        <div class="r" style="--cl:var(--c1-f)"><i></i><span>(u<sub>a</sub> + n h<sub>a</sub>) Σα = (0,5 + 3·1) · 4 = 3,5 · 4</span><b>= 14</b></div>
+        <div class="r" style="--cl:var(--c2-f)"><i></i><span>(ℓ<sub>b</sub> + n h<sub>b</sub>) Σβ = (0,5 + 3·1) · 4 = 3,5 · 4</span><b>= 14</b></div>
+      </div>
       <div class="ulab frag" data-f="2"><span class="m">U</span> = 9 + 14 + 14 = <b>37</b></div>
       <div class="ulab frag" data-f="3"><span class="m">M</span> = U + max c<sub>ij</sub> = 37 + 3 = <b>40</b></div>
-      <p class="callout frag" data-f="3" style="margin-top:12px">U supera cualquier instante de servicio: n arcos, todas las operaciones obligatorias y, en cada cliente, la máxima manipulación adicional. M lo usa (13).</p>
+      <p class="callout frag" data-f="3" style="margin-top:10px">U supera cualquier instante de servicio: n arcos, todas las operaciones obligatorias y, en cada cliente, la máxima manipulación adicional. M suma un arco más para que (13) no limite cuando x<sub>ij</sub> = 0.</p>
     </div>
   </div>
 </section>

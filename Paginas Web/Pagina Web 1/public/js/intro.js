@@ -13,6 +13,7 @@
 import { PARAM_HTML, conTooltip, el, fmt, movimientoReducido, ocultarTooltip, paramSVG, politicaCorta, svg } from './util.js';
 
 const ESCRITORIO = '(min-width: 960px) and (prefers-reduced-motion: no-preference)';
+const VELOCIDAD_HERO = 2.2; // multiplica la velocidad de cada vuelta de la portada
 
 let secuencia = 0;
 const nuevoId = (base) => `intro-${base}-${++secuencia}`;
@@ -361,7 +362,7 @@ function animarHero(v, primera, seccionHero, enCtx) {
     onToggle: (st) => (st.isActive ? actual?.play() : actual?.pause()),
   });
   const etapa = (opciones = {}) => {
-    actual = gsap.timeline({ ...opciones, paused: !vigia.isActive });
+    actual = gsap.timeline({ ...opciones, paused: !vigia.isActive }).timeScale(VELOCIDAD_HERO);
     return actual;
   };
   const despues = (fn) => () => enCtx(fn);
@@ -373,7 +374,7 @@ function animarHero(v, primera, seccionHero, enCtx) {
   };
 
   // Vuelta 0: entrada con la ruta de la instancia.
-  const tl = gsap.timeline({ delay: primera ? 0.6 : 0.15 });
+  const tl = gsap.timeline({ delay: primera ? 0.6 : 0.15 }).timeScale(VELOCIDAD_HERO);
   actual = tl;
   const dep = v.nodos.get(0);
   tl.fromTo(dep, { s: 0.2 }, { s: 1, duration: 0.55, ease: 'back.out(2)', onUpdate: dep.pintar }, 0);
