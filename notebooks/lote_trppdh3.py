@@ -1,12 +1,12 @@
 """Corridas por lote del modelo TRPPD-H3: las cuatro variantes sobre un banco.
 
-    python lote_trppdh3.py
+    python lote_trppdh3.py B all      # banco de Battarra, todos sus N
+    python lote_trppdh3.py E all      # banco de Erdogan, todos sus N
+    python lote_trppdh3.py B 10       # solo N = 10 (también 10,15 o 10-25)
 
-pregunta qué resolver: el banco de Battarra, el de Erdogan, ambos, o los N que
-se escriban (valores sueltos o rangos, p. ej. 10, 20-30). En cada instancia
-resuelve las variantes (1)-(19), (1)-(19) + (20)-(23), (1)-(19) + (24)-(29) y
-(1)-(29) del modelo de trppdh3_formulacion.pdf. Después de cada modelo, en la
-misma carpeta de este script,
+En cada instancia resuelve las variantes (1)-(19), (1)-(19) + (20)-(23),
+(1)-(19) + (24)-(29) y (1)-(29) del modelo de trppdh3_formulacion.pdf. Después
+de cada modelo, en la misma carpeta de este script,
 
   - guarda la solución en gurobi/<variante>/<instancia>.json, el formato
     trppdh3-salida/1 que lee la Página Web 1 (copiando la carpeta gurobi a
@@ -21,12 +21,18 @@ Con REANUDAR = True las corridas que ya están en el Excel no se repiten, así
 que basta volver a ejecutar el script para seguir después de cortarlo. Las
 instancias que comparten los dos bancos (n = 10 a 25) se copian del Excel del
 otro banco si ya se resolvieron ahí.
+
+Se pueden lanzar varios procesos a la vez (p. ej. B 10, B 15, ... en terminales
+distintas, cada uno con un hilo): todos escriben en el mismo Excel del banco
+sin borrarse las corridas entre sí.
 """
 
 import json
 import os
 import re
+import sys
 import time
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 
@@ -54,7 +60,8 @@ BANCOS = {
     "Erdogan": [(10, ""), (15, ""), (20, ""), (25, ""), (30, "Erdogan"), (40, "Erdogan"),
                 (50, "Erdogan"), (60, "Erdogan")],
 }
-N_PERMITIDOS = sorted({n for tamanos in BANCOS.values() for n, _ in tamanos})
+# N que no entran en "all" pero se pueden pedir explícitamente (p. ej. B 5)
+SOLO_A_PEDIDO = [(5, "")]
 
 CARPETA_SCRIPT = Path(__file__).resolve().parent
 # Instancias/ junto al script o una carpeta más arriba (estructura del repositorio)
@@ -500,20 +507,50 @@ def hoja_definiciones(ws, banco, filas):
            alineacion=ARRIBA)
 
 
-def guardar_excel(filas, archivo, banco):
-    """Reescribe el Excel. Si está abierto en Excel, deja los datos en <nombre>_tmp.xlsx."""
-    wb = Workbook()
-    hoja_resultados(wb.active, filas)
-    hoja_detalle(wb.create_sheet("Detalle"), filas)
-    hoja_definiciones(wb.create_sheet("Definiciones"), banco, filas)
-    archivo.parent.mkdir(parents=True, exist_ok=True)
-    temporal = archivo.with_name(f"{archivo.stem}_tmp.xlsx")
+@contextmanager
+def candado(archivo, abandono=60):
+    """Turno exclusivo para leer y reescribir el Excel entre procesos en paralelo."""
+    bloqueo = archivo.with_name(f"{archivo.name}.lock")
+    while True:
+        try:
+            fd = os.open(bloqueo, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            break
+        except FileExistsError:
+            # Candado de un proceso que se cortó mientras escribía
+            try:
+                if time.time() - bloqueo.stat().st_mtime > abandono:
+                    bloqueo.unlink()
+            except FileNotFoundError:
+                pass
+            time.sleep(0.2)
     try:
-        wb.save(temporal)
-        os.replace(temporal, archivo)
-    except PermissionError:
-        print(f"  ! No se pudo escribir {archivo.name} (¿abierto en Excel?); "
-              f"se reintenta al terminar el siguiente modelo")
+        yield
+    finally:
+        os.close(fd)
+        bloqueo.unlink(missing_ok=True)
+
+
+def guardar_excel(filas, archivo, banco):
+    """Reescribe el Excel con estas corridas y las que otros procesos ya guardaron.
+
+    Devuelve todas las corridas. Si el Excel está abierto en Excel, avisa y
+    se reintenta al terminar el siguiente modelo.
+    """
+    archivo.parent.mkdir(parents=True, exist_ok=True)
+    with candado(archivo):
+        filas = {**leer_excel(archivo), **filas}
+        wb = Workbook()
+        hoja_resultados(wb.active, filas)
+        hoja_detalle(wb.create_sheet("Detalle"), filas)
+        hoja_definiciones(wb.create_sheet("Definiciones"), banco, filas)
+        temporal = archivo.with_name(f"{archivo.stem}_tmp.xlsx")
+        try:
+            wb.save(temporal)
+            os.replace(temporal, archivo)
+        except PermissionError:
+            print(f"  ! No se pudo escribir {archivo.name} (¿abierto en Excel?); "
+                  f"se reintenta al terminar el siguiente modelo")
+    return filas
 
 
 def leer_excel(archivo):
@@ -563,7 +600,7 @@ def correr(banco, tamanos=None):
                     filas[clave] = fila
                     copiadas += 1
         if copiadas:
-            guardar_excel(filas, excel, banco)
+            filas = guardar_excel(filas, excel, banco)
 
     limite = f"{LIMITE_TIEMPO} s por modelo" if LIMITE_TIEMPO else "sin límite de tiempo"
     print(f"\nBanco {banco}, N = {', '.join(str(n) for n, _ in tamanos)}: "
@@ -591,7 +628,7 @@ def correr(banco, tamanos=None):
                     if "ruta" in sol:
                         guardar_salida(inst, sol, r20_23, r24_29)
                     filas[inst["nombre"], variante] = fila_excel(inst, variante, etiqueta, sol)
-                    guardar_excel(filas, excel, banco)
+                    filas = guardar_excel(filas, excel, banco)
         except KeyboardInterrupt:
             print("\nDetenido. El Excel tiene las corridas terminadas; "
                   "vuelve a ejecutar el script para seguir.")
@@ -600,84 +637,65 @@ def correr(banco, tamanos=None):
     return True
 
 
-# ------------------------------ Menú ------------------------------
+# --------------------------- Argumentos ---------------------------
+
+USO = """Uso: python lote_trppdh3.py <banco> <N>
+
+  <banco>  B = Battarra, E = Erdogan
+  <N>      all = todos los N del banco (10, 15, 20, 25, 30, 40, 50, 60)
+           o un valor (10), varios (10,15) o un rango (10-25); N = 5 solo a pedido
+
+Ejemplos:
+  python lote_trppdh3.py B all
+  python lote_trppdh3.py E all
+  python lote_trppdh3.py B 10"""
+
 
 def _texto_n(valores):
     return ", ".join(map(str, valores))
 
 
-def _preguntar(opciones):
-    """Muestra las opciones numeradas y repite hasta recibir una válida."""
-    for k, (opcion, detalle) in enumerate(opciones, 1):
-        print(f"  {k}) {opcion:<14} {detalle}")
-    while True:
-        respuesta = input("Opción: ").strip()
-        if respuesta.isdigit() and 1 <= int(respuesta) <= len(opciones):
-            return opciones[int(respuesta) - 1][0]
-        print(f"  Escribe un número del 1 al {len(opciones)}.")
-
-
-def leer_n(texto):
-    """N elegidos a partir de valores sueltos y rangos, p. ej. "10, 20-30"."""
+def leer_n(texto, permitidos):
+    """N elegidos a partir de valores sueltos y rangos, p. ej. "10,15" o "20-30"."""
     elegidos = set()
     for parte in re.sub(r"\s*-\s*", "-", texto).replace(",", " ").split():
         desde, _, hasta = parte.partition("-")
         if not desde.isdigit() or not (hasta or desde).isdigit():
-            raise ValueError(f"'{parte}' no es un valor ni un rango (ejemplo: 20-30)")
+            raise ValueError(f"'{parte}' no es un valor ni un rango de N (ejemplo: 20-30)")
         desde, hasta = sorted((int(desde), int(hasta or desde)))
         for n in (desde, hasta):
-            if n not in N_PERMITIDOS:
-                raise ValueError(f"N = {n} no está permitido; usa {_texto_n(N_PERMITIDOS)}")
-        elegidos.update(n for n in N_PERMITIDOS if desde <= n <= hasta)
-    if not elegidos:
-        raise ValueError("Escribe al menos un valor de N")
+            if n not in permitidos:
+                raise ValueError(f"N = {n} no está en el banco; usa {_texto_n(permitidos)}")
+        elegidos.update(n for n in permitidos if desde <= n <= hasta)
     return sorted(elegidos)
 
 
-def elegir():
-    """Pregunta qué resolver y devuelve [(banco, tamaños)]."""
-    print("¿Qué instancias quieres resolver?")
-    opcion = _preguntar([(b, f"N = {_texto_n(n for n, _ in t)}") for b, t in BANCOS.items()]
-                        + [("Ambas", "Battarra y después Erdogan"),
-                           ("Valores de N", "valores sueltos o un rango de N")])
-    if opcion in BANCOS:
-        return [(opcion, BANCOS[opcion])]
-    if opcion == "Ambas":
-        return list(BANCOS.items())
-
-    print(f"N permitidos: {_texto_n(N_PERMITIDOS)}")
-    print("Escribe valores sueltos y/o rangos, por ejemplo: 10, 20-30")
-    while True:
-        try:
-            elegidos = leer_n(input("N: "))
-            break
-        except ValueError as error:
-            print(f"  {error}")
-    # Los N que están en los dos bancos piden elegir banco; el resto solo existe en uno
-    compartidos = [n for n in elegidos if all(n in dict(t) for t in BANCOS.values())]
-    bancos = list(BANCOS)
-    if compartidos:
-        verbo = "está" if len(compartidos) == 1 else "están"
-        print(f"N = {_texto_n(compartidos)} {verbo} en los dos bancos. ¿Cuál resolver?")
-        opcion = _preguntar([(b, "") for b in BANCOS] + [("Ambas", "")])
-        bancos = list(BANCOS) if opcion == "Ambas" else [opcion]
-    plan = []
-    for banco, tamanos in BANCOS.items():
-        elegidos_banco = [(n, sufijo) for n, sufijo in tamanos
-                          if n in elegidos and (n not in compartidos or banco in bancos)]
-        if elegidos_banco:
-            plan.append((banco, elegidos_banco))
-    return plan
+def leer_argumentos(argumentos):
+    """(banco, tamaños) a partir de los argumentos, p. ej. ["B", "all"] o ["E", "30"]."""
+    if len(argumentos) < 2:
+        raise ValueError("faltan el banco y N")
+    banco = next((b for b in BANCOS if argumentos[0].lower() in (b[0].lower(), b.lower())), None)
+    if banco is None:
+        raise ValueError(f"banco desconocido: {argumentos[0]}")
+    texto = " ".join(argumentos[1:])
+    if texto.lower() == "all":
+        return banco, BANCOS[banco]
+    tamanos = dict(SOLO_A_PEDIDO + BANCOS[banco])
+    elegidos = leer_n(texto, sorted(tamanos))
+    return banco, [(n, tamanos[n]) for n in elegidos]
 
 
 def main():
+    sys.stdout.reconfigure(line_buffering=True)   # avance visible aunque se redirija a un archivo
     try:
-        plan = elegir()
-    except (KeyboardInterrupt, EOFError):
-        raise SystemExit("\nCancelado.")
-    for banco, tamanos in plan:
-        if not correr(banco, tamanos):
-            break
+        banco, tamanos = leer_argumentos(sys.argv[1:])
+    except ValueError as error:
+        raise SystemExit(f"Error: {error}\n\n{USO}")
+    try:
+        completo = correr(banco, tamanos)
+    except FileNotFoundError as error:   # falta una instancia en Instancias/
+        raise SystemExit(f"Error: {error}")
+    raise SystemExit(0 if completo else 1)
 
 
 if __name__ == "__main__":
