@@ -27,6 +27,10 @@ const METRICAS = {
     texto: 'Nodos B&B', unidad: '', decimales: 0,
     ayuda: 'Nodos del árbol de ramificación y acotamiento que explora Gurobi.',
   },
+  objetivo: {
+    texto: 'Función objetivo', unidad: '', decimales: 2,
+    ayuda: 'Σ Dᵢ de la mejor solución de cada variante; con límite de tiempo no es necesariamente el óptimo.',
+  },
   gap: {
     texto: 'GAP', unidad: ' %', decimales: 2, escala: 100,
     ayuda: 'Brecha final entre la mejor solución y la cota inferior (MIPGap); 0 % es óptimo probado.',
@@ -226,7 +230,10 @@ function montar(raiz, { manifest, actual, elegir, metrica, cambiarMetrica, sinAn
   }
 
   function eje(g, x, alto) {
-    const ticks = M.decimales === 0 ? x.ticks(4).filter(Number.isInteger) : x.ticks(4);
+    const marcas = (k) => (M.decimales === 0 ? x.ticks(k).filter(Number.isInteger) : x.ticks(k));
+    // Con números largos (Σ D) cuatro marcas no caben: se usan menos
+    const largo = Math.max(...marcas(4).map((t) => fmt(t, M.decimales).length));
+    const ticks = marcas(4).length * largo * 7.5 > x.range()[1] - x.range()[0] ? marcas(2) : marcas(4);
     d3.select(g).attr('transform', `translate(0,${alto})`)
       .call(d3.axisBottom(x).tickValues(ticks).tickFormat((v) => fmt(v, M.decimales)).tickSizeOuter(0));
   }
