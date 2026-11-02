@@ -11,9 +11,13 @@ Outputs/
     explicitacion/  (1)-(19) + (20)-(23)
     latencia/       (1)-(19) + (24)-(29)
     completo/       (1)-(29)
+  erdogan/          heurísticas de Erdoğan et al. (2012) adaptadas (npm run heuristicas)
+    dos_fases/      TSP + Algoritmo 2.1
+    ils_heuristico/ ils_exacto/ its_heuristico/ its_exacto/
   enumeracion/      enumeración exhaustiva, n = 5 (generada con un script anterior)
   <algoritmo>/      cualquier algoritmo futuro
-  resumenes/        gurobi_resultados.xlsx (corridas por lote) y CSV de corridas anteriores
+  resumenes/        gurobi_resultados.xlsx (corridas por lote), heuristicas_erdogan.csv
+                    y CSV de corridas anteriores
 ```
 
 Cada archivo se llama `<carpeta>/<instancia>.json`, por ejemplo
@@ -31,6 +35,25 @@ cuatro variantes del modelo:
 | 30, 40, 50, 60 | Erdoğan et al. (2012), sufijo `_Erdogan` | 120 instancias × 4 variantes | `lote_trppdh3.py E`, igual que arriba |
 
 Faltan las de Battarra con n = 30, 40, 50 y 60.
+
+Las heurísticas de `erdogan/` (2 fases, ILS e ITS, con evaluación heurística o
+exacta) están corridas para las 30 instancias con n = 10, con Node.js en un
+solo hilo (`npm run heuristicas -- 10` desde `Paginas Web/Pagina Web 1`). Sus
+JSON traen además, en `solucion`:
+
+| Campo | Qué es |
+|---|---|
+| `estado` | `HEURISTICA` |
+| `gap` | (Σ D_i − mejor cota inferior de las variantes de Gurobi) / Σ D_i |
+| `gap_entera` | (Σ D_i − mayor relajación lineal de las variantes de Gurobi) / Σ D_i |
+| `desviacion_gurobi` | (Σ D_i − mejor Σ D_i de Gurobi) / mejor Σ D_i de Gurobi |
+| `referencia` | los valores de Gurobi usados en esas tres medidas |
+| `segundos`, `segundos_inicial` | tiempo total del algoritmo y de su heurística de dos fases |
+| `evaluaciones` | vecinos evaluados con el DP exacto y con la heurística lineal |
+| `tsp`, `corridas` | ciclo TSP inicial y, por sentido, la solución inicial, la final y la mejor Σ D_i por iteración |
+
+`resumenes/heuristicas_erdogan.csv` se reescribe con todas las corridas de
+`erdogan/` cada vez que se ejecuta el script.
 
 Con n = 5 y n = 10 todas las variantes llegan al mismo óptimo Σ D_i; con n = 5
 también la enumeración. Desde n = 15 casi todas las corridas terminan por el

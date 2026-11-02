@@ -40,14 +40,20 @@ function resumir(archivo, d) {
     ? { explicitacion: p.explicitacion, latencia: p.latencia }
     : null;
   const nombre = i.nombre ?? path.basename(archivo, '.json');
+  // GAP sol. entera de notebooks/lote_trppdh3.py: (Σ D − relajación lineal) / Σ D. Las heurísticas
+  // lo traen calculado con la mayor relajación de las variantes de Gurobi.
+  const gapEntera = s.gap_entera
+    ?? (s.objetivo && s.relajacion_lineal != null ? (s.objetivo - s.relajacion_lineal) / s.objetivo : null);
   return {
     archivo,
-    algoritmo: { clave, nombre: a.nombre ?? clave, variante },
+    // familia: 'erdogan' en las heurísticas de Erdoğan et al. (2012) adaptadas
+    algoritmo: { clave, nombre: a.nombre ?? clave, variante, familia: p.familia ?? null },
     instancia: { nombre, n: i.n, id: i.id ?? null, h: i.h ?? null, banco: bancoDe(nombre) },
     objetivo: s.objetivo ?? null,
     estado: s.estado ?? null,
     // Brecha final y cota inferior: con límite de tiempo comparan mejor que los segundos
     gap: s.gap ?? null,
+    gapEntera,
     cota: s.cota ?? null,
     // Tiempos de ejecución, para comparar variantes sin abrir cada archivo
     segundos: s.segundos ?? null,
@@ -72,6 +78,16 @@ export async function listarSalidas(dir = OUTPUTS) {
     }
   } catch (error) {
     if (error.code !== 'ENOENT') throw error;
+  }
+  // Desviación respecto de la mejor solución conocida de la instancia (cualquier algoritmo),
+  // como la columna Dev. (%) de Erdoğan et al. (2012)
+  const mejor = new Map();
+  for (const s of salidas) {
+    if (s.objetivo != null) mejor.set(s.instancia.nombre, Math.min(mejor.get(s.instancia.nombre) ?? Infinity, s.objetivo));
+  }
+  for (const s of salidas) {
+    const m = mejor.get(s.instancia.nombre);
+    s.desviacion = s.objetivo != null && m > 0 ? (s.objetivo - m) / m : null;
   }
   return salidas.sort((x, y) =>
     x.algoritmo.clave.localeCompare(y.algoritmo.clave)

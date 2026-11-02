@@ -44,10 +44,11 @@ para números (con cifras tabulares). Decimales con coma (es-CL).
 |---|---|---|---|
 | 00 | Portada | Título, pregunta del problema y, de fondo, circuitos que cambian: primero la ruta de la instancia, luego los nodos se mueven a posiciones al azar y se traza un recorrido tipo vendedor viajero (vecino más cercano + 2-opt), en bucle | Los nodos se desplazan, el circuito se traza y un marcador lo recorre; paralaje al bajar |
 | 01 | Mapa y carga | A la izquierda, nodos con u<sub>a</sub>, ℓ<sub>a</sub>, u<sub>b</sub>, ℓ<sub>b</sub> y arcos con c<sub>ij</sub>; bajo el mapa, el tiempo por cliente; a la derecha, el camión con las unidades en su posición física y los pasos de la Tabla 3. Debajo, barras de carga por tramo vs Q | Reproductor (ver abajo): el camión se mueve en el mapa y cada operación de carga y descarga se anima al mismo tiempo |
-| 02 | Rendimiento | Tiempo de ejecución de las cuatro variantes del modelo: barras para la instancia mostrada, puntos y mediana para todas las instancias con el mismo banco y n, y tabla resumen con las óptimas de cada variante. Medida: resolución, total, nodos B&B, función objetivo o GAP (con límite de tiempo los segundos se igualan y el GAP es lo que las distingue) | Barras que crecen; puntos que aparecen |
-| 03 | El problema | Tres ideas: latencia (Σ D<sub>i</sub>), una sola puerta (LIFO, Figura 1), Política 3 (Tabla 3) | Se construyen al entrar en pantalla |
-| 04 | La instancia | Selector (algoritmo, n, id, h), KPIs, tabla de clientes, parámetros, verificación, leyenda | Contadores |
-| 05 | Reloj | Línea de tiempo de la ruta con lupa de servicio y barras de espera D<sub>i</sub> por cliente | Sin animaciones de scroll: el cabezal se mueve al elegir una parada |
+| 02 | Rendimiento | Tiempo de ejecución de las cuatro variantes del modelo: barras para la instancia mostrada, puntos y mediana para todas las instancias con el mismo banco y n, y tabla resumen con las óptimas de cada variante. Medida: resolución, total, nodos B&B, función objetivo, GAP o GAP sol. entera (con límite de tiempo los segundos se igualan y el GAP es lo que las distingue) | Barras que crecen; puntos que aparecen |
+| 03 | Heurísticas | Las de Erdoğan et al. (2012) adaptadas (2 fases, ILS e ITS con evaluación exacta o heurística) frente a Gurobi con su variante más rápida entre las de menor Σ D<sub>i</sub>: los mismos dos gráficos y tabla que Rendimiento, una fila por algoritmo. Medida: tiempo (escala logarítmica, con puntos en vez de barras), función objetivo, GAP, GAP sol. entera o desviación respecto de la mejor solución conocida. Debajo, una tarjeta por método | Igual que Rendimiento |
+| 04 | El problema | Tres ideas: latencia (Σ D<sub>i</sub>), una sola puerta (LIFO, Figura 1), Política 3 (Tabla 3) | Se construyen al entrar en pantalla |
+| 05 | La instancia | Selector (algoritmo, n, id, h), KPIs, tabla de clientes, parámetros, verificación, leyenda | Contadores |
+| 06 | Reloj | Línea de tiempo de la ruta con lupa de servicio y barras de espera D<sub>i</sub> por cliente | Sin animaciones de scroll: el cabezal se mueve al elegir una parada |
 
 La sección 01 no depende del scroll: un reproductor sobre la escena tiene
 **volver al inicio**, **explicación anterior**, **Iniciar / Pausar / Continuar /
@@ -74,7 +75,7 @@ Iniciar se alinea bajo la barra. En pantallas de menos de 960 px el mapa y el ca
 el reproductor queda pegado bajo la barra superior.
 
 El selector de soluciones vive en la barra superior (un botón que abre un panel)
-y, el mismo panel, en la sección 03. El botón muestra el ID de la instancia, n y
+y, el mismo panel, en la sección 05. El botón muestra el ID de la instancia, n y
 Σ D; el panel abre con esos tres datos en grande (Σ D destacado como función
 objetivo) y debajo una fila de botones simples por dimensión: ID (con flechas
 anterior/siguiente), banco (Battarra o Erdogan, que con n = 30 a 60 tienen
@@ -117,8 +118,11 @@ Lo que pide el enunciado y dónde está:
 Pagina Web 1/
   server.js            Express: estáticos y /api/salidas
   lib/salidas.js       lectura de Outputs (compartida con los scripts)
+  lib/heuristicas.js   heurísticas de Erdoğan et al. (2012) adaptadas: DP exacto,
+                       evaluación lineal, 2 fases, ILS e ITS (sin DOM ni Node)
   scripts/exportar.js  copia estática en dist/
   scripts/verificar.js simulación JS vs. todas las salidas
+  scripts/heuristicas.js corre lib/heuristicas.js y escribe Outputs/erdogan
   public/
     index.html         esqueleto de secciones
     css/base.css       tokens y componentes comunes (incluye el selector)
@@ -134,7 +138,9 @@ Pagina Web 1/
     js/cronometro.js   tiempo por cliente (sigue estado.avance)
     js/camion.js       carga del camión
     js/tiempos.js      reloj
-    js/rendimiento.js  tiempos de ejecución por variante (lee el manifest)
+    js/comparacion.js  gráficos y tabla de comparación por serie (lee el manifest)
+    js/rendimiento.js  comparación de las variantes de Gurobi
+    js/heuristicas.js  comparación de las heurísticas con Gurobi
 ```
 
 GSAP 3 (ScrollTrigger, DrawSVG, MotionPath, SplitText, ScrollTo), d3 y KaTeX
@@ -169,7 +175,8 @@ export function crear(raiz, estado) {
   se hace `estado.set({ pedirParada: { indice } })` y la carga mueve las dos
   vistas. `estado.modoContinuo` guarda el interruptor entre soluciones.
 - Los colores salen siempre de los tokens CSS (clases o `style: { fill: 'var(--a)' }`).
-- Las clases de cada sección llevan prefijo (`intro-`, `mapa-`, `crono-`, `camion-`, `tiempos-`).
+- Las clases de cada sección llevan prefijo (`intro-`, `mapa-`, `crono-`, `camion-`, `tiempos-`, `heur-`);
+  los gráficos de `comparacion.js` usan `rend-` en las dos secciones que lo comparten.
 
 ### Estructura `sim` (resultado de `simular`)
 

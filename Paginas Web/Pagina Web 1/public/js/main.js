@@ -14,6 +14,7 @@ import * as cronometro from './cronometro.js';
 import * as camion from './camion.js';
 import * as tiempos from './tiempos.js';
 import * as rendimiento from './rendimiento.js';
+import * as heuristicas from './heuristicas.js';
 
 gsap.registerPlugin(ScrollTrigger, ScrollToPlugin, DrawSVGPlugin, MotionPathPlugin, SplitText);
 
@@ -296,6 +297,9 @@ async function iniciar() {
     }),
     tiempos.crear($('#tiempos-escena'), estado),
     rendimiento.crear($('#rendimiento-escena'), estado, {
+      manifest: () => manifest, actual: () => archivoActual, elegir: (archivo) => mostrar(archivo),
+    }),
+    heuristicas.crear($('#heuristicas-escena'), estado, {
       manifest: () => manifest, actual: () => archivoActual, elegir: (archivo) => mostrar(archivo),
     }),
   ];

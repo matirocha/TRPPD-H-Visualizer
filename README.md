@@ -31,6 +31,7 @@ TRPPD-H Visualizer/
 ├── Instancias/               390 instancias JSON: n ∈ {5, 10, 15, 20, 25, 30, 40, 50, 60}, id 1–10, h ∈ {0,1; 0,5; 1}
 ├── Outputs/                  soluciones en formato trppdh3-salida/1 (ver Outputs/README.md)
 │   ├── gurobi/{base, explicitacion, latencia, completo}/
+│   ├── erdogan/{dos_fases, ils_heuristico, ils_exacto, its_heuristico, its_exacto}/
 │   ├── enumeracion/
 │   └── resumenes/
 ├── Paginas Web/
@@ -122,6 +123,40 @@ enumeración exhaustiva) y las 960 corridas por lote de Battarra n = 10–25 y
 Erdogan n = 30–60, resumidas en `Outputs/resumenes/gurobi_resultados.xlsx`
 (ver [Outputs/README.md](Outputs/README.md)).
 
+## Heurísticas de Erdoğan et al. (2012)
+
+`Paginas Web/Pagina Web 1/lib/heuristicas.js` adapta al TRPPD-H₃ los métodos de
+Erdoğan, Battarra, Laporte y Vigo (2012) para el TSPPD-H:
+
+| Algoritmo | Carpeta en `Outputs/erdogan/` | Qué hace |
+|---|---|---|
+| 2 fases | `dos_fases` | Ciclo TSP (vecino más cercano + 2-opt + Or-opt) y reubicación del depósito en las n posiciones, en los dos sentidos, evaluadas con el Algoritmo 2.1 adaptado |
+| ILS heurístico / exacto | `ils_heuristico`, `ils_exacto` | Algoritmo 4.2 con relocate y 2-opt; los vecinos se evalúan con la heurística lineal o con el DP exacto |
+| ITS heurístico / exacto | `its_heuristico`, `its_exacto` | Algoritmo 4.3: ILS con búsqueda tabú en lugar de la búsqueda local |
+
+La adaptación está en los costos: con la ruta fija, el DP de la Sección 2.1
+sigue dando la política óptima de cada cliente, pero cada operación pesa por el
+número de clientes que retrasa (n − k + 1 antes de la entrega en la posición k,
+n − k después). Se comprobó contra las 2¹⁰ políticas de 120 rutas con n = 10.
+La evaluación heurística es la de la Sección 2.2 (umbral de recogidas a bordo,
+fórmulas (13)–(14)). Se usan los parámetros del artículo: N_iter = 200,
+N_rand = 0,1·n, lista tabú de 0,5·n, N*_iter = ⌊√N_iter⌋ y la versión 2dir
+(una corrida desde cada sentido del TSP).
+
+Requiere Node.js 20 o superior (las dependencias de la página):
+
+```bash
+cd "Paginas Web/Pagina Web 1"
+npm run heuristicas -- 10      # también 10,15 · 10-25 · all; --alg, --iter, --banco B|E
+```
+
+Cada solución queda en `Outputs/erdogan/<algoritmo>/<instancia>.json` y el
+resumen en `Outputs/resumenes/heuristicas_erdogan.csv`, con las medidas de
+`lote_trppdh3.py` calculadas contra las cuatro variantes de Gurobi de la misma
+instancia: GAP con la mejor cota inferior, GAP sol. entera con la mayor
+relajación lineal y desviación respecto del mejor Σ Dᵢ de Gurobi. Con n = 10
+los dos ILS llegan al óptimo de Gurobi en las 30 instancias en unos 0,03 s.
+
 ## Visualizador web
 
 La **Página Web 1** es la versión publicada en
@@ -132,7 +167,9 @@ La **Página Web 1** es la versión publicada en
 - la carga del camión tramo a tramo (bloques *w*, *y*, *z*) y lo que entra o
   sale por la puerta,
 - un reloj con el tiempo de atención de cada cliente y de qué está hecho,
-- la comparación de tiempos de ejecución entre algoritmos y variantes.
+- la comparación de tiempos de ejecución entre las variantes del modelo,
+- la comparación de las heurísticas con Gurobi: tiempo, Σ Dᵢ, GAP, GAP sol.
+  entera y desviación.
 
 La página vuelve a recorrer la ruta con la secuencia de la Tabla 3 de la
 formulación y compara su resultado con lo que informa el archivo.
@@ -194,6 +231,9 @@ el problema:
 - Battarra, M., Erdoğan, G., Laporte, G. y Vigo, D. (2010). The Traveling
   Salesman Problem with Pickups, Deliveries, and Handling Costs.
   *Transportation Science*, 44(3), 383–399.
+- Erdoğan, G., Battarra, M., Laporte, G. y Vigo, D. (2012). Metaheuristics for
+  the traveling salesman problem with pickups, deliveries and handling costs.
+  *Computers & Operations Research*, 39(5), 1074–1086.
 - Gendreau, M., Laporte, G. y Vigo, D. (1999). Heuristics for the traveling
   salesman problem with pickup and delivery. *Computers & Operations
   Research*, 26(7), 699–714.

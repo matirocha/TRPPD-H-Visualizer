@@ -21,6 +21,7 @@
   <link rel="stylesheet" href="css/recorrido.css">
   <link rel="stylesheet" href="css/tiempos.css">
   <link rel="stylesheet" href="css/rendimiento.css">
+  <link rel="stylesheet" href="css/heuristicas.css">
 
   <script defer src="vendor/gsap/gsap.min.js"></script>
   <script defer src="vendor/gsap/ScrollTrigger.min.js"></script>
@@ -46,6 +47,7 @@
       <nav class="barra__nav" aria-label="Secciones">
         <a href="#recorrido">Mapa y carga</a>
         <a href="#rendimiento">Rendimiento</a>
+        <a href="#heuristicas">Heurísticas</a>
         <a href="#problema">Problema</a>
         <a href="#instancia">Instancia</a>
         <a href="#tiempos">Tiempos</a>
@@ -99,11 +101,49 @@
       <div id="rendimiento-escena"></div>
     </section>
 
-    <!-- 03 · Problema -->
+    <!-- 03 · Heurísticas -->
+    <section class="seccion seccion--heuristicas" id="heuristicas" aria-labelledby="heuristicas-titulo">
+      <div class="contenedor">
+        <header class="seccion__cabecera" data-revelar>
+          <p class="seccion__numero">03 · Heurísticas</p>
+          <h2 class="seccion__titulo" id="heuristicas-titulo">Las heurísticas de Erdoğan et al., con latencia</h2>
+          <p class="seccion__entrada">Erdoğan et al. (2012) resuelven el TSPPD-H con una solución inicial de dos fases y tres metaheurísticas. Aquí se adaptan al TRPPD-H<sub>3</sub>: con la ruta fija, la mejor política de cada cliente se sigue obteniendo con su programación dinámica, pero cada operación pesa por el número de clientes que retrasa. ILS e ITS se corren con la evaluación exacta de los vecinos y con la heurística lineal, para ver cuánto tiempo ahorra y cuánta calidad cuesta.</p>
+        </header>
+      </div>
+      <div id="heuristicas-escena"></div>
+      <div class="contenedor">
+        <div class="heur-metodos" data-revelar>
+          <article class="tarjeta heur-metodo">
+            <p class="heur-metodo__marca">Solución inicial</p>
+            <h3 class="heur-metodo__titulo">2 fases · TSP + Algoritmo 2.1</h3>
+            <p>Primero, un ciclo TSP por el depósito y los clientes: vecino más cercano desde cada nodo, mejorado con 2-opt y Or-opt (el artículo usa Lin–Kernighan). Después se reubica el depósito en cada una de las n posiciones del ciclo, en los dos sentidos, y cada ruta que respeta Q se evalúa con el Algoritmo 2.1 adaptado. La mejor de cada sentido es el punto de partida de ILS e ITS.</p>
+          </article>
+          <article class="tarjeta heur-metodo">
+            <p class="heur-metodo__marca">Evaluación exacta · <span class="heur-metodo__orden">O(n²)</span></p>
+            <h3 class="heur-metodo__titulo">Algoritmo 2.1 y DP con pesos de latencia</h3>
+            <p>Después de una Política 2 no quedan recogidas junto a la puerta, así que el costo de lo que sigue solo depende de dónde se aplicó: f(i) es el costo mínimo desde la posición i y p<sub>ij</sub> el de aplicar la Política 1 en i+1…j−1 y la 2 en j. En la posición k, lo que ocurre antes de la entrega pesa W<sub>k</sub> = n − k + 1 y lo de después, W<sub>k</sub> − 1:</p>
+            <div class="heur-metodo__formula" data-tex="\begin{aligned} p_{ij} &= \sum_{k=i+1}^{j} \big(u_b W_k + \ell_b (W_k - 1)\big)\, z_k + h_a\, y_j\, (W_j - 1) \\ f(i) &= \min_{j > i}\, \{\, p_{ij} + f(j) \,\}, \qquad f(n) = 0 \end{aligned}" data-bloque></div>
+            <p>con z<sub>k</sub> las recogidas junto a la puerta al llegar a k e y<sub>j</sub> las entregas que siguen a bordo después de j. Se comprobó contra las 2<sup>10</sup> políticas posibles en 120 rutas.</p>
+          </article>
+          <article class="tarjeta heur-metodo">
+            <p class="heur-metodo__marca">Evaluación heurística · <span class="heur-metodo__orden">O(n)</span></p>
+            <h3 class="heur-metodo__titulo">Umbral de recogidas a bordo</h3>
+            <p>Es la heurística de la Sección 2.2 con el umbral 2. Con los promedios ᾱ y β̄ de los clientes que faltan se calculan p* y k*<sub>1</sub> con (13)–(14), y la Política 2 se aplica cuando las recogidas junto a la puerta alcanzan k*<sub>1</sub>·β̄; el umbral se recalcula después de cada Política 2. En el vecindario elige el mejor movimiento, que luego se vuelve a evaluar con el DP exacto.</p>
+          </article>
+          <article class="tarjeta heur-metodo">
+            <p class="heur-metodo__marca">Metaheurísticas · Algoritmos 4.2 y 4.3</p>
+            <h3 class="heur-metodo__titulo">ILS e ITS</h3>
+            <p>Vecindarios relocate y 2-opt, solo con movimientos que respetan Q. <strong>ILS</strong>: N<sub>iter</sub> = 200 veces, N<sub>rand</sub> = 0,1·n movimientos al azar sobre la mejor ruta y búsqueda local con mejor mejora. <strong>ITS</strong>: ⌊√N<sub>iter</sub>⌋ = 14 perturbaciones, cada una seguida de 14 iteraciones de búsqueda tabú con lista de 0,5·n. Las dos parten de ambas soluciones iniciales (versión 2dir) y se informa la mejor.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- 04 · Problema -->
     <section class="seccion" id="problema" aria-labelledby="problema-titulo">
       <div class="contenedor">
         <header class="seccion__cabecera" data-revelar>
-          <p class="seccion__numero">03 · El problema</p>
+          <p class="seccion__numero">04 · El problema</p>
           <h2 class="seccion__titulo" id="problema-titulo">Tres ideas para leer una ruta</h2>
           <p class="seccion__entrada">El objetivo no es recorrer menos, sino que los clientes esperen menos. Y la espera depende tanto de los kilómetros como de cuánto cuesta mover la carga detrás de una única puerta.</p>
         </header>
@@ -111,11 +151,11 @@
       </div>
     </section>
 
-    <!-- 04 · Instancia -->
+    <!-- 05 · Instancia -->
     <section class="seccion seccion--instancia" id="instancia" aria-labelledby="instancia-titulo">
       <div class="contenedor">
         <header class="seccion__cabecera" data-revelar>
-          <p class="seccion__numero">04 · La instancia</p>
+          <p class="seccion__numero">05 · La instancia</p>
           <h2 class="seccion__titulo" id="instancia-titulo">Datos y resultado</h2>
           <p class="seccion__entrada">Elige la solución a visualizar. Cada archivo de la carpeta <code>Outputs</code> es la salida de un modelo o algoritmo sobre una instancia de e_vigo adaptada con la regla (79).</p>
         </header>
@@ -135,11 +175,11 @@
       </div>
     </section>
 
-    <!-- 05 · Tiempos -->
+    <!-- 06 · Tiempos -->
     <section class="seccion seccion--tiempos" id="tiempos" aria-labelledby="tiempos-titulo">
       <div class="contenedor">
         <header class="seccion__cabecera">
-          <p class="seccion__numero">05 · El reloj</p>
+          <p class="seccion__numero">06 · El reloj</p>
           <h2 class="seccion__titulo" id="tiempos-titulo">Cuánto espera cada cliente</h2>
           <p class="seccion__entrada">El cliente <em>i</em> queda atendido en D<sub>i</sub>, al terminar la descarga de su entrega. La función objetivo suma esos instantes; aquí se ve de qué está hecho cada uno: viaje y manipulación acumulados.</p>
         </header>
@@ -152,6 +192,7 @@
     <div class="contenedor pie__interior">
       <p>Formulación TRPPD-H<sub>3</sub> · documento de trabajo, octubre de 2026.</p>
       <p>Battarra, M., Erdoğan, G., Laporte, G. y Vigo, D. (2010). The traveling salesman problem with pickups, deliveries, and handling costs. <em>Transportation Science</em>, 44(3), 383–399.</p>
+      <p>Erdoğan, G., Battarra, M., Laporte, G. y Vigo, D. (2012). Metaheuristics for the traveling salesman problem with pickups, deliveries and handling costs. <em>Computers &amp; Operations Research</em>, 39(5), 1074–1086.</p>
       <p>Instancias: Gendreau, Laporte y Vigo (1999), adaptadas con la regla (79). En el mapa, los nodos se ubican en un polígono regular según el orden de la ruta.</p>
     </div>
   </footer>

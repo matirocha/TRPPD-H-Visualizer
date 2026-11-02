@@ -1,7 +1,7 @@
 /* ==========================================================================
-   02 · Rendimiento: tiempos de ejecución de las variantes del modelo de
-   Gurobi. Una sola serie por gráfico: la variante mostrada va en tinta y el
-   resto en gris; los colores salen de los tokens de base.css.
+   02 · Rendimiento y 03 · Heurísticas (comparacion.js): una sola serie por
+   gráfico, la variante o el algoritmo mostrado va en tinta y el resto en
+   gris; los colores salen de los tokens de base.css.
    ========================================================================== */
 
 .rend { display: grid; gap: clamp(18px, 2.6vw, 24px); }
@@ -42,6 +42,11 @@
 .rend-fila:hover .rend-barra { fill: var(--tinta-3); }
 .rend-fila--actual .rend-barra, .rend-fila--actual:hover .rend-barra { fill: var(--tinta); }
 .rend-fila--actual .rend-valor { fill: var(--tinta); font-weight: 600; }
+
+/* A con escala logarítmica: un punto sobre el carril en vez de una barra */
+.rend-marca { fill: var(--viaje); stroke: var(--superficie); stroke-width: 2; transition: fill 0.2s; }
+.rend-fila:hover .rend-marca { fill: var(--tinta-3); }
+.rend-fila--actual .rend-marca, .rend-fila--actual:hover .rend-marca { fill: var(--tinta); }
 
 /* B · un punto por instancia */
 .rend-carril { stroke: var(--regla-2); stroke-width: 1; }

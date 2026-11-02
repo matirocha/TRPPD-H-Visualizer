@@ -49,7 +49,7 @@ const INTERRUPTORES = [
   { indice: 1, numeros: '(24)–(29)', nombre: 'Desigualdad de latencia' },
 ];
 
-const ESTADOS = { OPTIMAL: 'óptima', TIME_LIMIT: 'límite de tiempo', SUBOPTIMAL: 'subóptima', FEASIBLE: 'factible' };
+const ESTADOS = { OPTIMAL: 'óptima', TIME_LIMIT: 'límite de tiempo', SUBOPTIMAL: 'subóptima', FEASIBLE: 'factible', HEURISTICA: 'heurística' };
 
 const claveDe = (s) => Object.fromEntries(DIMENSIONES.map((d) => [d.clave, d.valor(s)]));
 const ordenar = (a, b) => (typeof a === 'number' && typeof b === 'number' ? a - b : String(a).localeCompare(String(b)));
