@@ -3,7 +3,7 @@
 // Barra superior: un botón con la solución actual abre un panel flotante.
 // Sección Instancia: el mismo panel, fijo en la página.
 // El panel abre con tres datos grandes (ID de instancia, n y la función
-// objetivo Σ D) y debajo una fila de botones por dimensión (ID, n, h,
+// objetivo Σ D) y debajo una fila de botones por dimensión (ID, banco, n, h,
 // algoritmo). Si una combinación no existe en Outputs se elige la más parecida
 // y su botón se ve atenuado. Para el modelo de Gurobi, dos interruptores
 // agregan las restricciones (20)-(23) y (24)-(29) a (1)-(19).
@@ -13,6 +13,11 @@ const DIMENSIONES = [
   {
     clave: 'inst', etiqueta: 'ID de instancia', ayuda: 'Instancia 1 a 10 de e_vigo',
     valor: (s) => s.instancia.id ?? s.instancia.nombre, texto: (v) => String(v),
+  },
+  {
+    // Con n = 30 a 60 cada banco tiene sus propias instancias (mismo ID, n y h)
+    clave: 'banco', etiqueta: 'Banco', ayuda: 'Battarra et al. (2010) o Erdoğan et al. (2012)',
+    valor: (s) => s.instancia.banco ?? '—', texto: (v) => v,
   },
   {
     clave: 'n', etiqueta: 'Clientes n', ayuda: 'n = |V<sub>c</sub>|',
@@ -34,7 +39,7 @@ const DIMENSIONES = [
 
 // Prioridad al buscar la solución más parecida: el algoritmo se conserva antes que la
 // instancia, y la instancia antes que las restricciones.
-const PRIORIDAD = ['alg', 'n', 'inst', 'h', 'var'];
+const PRIORIDAD = ['alg', 'n', 'banco', 'inst', 'h', 'var'];
 
 // Algoritmos sin variantes (enumeración, etc.): coinciden con cualquier combinación de interruptores.
 const SIN_VARIANTE = '—';
@@ -63,11 +68,16 @@ export function crearSelector({ barra, enLinea, alElegir }) {
   let actual = null;
   let abierto = false;
 
-  /** Coincidencia exacta o, si no existe, la que comparte más dimensiones en orden de prioridad. */
-  function buscar(deseada) {
+  /**
+   * Coincidencia exacta o, si no existe, la que comparte más dimensiones en orden de prioridad.
+   * fija: dimensión que se acaba de elegir; si hay salidas con ese valor, se busca solo entre ellas
+   * (así elegir el banco Erdogan desde n = 10 lleva a un n de ese banco).
+   */
+  function buscar(deseada, fija = null) {
+    const conValor = fija ? manifest.filter((s) => coincide(fija, claveDe(s)[fija], deseada[fija])) : [];
     let mejor = null;
     let puntaje = -1;
-    for (const s of manifest) {
+    for (const s of conValor.length ? conValor : manifest) {
       const k = claveDe(s);
       const p = PRIORIDAD.reduce((suma, c, i) => suma + (coincide(c, k[c], deseada[c]) ? 2 ** (PRIORIDAD.length - i) : 0), 0);
       if (p > puntaje) {
@@ -90,7 +100,7 @@ export function crearSelector({ barra, enLinea, alElegir }) {
   // --- Panel (compartido por el flotante y el de la sección) --------------------
 
   function opcion(d, clave, { valor, texto }) {
-    const { salida, exacta } = buscar({ ...clave, [d.clave]: valor });
+    const { salida, exacta } = buscar({ ...clave, [d.clave]: valor }, d.clave);
     const elegida = clave[d.clave] === valor;
     return el('button', {
       type: 'button',
@@ -161,7 +171,7 @@ export function crearSelector({ barra, enLinea, alElegir }) {
       el('span', { class: 'selector-dato__valor num' }, valor),
       el('span', { class: 'selector-dato__nota' }, nota));
     return el('div', { class: 'selector-datos' },
-      dato('id', 'ID de instancia', String(clave.inst), `instancia ${clave.inst} de ${ids} del banco e_vigo`),
+      dato('id', 'ID de instancia', String(clave.inst), `instancia ${clave.inst} de ${ids} de e_vigo · banco ${clave.banco}`),
       dato('n', 'Clientes', `n = ${clave.n}`, el('span', { html: 'a visitar, |V<sub>c</sub>|' })),
       dato('obj', 'Función objetivo Σ D<sub>i</sub>', sigma(s.objetivo),
         el('span', {}, 'espera total',

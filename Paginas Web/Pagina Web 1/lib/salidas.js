@@ -25,6 +25,10 @@ async function* recorrer(dir) {
   }
 }
 
+// Banco de pruebas de la instancia, según el sufijo del nombre: _Erdogan (Erdoğan et al.,
+// 2012) o, sin sufijo o con _Battarra, el de Battarra et al. (2010).
+export const bancoDe = (nombre) => (/_Erdogan$/.test(nombre) ? 'Erdogan' : 'Battarra');
+
 function resumir(archivo, d) {
   const a = d.algoritmo ?? {};
   const i = d.instancia ?? {};
@@ -35,12 +39,16 @@ function resumir(archivo, d) {
   const variante = typeof p.explicitacion === 'boolean' && typeof p.latencia === 'boolean'
     ? { explicitacion: p.explicitacion, latencia: p.latencia }
     : null;
+  const nombre = i.nombre ?? path.basename(archivo, '.json');
   return {
     archivo,
     algoritmo: { clave, nombre: a.nombre ?? clave, variante },
-    instancia: { nombre: i.nombre ?? path.basename(archivo, '.json'), n: i.n, id: i.id ?? null, h: i.h ?? null },
+    instancia: { nombre, n: i.n, id: i.id ?? null, h: i.h ?? null, banco: bancoDe(nombre) },
     objetivo: s.objetivo ?? null,
     estado: s.estado ?? null,
+    // Brecha final y cota inferior: con límite de tiempo comparan mejor que los segundos
+    gap: s.gap ?? null,
+    cota: s.cota ?? null,
     // Tiempos de ejecución, para comparar variantes sin abrir cada archivo
     segundos: s.segundos ?? null,
     segundosTotal: s.segundos_total ?? null,
@@ -67,6 +75,7 @@ export async function listarSalidas(dir = OUTPUTS) {
   }
   return salidas.sort((x, y) =>
     x.algoritmo.clave.localeCompare(y.algoritmo.clave)
+    || x.instancia.banco.localeCompare(y.instancia.banco)
     || (x.instancia.n ?? 0) - (y.instancia.n ?? 0)
     || (x.instancia.id ?? 0) - (y.instancia.id ?? 0)
     || (x.instancia.h ?? 0) - (y.instancia.h ?? 0)

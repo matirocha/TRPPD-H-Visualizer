@@ -142,6 +142,7 @@ function renderInstancia(sim, salida) {
       ...dato('Algoritmo', alg.nombre),
       ...(S.estado ? dato('Estado', S.estado) : []),
       ...(S.gap != null ? dato('Gap', `${fmt(S.gap * 100, 2)} %`) : []),
+      ...(S.cota != null && S.estado !== 'OPTIMAL' ? dato('Cota inferior', fmt(S.cota)) : []),
       ...(S.segundos != null ? dato('Tiempo de cómputo', `${fmt(S.segundos, 3)} s`) : []),
       ...(S.nodos != null ? dato('Nodos B&B', fmt(S.nodos, 0)) : []),
       ...(fecha ? dato('Generado', fecha) : [])),

@@ -25,7 +25,9 @@ TRPPD-H Visualizer/
 ├── e_vigo/                   banco original: edati.dat (demandas) y ecosti.dat (costos)
 ├── notebooks/
 │   ├── instancias_trppdh3.py crea Instancias/ a partir de e_vigo
-│   └── modelo_trppdh3.py     modelo en Gurobi; guarda las soluciones en Outputs/
+│   ├── modelo_trppdh3.py     modelo en Gurobi; guarda las soluciones en Outputs/
+│   ├── lote_trppdh3.py       las 4 variantes sobre un banco: lote_trppdh3.py B|E all|N
+│   └── ejecutables/          N10.bat … N60.bat y all.bat (Battarra y Erdogan)
 ├── Instancias/               390 instancias JSON: n ∈ {5, 10, 15, 20, 25, 30, 40, 50, 60}, id 1–10, h ∈ {0,1; 0,5; 1}
 ├── Outputs/                  soluciones en formato trppdh3-salida/1 (ver Outputs/README.md)
 │   ├── gurobi/{base, explicitacion, latencia, completo}/
@@ -83,7 +85,8 @@ en carpetas distintas:
 | `completo` | (1)–(29) |
 
 Las restricciones (20)–(29) no cambian el óptimo, solo el tiempo de
-ejecución, que la página compara en la sección Rendimiento.
+ejecución y, cuando se alcanza el límite de tiempo, el GAP final; la página
+compara ambos en la sección Rendimiento.
 
 La instancia y las variantes se eligen al inicio del archivo (`N`, `ID`, `H`,
 `RESTRICCIONES_20_23`, `RESTRICCIONES_24_29`, `LIMITE_TIEMPO`, `HILOS`); `N`,
@@ -97,8 +100,27 @@ python instancias_trppdh3.py   # crea Instancias/ (una sola vez)
 python modelo_trppdh3.py       # resuelve y guarda en Outputs/gurobi/
 ```
 
-Hoy `Outputs/` contiene las 30 instancias con n = 5 resueltas en las cuatro
-variantes y por enumeración exhaustiva; en todas se obtiene el mismo Σ Dᵢ.
+### Corridas por lote
+
+`notebooks/lote_trppdh3.py` resuelve las cuatro variantes sobre un banco
+completo o sobre algunos n, sin preguntar nada, de modo que se puede dejar
+corriendo o lanzar varios procesos en paralelo (uno por n):
+
+```bash
+cd notebooks
+python lote_trppdh3.py B all   # Battarra: n = 10, 15, 20, 25, 30, 40, 50, 60
+python lote_trppdh3.py E 30    # Erdogan, solo n = 30 (también 10,15 o 10-25)
+```
+
+Usa 1 hilo y 3 600 s por modelo, y después de cada modelo guarda el JSON y
+reescribe `gurobi_battarra.xlsx` o `gurobi_erdogan.xlsx` junto al script. Si se
+corta, al volver a ejecutarlo sigue donde quedó. Es autónomo: trae el modelo
+dentro y solo necesita la carpeta `Instancias/`.
+
+Hoy `Outputs/` contiene las 30 instancias con n = 5 (cuatro variantes y
+enumeración exhaustiva) y las 960 corridas por lote de Battarra n = 10–25 y
+Erdogan n = 30–60, resumidas en `Outputs/resumenes/gurobi_resultados.xlsx`
+(ver [Outputs/README.md](Outputs/README.md)).
 
 ## Visualizador web
 

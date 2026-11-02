@@ -2,13 +2,14 @@
 // las restricciones (20)-(23) y (24)-(29).
 //
 // A. Esta instancia: una barra por variante; la que se está mostrando va en tinta.
-// B. Todas las instancias con el mismo n: un punto por instancia en cada variante
-//    y una marca en la mediana; la instancia mostrada lleva un anillo.
-// Debajo, una tabla con la mediana, la media y el máximo de cada variante.
+// B. Todas las instancias con el mismo banco y n: un punto por instancia en cada
+//    variante y una marca en la mediana; la instancia mostrada lleva un anillo.
+// Debajo, una tabla con las óptimas, la mediana, la media y el máximo de cada variante.
 //
-// Los datos salen del manifest (segundos, segundosTotal y nodos de cada salida),
-// así que no hace falta abrir cada archivo. Clic en una barra o un punto abre
-// esa solución.
+// Los datos salen del manifest (segundos, segundosTotal, nodos y gap de cada
+// salida), así que no hace falta abrir cada archivo. Clic en una barra o un
+// punto abre esa solución. Con límite de tiempo los segundos se igualan y el GAP
+// es la medida que distingue a las variantes.
 import {
   VARIANTES, claveVariante, el, fmt, mostrarTooltip, moverTooltip, movimientoReducido, ocultarTooltip, svg,
 } from './util.js';
@@ -26,6 +27,10 @@ const METRICAS = {
     texto: 'Nodos B&B', unidad: '', decimales: 0,
     ayuda: 'Nodos del árbol de ramificación y acotamiento que explora Gurobi.',
   },
+  gap: {
+    texto: 'GAP', unidad: ' %', decimales: 2, escala: 100,
+    ayuda: 'Brecha final entre la mejor solución y la cota inferior (MIPGap); 0 % es óptimo probado.',
+  },
 };
 
 // Etiquetas cortas para el eje de las variantes
@@ -38,7 +43,9 @@ const mediana = (v) => {
   return o.length % 2 ? o[m] : (o[m - 1] + o[m]) / 2;
 };
 const media = (v) => v.reduce((s, x) => s + x, 0) / v.length;
-const mismaInstancia = (a, b) => a.instancia.n === b.instancia.n && a.instancia.id === b.instancia.id && a.instancia.h === b.instancia.h;
+// El nombre distingue los bancos (vigo_n30_id1_h0.1 y vigo_n30_id1_h0.1_Erdogan)
+const mismaInstancia = (a, b) => a.instancia.nombre === b.instancia.nombre;
+const mismoGrupo = (a, b) => a.instancia.n === b.instancia.n && a.instancia.banco === b.instancia.banco;
 
 /** Barra horizontal con el extremo de datos redondeado y el inicio recto, sobre el eje. */
 function barra(x0, x1, y, alto, r = 4) {
@@ -74,7 +81,7 @@ export function crear(raiz, estado, { manifest, actual, elegir }) {
 function montar(raiz, { manifest, actual, elegir, metrica, cambiarMetrica, sinAnimar = false }) {
   const d3 = window.d3;
   const M = METRICAS[metrica];
-  const valor = (s) => s[metrica];
+  const valor = (s) => (s[metrica] == null ? null : s[metrica] * (M.escala ?? 1));
   const texto = (v) => (v == null ? '—' : `${fmt(v, M.decimales)}${M.unidad}`);
 
   const conVariante = manifest.filter((s) => s.algoritmo.variante && valor(s) != null);
@@ -90,8 +97,9 @@ function montar(raiz, { manifest, actual, elegir, metrica, cambiarMetrica, sinAn
     v, s: conVariante.find((s) => claveVariante(s.algoritmo.variante) === v.clave && mismaInstancia(s, mostrada)) ?? null,
   }));
   const delN = VARIANTES.map((v) => ({
-    v, salidas: conVariante.filter((s) => claveVariante(s.algoritmo.variante) === v.clave && s.instancia.n === n),
+    v, salidas: conVariante.filter((s) => claveVariante(s.algoritmo.variante) === v.clave && mismoGrupo(s, mostrada)),
   }));
+  const grupo = `n = ${n} · banco ${mostrada.instancia.banco}`;
   const base = delInstancia[0].s;
 
   const ctx = gsap.context(() => {}, raiz);
@@ -108,42 +116,59 @@ function montar(raiz, { manifest, actual, elegir, metrica, cambiarMetrica, sinAn
     el('span', { class: 'rend-control__ayuda' }, M.ayuda));
 
   // --- A · Esta instancia --------------------------------------------------------
-  const objetivos = delInstancia.filter((d) => d.s).map((d) => d.s.objetivo);
+  const conSolucion = delInstancia.filter((d) => d.s);
+  const objetivos = conSolucion.map((d) => d.s.objetivo);
   const iguales = objetivos.every((o) => Math.abs(o - objetivos[0]) < 1e-4);
+  const sinProbar = conSolucion.filter((d) => d.s.estado && d.s.estado !== 'OPTIMAL').length;
+  // Con límite de tiempo cada variante informa su mejor solución: que difieran no es un error
+  const noProbaron = `${sinProbar} de ${conSolucion.length} ${sinProbar === 1 ? 'variante no probó' : 'variantes no probaron'}`;
+  const nota = sinProbar
+    ? {
+      clase: ' rend-nota--limite', icono: 'i',
+      html: (iguales
+        ? `Las ${objetivos.length} variantes llegan al mismo Σ D<sub>i</sub> = ${fmt(objetivos[0])}, pero ${noProbaron} que sea óptimo dentro del límite de tiempo.`
+        : `${noProbaron} el óptimo dentro del límite de tiempo: Σ D<sub>i</sub> es la mejor solución que encontró cada una (${objetivos.map((o) => fmt(o)).join(' · ')}); la menor es ${fmt(Math.min(...objetivos))}.`)
+        + (metrica === 'gap' ? '' : ' Elige la medida GAP para compararlas.'),
+    }
+    : iguales
+      ? { clase: '', icono: '✓', html: `Las ${objetivos.length} variantes llegan al mismo óptimo, Σ D<sub>i</sub> = ${fmt(objetivos[0])}: las restricciones (20)–(29) solo cambian el tiempo.` }
+      : { clase: ' rend-nota--error', icono: '!', html: `Las variantes no llegan al mismo Σ D<sub>i</sub> (${objetivos.map((o) => fmt(o)).join(' · ')}); revisa el estado de cada una.` };
   const marcoA = el('div', { class: 'rend-grafico' });
   const tarjetaA = el('article', { class: 'tarjeta rend-tarjeta', 'aria-labelledby': 'rend-a-titulo' },
     el('h3', { class: 'tarjeta__titulo', id: 'rend-a-titulo' }, `Esta instancia · ${mostrada.instancia.nombre}`),
     el('p', { class: 'rend-bajada', html: 'Una barra por variante del modelo; en tinta, la que se está mostrando. Clic en una barra para abrirla.' }),
     marcoA,
-    el('p', { class: `rend-nota${iguales ? '' : ' rend-nota--error'}` },
-      el('span', { class: 'rend-nota__icono', 'aria-hidden': 'true' }, iguales ? '✓' : '!'),
-      el('span', { html: iguales
-        ? `Las ${objetivos.length} variantes llegan al mismo óptimo, Σ D<sub>i</sub> = ${fmt(objetivos[0])}: las restricciones (20)–(29) solo cambian el tiempo.`
-        : `Las variantes no llegan al mismo Σ D<sub>i</sub> (${objetivos.map((o) => fmt(o)).join(' · ')}); revisa el estado de cada una.` })));
+    el('p', { class: `rend-nota${nota.clase}` },
+      el('span', { class: 'rend-nota__icono', 'aria-hidden': 'true' }, nota.icono),
+      el('span', { html: nota.html })));
 
-  // --- B · Todas las instancias con este n --------------------------------------
+  // --- B · Todas las instancias con este banco y n -------------------------------
   const marcoB = el('div', { class: 'rend-grafico' });
   const totalB = delN[0].salidas.length;
   const tarjetaB = el('article', { class: 'tarjeta rend-tarjeta', 'aria-labelledby': 'rend-b-titulo' },
-    el('h3', { class: 'tarjeta__titulo', id: 'rend-b-titulo' }, `Todas las instancias con n = ${n}`),
+    el('h3', { class: 'tarjeta__titulo', id: 'rend-b-titulo' }, `Todas las instancias con ${grupo}`),
     el('p', { class: 'rend-bajada', html: `Un punto por instancia (${totalB} combinaciones de ID y h) y una raya en la mediana. El anillo es la instancia mostrada.` }),
     marcoB);
 
   // --- Tabla resumen ------------------------------------------------------------
   const resumen = delN.map(({ v, salidas }) => {
     const vals = salidas.map(valor);
-    return { v, cantidad: vals.length, mediana: vals.length ? mediana(vals) : null, media: vals.length ? media(vals) : null, max: vals.length ? Math.max(...vals) : null };
+    return {
+      v, cantidad: vals.length, optimas: salidas.filter((s) => s.estado === 'OPTIMAL').length,
+      mediana: vals.length ? mediana(vals) : null, media: vals.length ? media(vals) : null, max: vals.length ? Math.max(...vals) : null,
+    };
   });
   const mediaBase = resumen[0].media;
   const tabla = el('article', { class: 'tarjeta rend-tarjeta rend-tarjeta--tabla', 'aria-labelledby': 'rend-t-titulo' },
-    el('h3', { class: 'tarjeta__titulo', id: 'rend-t-titulo' }, `Resumen por variante · n = ${n} · ${M.texto.toLowerCase()}`),
+    el('h3', { class: 'tarjeta__titulo', id: 'rend-t-titulo' }, `Resumen por variante · ${grupo} · ${M.texto.toLowerCase()}`),
     el('div', { class: 'tabla-desplazable' }, el('table', { class: 'tabla rend-tabla' },
-      el('thead', {}, el('tr', {}, ['Variante', 'Restricciones', 'Instancias', 'Mediana', 'Media', 'Máximo', 'Media vs (1)–(19)']
+      el('thead', {}, el('tr', {}, ['Variante', 'Restricciones', 'Instancias', 'Óptimas', 'Mediana', 'Media', 'Máximo', 'Media vs (1)–(19)']
         .map((h) => el('th', { scope: 'col' }, h)))),
       el('tbody', {}, resumen.map((r) => el('tr', { class: r.v.clave === claveActual ? 'resaltado' : '' },
         el('td', {}, CORTA[r.v.clave]),
         el('td', {}, r.v.etiqueta),
         el('td', {}, String(r.cantidad)),
+        el('td', {}, String(r.optimas)),
         el('td', {}, texto(r.mediana)),
         el('td', {}, texto(r.media)),
         el('td', {}, texto(r.max)),
@@ -214,7 +239,7 @@ function montar(raiz, { manifest, actual, elegir, metrica, cambiarMetrica, sinAn
     const relacion = base && s !== base && valor(base) > 0 ? `<br>× ${fmt(valor(s) / valor(base), 2)} respecto de (1)–(19)` : '';
     return `<strong>${v.etiqueta}</strong> · ${s.instancia.nombre}<br>`
       + `Resolución ${fmt(s.segundos, 3)} s · total ${fmt(s.segundosTotal, 3)} s<br>`
-      + `Nodos B&amp;B ${fmt(s.nodos, 0)}<br>`
+      + `Nodos B&amp;B ${fmt(s.nodos, 0)}${s.gap != null ? ` · GAP ${fmt(s.gap * 100, 2)} %` : ''}<br>`
       + `Σ D<sub>i</sub> = ${fmt(s.objetivo)}${s.estado ? ` (${ESTADOS[s.estado] ?? s.estado.toLowerCase()})` : ''}${relacion}`;
   }
 
@@ -270,7 +295,7 @@ function montar(raiz, { manifest, actual, elegir, metrica, cambiarMetrica, sinAn
     const alto = fila * VARIANTES.length;
     const todos = delN.flatMap((d) => d.salidas.map(valor));
     const x = d3.scaleLinear().domain([0, Math.max(...todos, 1e-9)]).nice(4).range([izq, ancho - der]);
-    const svgB = svg('svg', { class: 'rend-svg', viewBox: `0 0 ${ancho} ${alto + 28}`, width: ancho, height: alto + 28, role: 'img', 'aria-label': `${M.texto} de cada instancia con n = ${n}, por variante` });
+    const svgB = svg('svg', { class: 'rend-svg', viewBox: `0 0 ${ancho} ${alto + 28}`, width: ancho, height: alto + 28, role: 'img', 'aria-label': `${M.texto} de cada instancia con ${grupo}, por variante` });
     const guias = svg('g', { class: 'rend-guias' }, x.ticks(4).map((t) => svg('line', { x1: x(t), x2: x(t), y1: 0, y2: alto })));
     const filas = delN.map(({ v, salidas }, i) => {
       const y = i * fila + fila / 2;

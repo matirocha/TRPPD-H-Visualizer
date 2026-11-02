@@ -61,5 +61,7 @@
   background: var(--p1); color: var(--superficie); font: 700 12px/1 var(--f-texto);
 }
 .rend-nota--error .rend-nota__icono { background: var(--p2); }
+.rend-nota--limite .rend-nota__icono { background: var(--tinta-3); }
 
 .rend-tabla td:nth-child(2) { font-family: var(--f-texto); color: var(--tinta-2); }
+.rend-tabla td:not(:nth-child(2)) { white-space: nowrap; }

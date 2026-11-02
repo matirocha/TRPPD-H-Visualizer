@@ -13,7 +13,7 @@ Outputs/
     completo/       (1)-(29)
   enumeracion/      enumeración exhaustiva, n = 5 (generada con un script anterior)
   <algoritmo>/      cualquier algoritmo futuro
-  resumenes/        CSV de corridas anteriores
+  resumenes/        gurobi_resultados.xlsx (corridas por lote) y CSV de corridas anteriores
 ```
 
 Cada archivo se llama `<carpeta>/<instancia>.json`, por ejemplo
@@ -21,22 +21,37 @@ Cada archivo se llama `<carpeta>/<instancia>.json`, por ejemplo
 
 ## Contenido actual
 
-Las 30 instancias con n = 5 del banco de Battarra et al. (2010): ids 1 a 10 y
-h ∈ {0,1; 0,5; 1}, con u_a = ℓ_a = u_b = ℓ_b = h/2, resueltas con Gurobi en las
-cuatro variantes del modelo. Las restricciones (20)–(29) no cambian el óptimo:
-en las 30 instancias las cuatro variantes y la enumeración obtienen el mismo
-Σ D_i. Lo que cambia es el tiempo de ejecución, que la página compara en la
-sección Rendimiento.
+Todas con ids 1 a 10, h ∈ {0,1; 0,5; 1} y u_a = ℓ_a = u_b = ℓ_b = h/2, en las
+cuatro variantes del modelo:
+
+| n | Banco | Corridas | Cómo |
+|---|---|---|---|
+| 5 | Battarra et al. (2010) | 30 instancias × 4 variantes, más la enumeración | `modelo_trppdh3.py`, sin límite de tiempo |
+| 10, 15, 20, 25 | Battarra et al. (2010) | 120 instancias × 4 variantes | `lote_trppdh3.py B`, Gurobi 11.0.0, 1 hilo y 3 600 s por modelo |
+| 30, 40, 50, 60 | Erdoğan et al. (2012), sufijo `_Erdogan` | 120 instancias × 4 variantes | `lote_trppdh3.py E`, igual que arriba |
+
+Faltan las de Battarra con n = 30, 40, 50 y 60.
+
+Con n = 5 y n = 10 todas las variantes llegan al mismo óptimo Σ D_i; con n = 5
+también la enumeración. Desde n = 15 casi todas las corridas terminan por el
+límite de tiempo (estado `TIME_LIMIT`), así que su Σ D_i es la mejor solución
+encontrada y no un óptimo probado; la página lo indica y compara las variantes
+por el GAP en la sección Rendimiento. `resumenes/gurobi_resultados.xlsx` reúne
+las 960 corridas por lote: un resumen por banco y n, una fila por instancia, el
+detalle de cada corrida y las definiciones de cada columna.
 
 ```bash
 cd notebooks
 python instancias_trppdh3.py   # crea Instancias/ (una vez)
-python modelo_trppdh3.py       # resuelve la instancia N, ID, H del inicio del archivo
+python lote_trppdh3.py B all   # las 4 variantes en el banco de Battarra (E = Erdogan)
+python modelo_trppdh3.py       # una instancia suelta: N, ID, H del inicio del archivo
 ```
 
 En `modelo_trppdh3.py`, `RESTRICCIONES_20_23` y `RESTRICCIONES_24_29` aceptan
 `True`, `False` o `[False, True]` (resuelve con y sin ellas), y `N`, `ID` y `H`
-aceptan listas para resolver varias instancias seguidas.
+aceptan listas para resolver varias instancias seguidas. `lote_trppdh3.py`
+guarda los JSON y su Excel junto al script; para verlos en la página se copia
+su carpeta `gurobi` aquí.
 
 ## Formato `trppdh3-salida/1`
 
