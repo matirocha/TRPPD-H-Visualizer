@@ -115,10 +115,15 @@ export function tablaComparativa(opciones) {
       ];
     });
 
-    // Pie: promedios y cuántas instancias son óptimas en cada método
+    // Pie: promedios y cuántas instancias son óptimas en cada método. Los promedios se toman
+    // solo en las filas donde están todos los métodos, para que comparen las mismas instancias.
+    const completas = filas.filter((f) => f.celdas.slice(0, metodos.length).every((c) => c.s));
+    const rotuloPromedio = completas.length === filas.length
+      ? 'Promedio'
+      : el('span', { title: 'Solo las instancias que tienen resultados de todos los métodos' }, `Promedio (${completas.length} de ${filas.length})`);
     const pie = [
-      el('tr', {}, el('th', { scope: 'row', colspan: 2, class: 'rend-comp__fija' }, 'Promedio'), metodos.flatMap((_, k) => {
-        const conValor = filas.map((f) => f.celdas[k].s).filter(Boolean);
+      el('tr', {}, el('th', { scope: 'row', colspan: 2, class: 'rend-comp__fija' }, rotuloPromedio), metodos.flatMap((_, k) => {
+        const conValor = completas.map((f) => f.celdas[k].s);
         const t = media(conValor.map((s) => s.segundos).filter((x) => x != null));
         const o = media(conValor.map((s) => s.objetivo));
         return [el('td', {}, t == null ? '—' : segundos(t)), el('td', { class: 'rend-comp__fo' }, o == null ? '—' : fmt(o))];

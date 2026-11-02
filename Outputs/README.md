@@ -37,9 +37,20 @@ cuatro variantes del modelo:
 Faltan las de Battarra con n = 30, 40, 50 y 60.
 
 Las heurísticas de `erdogan/` (2 fases, ILS e ITS, con evaluación heurística o
-exacta) están corridas para las 30 instancias con n = 10 y las 30 con n = 15,
-con Node.js en un solo hilo (`npm run heuristicas -- 10,15` desde
-`Paginas Web/Pagina Web 1`). Sus
+exacta) están corridas, con Node.js en un solo hilo por proceso
+(`npm run heuristicas` desde `Paginas Web/Pagina Web 1`), para:
+
+| n | Banco | Instancias | Cómo |
+|---|---|---|---|
+| 10, 15, 20 | Battarra | 30 cada una | un proceso a la vez |
+| 25 | Battarra | 30 | 8 procesos en paralelo |
+| 30, 40, 50 | Battarra y Erdogan | 30 por banco | 8 procesos en paralelo |
+| 60 | Battarra y Erdogan | 15 por banco (ID 1, 2, 5, 6 y 9) | 8 procesos en paralelo, detenido a la mitad |
+
+Con 8 procesos a la vez el procesador baja su frecuencia: los tiempos de n ≥ 25
+salen ~1,4 veces más altos que con un proceso solo (Σ D_i no cambia, la semilla
+es fija). En n = 60 hay además 5 instancias con solo 2 fases e ILS heurístico
+(ID 3 y 7 con h = 0,1 en los dos bancos, ID 10 con h = 0,1 en Battarra). Sus
 JSON traen además, en `solucion`:
 
 | Campo | Qué es |

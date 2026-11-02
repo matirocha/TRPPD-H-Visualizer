@@ -157,7 +157,12 @@ instancia: GAP con la mejor cota inferior, GAP sol. entera con la mayor
 relajación lineal y desviación respecto del mejor Σ Dᵢ de Gurobi. Con n = 10
 los dos ILS llegan al óptimo de Gurobi en las 30 instancias en unos 0,03 s;
 con n = 15 igualan la mejor solución de Gurobi (3 600 s) en 29 y la mejoran en
-vigo_n15_id3_h1, en 0,1–0,2 s.
+vigo_n15_id3_h1, en 0,1–0,2 s; con n = 20, ILS exacto la iguala en 22 y la
+mejora en 8 (hasta 0,8 %), en unos 0,7 s. Desde n = 25 Gurobi termina siempre
+por el límite de tiempo y ILS exacto nunca queda peor: mejora su solución en
+promedio 0,35 % (n = 25), 0,59 % (30), 3,9 % (40), 10,6 % (50) y 13,9 % (60,
+15 instancias), en 3 a 260 s. Las corridas de n ≥ 25 se hicieron con 8 procesos
+en paralelo (ver [Outputs/README.md](Outputs/README.md)).
 
 ## Visualizador web
 

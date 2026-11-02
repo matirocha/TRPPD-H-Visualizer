@@ -9,8 +9,10 @@
 //   GAP sol. entera  (Σ D − mayor relajación lineal) / Σ D
 //   desviación       (Σ D − mejor Σ D de Gurobi) / mejor Σ D de Gurobi
 //
-// Uso: npm run heuristicas -- <n> [--alg a,b] [--iter 200] [--banco B|E]
-//   <n>: 10 · 10,15 · 10-25 · all
+// Uso: npm run heuristicas -- <n> [--alg a,b] [--iter 200] [--banco B|E] [--id 1-5] [--sin-resumen]
+//   <n> e --id: 10 · 10,15 · 10-25 · all
+//   --sin-resumen  no reescribe el CSV (para correr varios procesos en paralelo)
+//   npm run heuristicas -- --resumen   solo reescribe el CSV con lo que hay en Outputs/erdogan
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { ALGORITMOS, resolver, semillaDe } from '../lib/heuristicas.js';
@@ -28,16 +30,21 @@ const NOMBRES = {
 };
 
 function argumentos(argv) {
-  const opciones = { n: null, algoritmos: Object.keys(ALGORITMOS), iteraciones: 200, banco: null };
+  const opciones = {
+    n: null, algoritmos: Object.keys(ALGORITMOS), iteraciones: 200, banco: null, id: 'all', resumen: true, soloResumen: false,
+  };
   for (let k = 0; k < argv.length; k++) {
     const a = argv[k];
     if (a === '--alg') opciones.algoritmos = argv[++k].split(',');
     else if (a === '--iter') opciones.iteraciones = Number(argv[++k]);
     else if (a === '--banco') opciones.banco = { B: 'Battarra', E: 'Erdogan' }[argv[++k].toUpperCase()];
+    else if (a === '--id') opciones.id = argv[++k];
+    else if (a === '--sin-resumen') opciones.resumen = false;
+    else if (a === '--resumen') opciones.soloResumen = true;
     else opciones.n = a;
   }
-  if (!opciones.n) {
-    console.error('Uso: npm run heuristicas -- <n> [--alg a,b] [--iter 200] [--banco B|E]');
+  if (!opciones.n && !opciones.soloResumen) {
+    console.error('Uso: npm run heuristicas -- <n> [--alg a,b] [--iter 200] [--banco B|E] [--id 1-5] [--sin-resumen]');
     process.exit(1);
   }
   const malos = opciones.algoritmos.filter((a) => !ALGORITMOS[a]);
@@ -155,11 +162,16 @@ async function escribirResumen() {
 }
 
 const opciones = argumentos(process.argv.slice(2));
+if (opciones.soloResumen) {
+  const { destino, filas } = await escribirResumen();
+  console.log(`Resumen de ${filas} corridas en ${destino}`);
+  process.exit(0);
+}
 const archivos = (await readdir(INSTANCIAS)).filter((a) => a.endsWith('.json')).sort();
 const instancias = [];
 for (const archivo of archivos) {
   const inst = JSON.parse(await readFile(path.join(INSTANCIAS, archivo), 'utf8'));
-  if (!aceptaN(opciones.n, inst.n)) continue;
+  if (!aceptaN(opciones.n, inst.n) || !aceptaN(opciones.id, inst.id)) continue;
   if (opciones.banco && bancoDe(inst.nombre) !== opciones.banco) continue;
   instancias.push(inst);
 }
@@ -196,5 +208,7 @@ for (const [clave, sols] of Object.entries(acumulado)) {
     `${desv.filter((x) => x <= 1e-6).length}/${sols.length}`.padStart(10),
   ].join(' '));
 }
-const { destino, filas } = await escribirResumen();
-console.log(`\nResumen de ${filas} corridas en ${destino}`);
+if (opciones.resumen) {
+  const { destino, filas } = await escribirResumen();
+  console.log(`\nResumen de ${filas} corridas en ${destino}`);
+}

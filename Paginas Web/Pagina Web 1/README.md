@@ -24,7 +24,7 @@ para ver sus soluciones. En la versión publicada (Vercel), los cambios en
 | `npm run dev` | igual, reiniciando el servidor al editar `server.js` |
 | `npm run verificar` | recorre cada solución de `Outputs` con la simulación de la página y la compara con lo reportado |
 | `npm run exportar` | copia la página, sus librerías y las soluciones en `dist/` para un hosting estático |
-| `npm run heuristicas -- <n>` | corre las heurísticas de Erdoğan et al. (2012) adaptadas sobre las instancias con ese n (`10`, `10,15`, `10-25` o `all`) y las guarda en `Outputs/erdogan`; opciones `--alg ils_exacto,its_exacto`, `--iter 200`, `--banco B\|E` |
+| `npm run heuristicas -- <n>` | corre las heurísticas de Erdoğan et al. (2012) adaptadas sobre las instancias con ese n (`10`, `10,15`, `10-25` o `all`) y las guarda en `Outputs/erdogan`; opciones `--alg ils_exacto,its_exacto`, `--iter 200`, `--banco B\|E`, `--id 1-5`. Para repartir un lote en varios procesos se usa `--sin-resumen` en cada uno y al final `npm run heuristicas -- --resumen`, que reescribe `Outputs/resumenes/heuristicas_erdogan.csv` |
 
 La página acepta `?s=<algoritmo>/<instancia>.json` en la URL para abrir una
 solución concreta, por ejemplo `?s=gurobi/base/vigo_n5_id3_h1.json`.

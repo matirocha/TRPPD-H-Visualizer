@@ -1,0 +1,356 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-noshorthands]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage[margin=2.3cm]{geometry}
+
+\renewcommand{\familydefault}{\sfdefault}
+
+% --- Estilo en español ---
+\floatname{algorithm}{Algoritmo}
+\renewcommand{\algorithmicrequire}{\textbf{Entrada:}}
+\renewcommand{\algorithmicensure}{\textbf{Salida:}}
+\algrenewcommand{\algorithmiccomment}[1]{\hfill{\small // #1}}
+
+% Nombres de las rutinas
+\newcommand{\EvalE}{\mbox{\textsc{EvalExacta}}}
+\newcommand{\EvalH}{\mbox{\textsc{EvalHeur}}}
+\newcommand{\Niter}{N_{\mathit{iter}}}
+\newcommand{\Nrand}{N_{\mathit{rand}}}
+
+\title{Pseudocódigos de las heurísticas de Erdoğan et al.\ (2012)\\ adaptadas al TRPPD-H$_3$}
+\author{Taller de investigación}
+\date{Noviembre de 2026}
+
+\begin{document}
+\maketitle
+
+\section*{Notación}
+
+\begin{itemize}
+    \item Una ruta es $\pi = (\pi_1,\dots,\pi_n)$, con los clientes en el orden de visita; $\pi_0 = 0$ es el depósito.
+    \item En la posición $k$, una operación anterior a completar la entrega retrasa al cliente $\pi_k$ y a los siguientes: pesa $W_k = n - k + 1$ en $\sum_i D_i$. Una operación posterior pesa $W_k - 1$.
+    \item $h_a = u_a + \ell_a$ y $h_b = u_b + \ell_b$. La política del cliente $i$ es $s_i = 1$ (Política~1) o $s_i = 0$ (Política~2).
+    \item La carga a bordo no depende de las políticas: $\pi$ respeta $Q$ si $\sum_{r \in V_c} \alpha_r + \sum_{m=1}^{k} (\beta_{\pi_m} - \alpha_{\pi_m}) \le Q$ para todo $k \in \{0,\dots,n\}$.
+    \item Vecindario $\mathcal{N}(\pi)$ (Sección~3 del artículo): las rutas que respetan $Q$ y se obtienen con
+          $\textsc{Relocate}(\pi, i, p)$, que lleva el cliente de la posición $i$ a la posición $p$, o con
+          $\textsc{DosOpt}(\pi, i, j)$, $i < j$, que invierte $\pi_i,\dots,\pi_j$ (cambia los arcos $(\pi_{i-1}, \pi_i)$ y $(\pi_j, \pi_{j+1})$, con $\pi_{n+1} = 0$).
+    \item Atributo tabú $a(\sigma)$ del movimiento que produce $\sigma$: el cliente $v$ en un relocate, $(v, v)$; las posiciones $(i, j)$ en un 2-opt.
+    \item Parámetros del artículo: $\Niter = 200$, $\Nrand = \max\{1, \mathrm{round}(0{,}1\,n)\}$, lista tabú de largo $L = \max\{1, \lfloor 0{,}5\,n \rfloor\}$ y $N^* = \lfloor \sqrt{\Niter} \rfloor = 14$ en ITS.
+    \item \emph{Exacto} y \emph{heurístico} se refieren a cómo se evalúan los vecinos: con \EvalE\ (Algoritmo~\ref{alg:exacta}, $O(n^2)$) o con \EvalH\ (Algoritmo~\ref{alg:heur}, $O(n)$). En la versión heurística el vecino elegido se vuelve a evaluar con \EvalE, así que los costos que se comparan son siempre exactos.
+\end{itemize}
+
+\section{Evaluación de una ruta}
+
+\begin{algorithm}[H]
+\caption{$P(\pi, \alpha, \beta, u_b, \ell_b, h_a)$ \quad (Algoritmo~2.1 adaptado)}
+\label{alg:P}
+\begin{algorithmic}[1]
+\Require ruta $\pi$ con $n$ clientes;
+         $\alpha_j, \beta_j$: unidades de entrega y recogida del cliente $j$;
+         $u_b, \ell_b$: tiempos de descargar y cargar una recogida;
+         $h_a$: tiempo de retirar y recargar una entrega.
+\Ensure Costos $p_{ij}$ de aplicar la Política~1 en $i+1,\dots,j-1$ y la Política~2 en $j$, $\forall\, i \in \{0,\dots,n-1\},\ j \in \{i+1,\dots,n\}$.
+\For{$i \gets 0$ \textbf{to} $n-1$}
+    \State $\beta' \gets 0$;\ \ $\theta \gets 0$ \Comment{se aplicó la Pol.~2 en $i$}
+    \State $\alpha' \gets \sum_{m=i+1}^{n} \alpha_{\pi_m}$ \Comment{entregas que aún quedan a bordo}
+    \For{$j \gets i+1$ \textbf{to} $n$}
+        \State $W \gets n - j + 1$ \Comment{peso de latencia en la posición $j$}
+        \State $\alpha' \gets \alpha' - \alpha_{\pi_j}$ \Comment{entregar, con Pol.~1 o 2}
+        \State $b \gets \big(u_b W + \ell_b (W-1)\big)\,\beta'$ \Comment{retirar y recargar las recogidas de la puerta}
+        \If{$\beta' + \beta_{\pi_j} > 0$} \Comment{costo Pol.~1 hasta aquí $+$ costo Pol.~2}
+            \State $p_{ij} \gets \theta + b + h_a\,\alpha'\,(W-1)$
+        \Else
+            \State $p_{ij} \gets \theta + b$ \Comment{sin recogidas, la Pol.~2 equivale a la 1}
+        \EndIf
+        \State $\theta \gets \theta + b$ \Comment{Política~1 en $j$}
+        \State $\beta' \gets \beta' + \beta_{\pi_j}$ \Comment{recoger como si se usara la Pol.~1}
+    \EndFor
+\EndFor
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\caption{$\EvalE(\pi)$ \quad (Algoritmo~2.1 y DP (1)--(2))}
+\label{alg:exacta}
+\begin{algorithmic}[1]
+\Require ruta $\pi$; datos de la instancia: $c_{ij}$, $\alpha_j$, $\beta_j$, $u_a$, $\ell_a$, $u_b$, $\ell_b$ y $Q$.
+\Ensure $\sum_i D_i$ mínimo de la ruta y las políticas $s$ que lo logran; $\infty$ si $\pi$ no respeta $Q$.
+\If{$\pi$ no respeta $Q$}
+    \State \Return $\infty$
+\EndIf
+\State $F \gets \sum_{k=1}^{n} \big[ W_k \,(c_{\pi_{k-1}\pi_k} + u_a \alpha_{\pi_k}) + (W_k - 1)\,\ell_b \beta_{\pi_k} \big]$ \Comment{viaje y operaciones obligatorias}
+\State calcular $p_{ij}$ con el Algoritmo~\ref{alg:P}
+\State $f(n) \gets 0$
+\For{$i \gets n-1$ \textbf{downto} $0$} \Comment{$f(i)$: Pol.~2 aplicada en $i$}
+    \State $f(i) \gets \min_{j \in \{i+1,\dots,n\}} \{ p_{ij} + f(j) \}$;\ \ $\mathit{sig}(i) \gets$ el $j$ del mínimo
+\EndFor
+\State $s_{\pi_k} \gets 1$ $\forall\, k$;\ \ $i \gets 0$ \Comment{reconstruir las políticas}
+\While{$i < n$}
+    \State $j \gets \mathit{sig}(i)$
+    \If{$j < n$ \textbf{and} $\sum_{m=i+1}^{j} \beta_{\pi_m} > 0$}
+        \State $s_{\pi_j} \gets 0$ \Comment{Política~2 en $j$}
+    \EndIf
+    \State $i \gets j$
+\EndWhile
+\State \Return $F + f(0)$, $s$
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\caption{$\textsc{Umbral}(i, \pi)$ \quad (Sección~2.2, umbral~2)}
+\label{alg:umbral}
+\begin{algorithmic}[1]
+\Require posición $i$ de la última Política~2 ($i = 0$: depósito); ruta $\pi$; $h_a$, $h_b$.
+\Ensure Recogidas junto a la puerta con las que se aplica la próxima Política~2; $\infty$ si no conviene.
+\State $N \gets n - i$ \Comment{clientes que faltan}
+\State $\bar\alpha \gets \frac{1}{N} \sum_{m=i+1}^{n} \alpha_{\pi_m}$;\ \ $\bar\beta \gets \frac{1}{N} \sum_{m=i+1}^{n} \beta_{\pi_m}$ \Comment{caso especial con promedios}
+\If{$N < 2$ \textbf{or} $\bar\beta = 0$}
+    \State \Return $\infty$
+\EndIf
+\State $r \gets h_b \bar\beta / (h_a \bar\alpha)$
+\State $p^* \gets \big\lfloor \big(1 - 2r + \sqrt{(2r-1)^2 + 8Nr}\big) / 2 \big\rfloor$ \Comment{fórmula (14)}
+\If{$p^* < 2$}
+    \State \Return $\infty$ \Comment{una sola Pol.~2 al final no ahorra}
+\EndIf
+\State $k_1^* \gets \max\big\{1,\ \frac{p^* - 1}{2r} + \frac{N}{p^*}\big\}$ \Comment{fórmula (13) con $i = 1$}
+\State \Return $k_1^* \bar\beta$
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\caption{$\EvalH(\pi)$ \quad (evaluación lineal de la Sección~2.2)}
+\label{alg:heur}
+\begin{algorithmic}[1]
+\Require ruta $\pi$; datos de la instancia.
+\Ensure $\sum_i D_i$ de la ruta con las políticas que da el umbral, y esas políticas; $\infty$ si $\pi$ no respeta $Q$.
+\If{$\pi$ no respeta $Q$}
+    \State \Return $\infty$
+\EndIf
+\State $F \gets$ viaje y operaciones obligatorias, como en el Algoritmo~\ref{alg:exacta}
+\State $\beta' \gets 0$;\ \ $\theta \gets 0$;\ \ $\tau \gets \textsc{Umbral}(0, \pi)$
+\For{$j \gets 1$ \textbf{to} $n$}
+    \State $W \gets n - j + 1$
+    \State $\theta \gets \theta + \big(u_b W + \ell_b (W-1)\big)\,\beta'$ \Comment{retirar y recargar las recogidas de la puerta}
+    \If{$j < n$ \textbf{and} $\beta' + \beta_{\pi_j} > 0$ \textbf{and} $\beta' + \beta_{\pi_j} \ge \tau$}
+        \State $\theta \gets \theta + h_a\,(W-1) \sum_{m=j+1}^{n} \alpha_{\pi_m}$ \Comment{Política~2 en $j$}
+        \State $s_{\pi_j} \gets 0$;\ \ $\beta' \gets 0$;\ \ $\tau \gets \textsc{Umbral}(j, \pi)$ \Comment{nuevo umbral}
+    \Else
+        \State $s_{\pi_j} \gets 1$;\ \ $\beta' \gets \beta' + \beta_{\pi_j}$ \Comment{Política~1 en $j$}
+    \EndIf
+\EndFor
+\State \Return $F + \theta$, $s$
+\end{algorithmic}
+\end{algorithm}
+
+\section{Heurística de 2 fases}
+
+\begin{algorithm}[H]
+\caption{$\textsc{TSP}(V, c)$ \quad (fase~1)}
+\label{alg:tsp}
+\begin{algorithmic}[1]
+\Require nodos $V = \{0,\dots,n\}$ ($0$: depósito); tiempos de viaje $c_{ij}$.
+\Ensure Ciclo hamiltoniano $C$ por el depósito y los clientes, de largo $L(C) = \sum_{(i,j) \in C} c_{ij}$.
+\State $C \gets \emptyset$;\ \ $L(C) \gets \infty$
+\ForAll{$v \in V$} \Comment{el artículo usa Lin--Kernighan}
+    \State $C' \gets$ ciclo del vecino más cercano que parte en $v$
+    \Repeat \Comment{primera mejora}
+        \State $\mathit{mejora} \gets \textbf{false}$
+        \If{invertir un tramo de $C'$ (2-opt) reduce $L(C')$}
+            \State aplicar ese 2-opt;\ \ $\mathit{mejora} \gets \textbf{true}$
+        \ElsIf{mover un tramo de 1 a 3 nodos, en cualquier sentido (Or-opt), reduce $L(C')$}
+            \State aplicar ese Or-opt;\ \ $\mathit{mejora} \gets \textbf{true}$
+        \EndIf
+    \Until{\textbf{not} $\mathit{mejora}$}
+    \If{$L(C') < L(C)$}
+        \State $C \gets C'$
+    \EndIf
+\EndFor
+\State \Return $C$
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\caption{$\textsc{DosFases}(V, c)$ \quad (TSP $+$ Algoritmo~2.1)}
+\label{alg:dosfases}
+\begin{algorithmic}[1]
+\Require instancia del TRPPD-H$_3$: nodos $V$, tiempos $c_{ij}$ y los datos de \EvalE.
+\Ensure Soluciones iniciales $\pi^{\mathrm{tsp}}$ y $\pi^{\mathrm{inv}}$, una por sentido del ciclo TSP; la mejor de las dos es la solución de la heurística de 2 fases.
+\State $C \gets \textsc{TSP}(V, c)$ \Comment{fase~1}
+\State $\sigma^{\mathrm{tsp}} \gets$ clientes de $C$ en su orden, sin el depósito
+\State $\sigma^{\mathrm{inv}} \gets \sigma^{\mathrm{tsp}}$ en orden inverso
+\ForAll{$d \in \{\mathrm{tsp}, \mathrm{inv}\}$}
+    \State $(\sigma_1,\dots,\sigma_n) \gets \sigma^d$;\ \ $z^d \gets \infty$
+    \For{$r \gets 0$ \textbf{to} $n-1$} \Comment{fase~2: reubicar el depósito}
+        \State $\pi \gets (\sigma_{r+1},\dots,\sigma_n,\sigma_1,\dots,\sigma_r)$ \Comment{el depósito va antes de $\sigma_{r+1}$}
+        \State $z \gets \EvalE(\pi)$ \Comment{$\infty$ si no respeta $Q$}
+        \If{$z < z^d$}
+            \State $\pi^d \gets \pi$;\ \ $z^d \gets z$
+        \EndIf
+    \EndFor
+\EndFor
+\State \Return $\pi^{\mathrm{tsp}}, \pi^{\mathrm{inv}}$
+\end{algorithmic}
+\end{algorithm}
+
+\section{Metaheurísticas}
+
+\begin{algorithm}[H]
+\caption{$\textsc{Perturbar}(\pi, \Nrand)$}
+\label{alg:perturbar}
+\begin{algorithmic}[1]
+\Require ruta $\pi$; $\Nrand$: número de movimientos al azar.
+\Ensure Ruta perturbada que respeta $Q$.
+\For{$r \gets 1$ \textbf{to} $\Nrand$}
+    \Repeat \Comment{a lo más 100 intentos}
+        \State elegir $i, j \in \{1,\dots,n\}$ al azar
+        \If{$i = j$}
+            \State elegir $p \in \{1,\dots,n\} \setminus \{i\}$ al azar;\ \ $\pi' \gets \textsc{Relocate}(\pi, i, p)$
+        \Else
+            \State $\pi' \gets \textsc{DosOpt}(\pi, \min\{i,j\}, \max\{i,j\})$
+        \EndIf
+    \Until{$\pi'$ respeta $Q$}
+    \If{$\pi'$ respeta $Q$}
+        \State $\pi \gets \pi'$
+    \EndIf
+\EndFor
+\State \Return $\pi$
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\caption{$\textsc{ILS-Exacto}(\pi^0, \Niter, \Nrand)$ \quad (Algoritmo~4.2)}
+\label{alg:ilse}
+\begin{algorithmic}[1]
+\Require solución inicial $\pi^0$ de la heurística de 2 fases; $\Niter$: iteraciones; $\Nrand$: movimientos al azar por perturbación.
+\Ensure Mejor ruta encontrada $\pi^*$ y su $\sum_i D_i$, $z^*$.
+\State $\pi^* \gets \pi^0$;\ \ $z^* \gets \EvalE(\pi^0)$
+\For{$it \gets 1$ \textbf{to} $\Niter$}
+    \State $\pi \gets \textsc{Perturbar}(\pi^*, \Nrand)$;\ \ $z \gets \EvalE(\pi)$
+    \Repeat \Comment{búsqueda local con mejor mejora}
+        \State $\pi' \gets \arg\min_{\sigma \in \mathcal{N}(\pi)} \EvalE(\sigma)$ \Comment{todos los vecinos con el DP}
+        \State $z' \gets \EvalE(\pi')$ \Comment{ya calculado al explorar}
+        \State $\mathit{mejora} \gets (z' < z)$
+        \If{$\mathit{mejora}$}
+            \State $\pi \gets \pi'$;\ \ $z \gets z'$
+        \EndIf
+    \Until{\textbf{not} $\mathit{mejora}$}
+    \If{$z < z^*$} \Comment{se conserva la mejor ruta}
+        \State $\pi^* \gets \pi$;\ \ $z^* \gets z$
+    \EndIf
+\EndFor
+\State \Return $\pi^*, z^*$
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\caption{$\textsc{ILS-Heur}(\pi^0, \Niter, \Nrand)$ \quad (Algoritmo~4.2 con evaluación heurística)}
+\label{alg:ilsh}
+\begin{algorithmic}[1]
+\Require solución inicial $\pi^0$ de la heurística de 2 fases; $\Niter$: iteraciones; $\Nrand$: movimientos al azar por perturbación.
+\Ensure Mejor ruta encontrada $\pi^*$ y su $\sum_i D_i$ exacto, $z^*$.
+\State $\pi^* \gets \pi^0$;\ \ $z^* \gets \EvalE(\pi^0)$
+\For{$it \gets 1$ \textbf{to} $\Niter$}
+    \State $\pi \gets \textsc{Perturbar}(\pi^*, \Nrand)$;\ \ $z \gets \EvalE(\pi)$
+    \Repeat \Comment{búsqueda local con mejor mejora}
+        \State $\pi' \gets \arg\min_{\sigma \in \mathcal{N}(\pi)} \EvalH(\sigma)$ \Comment{todos los vecinos con el umbral}
+        \State $z' \gets \EvalE(\pi')$ \Comment{reevaluar solo el vecino elegido}
+        \State $\mathit{mejora} \gets (z' < z)$
+        \If{$\mathit{mejora}$}
+            \State $\pi \gets \pi'$;\ \ $z \gets z'$
+        \EndIf
+    \Until{\textbf{not} $\mathit{mejora}$}
+    \If{$z < z^*$}
+        \State $\pi^* \gets \pi$;\ \ $z^* \gets z$
+    \EndIf
+\EndFor
+\State \Return $\pi^*, z^*$
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\caption{$\textsc{ITS-Exacto}(\pi^0, \Niter, \Nrand)$ \quad (Algoritmos~4.3 y 4.1)}
+\label{alg:itse}
+\begin{algorithmic}[1]
+\Require solución inicial $\pi^0$ de la heurística de 2 fases; $\Niter$; $\Nrand$: movimientos al azar por perturbación.
+\Ensure Mejor ruta encontrada $\pi^*$ y su $\sum_i D_i$, $z^*$.
+\State $N^* \gets \lfloor \sqrt{\Niter} \rfloor$;\ \ $L \gets \max\{1, \lfloor n/2 \rfloor\}$ \Comment{iteraciones y largo de la lista tabú}
+\State $\pi^* \gets \pi^0$;\ \ $z^* \gets \EvalE(\pi^0)$
+\For{$it \gets 1$ \textbf{to} $N^*$}
+    \State $\pi \gets \textsc{Perturbar}(\pi^*, \Nrand)$;\ \ $z \gets \EvalE(\pi)$
+    \State $\pi^b \gets \pi$;\ \ $z^b \gets z$;\ \ $T \gets ()$ \Comment{búsqueda tabú desde $\pi$}
+    \For{$t \gets 1$ \textbf{to} $N^*$}
+        \State $\mathcal{A} \gets \{ \sigma \in \mathcal{N}(\pi) : a(\sigma) \notin T \ \lor\ \EvalE(\sigma) < z^b \}$ \Comment{no tabú o aspiración}
+        \If{$\mathcal{A} = \emptyset$}
+            \State \textbf{break}
+        \EndIf
+        \State $\pi \gets \arg\min_{\sigma \in \mathcal{A}} \EvalE(\sigma)$;\ \ $z \gets \EvalE(\pi)$ \Comment{se mueve aunque empeore}
+        \State agregar $a(\pi)$ al final de $T$; si $|T| > L$, quitar el más antiguo
+        \If{$z < z^b$}
+            \State $\pi^b \gets \pi$;\ \ $z^b \gets z$
+        \EndIf
+    \EndFor
+    \If{$z^b < z^*$}
+        \State $\pi^* \gets \pi^b$;\ \ $z^* \gets z^b$
+    \EndIf
+\EndFor
+\State \Return $\pi^*, z^*$
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\caption{$\textsc{ITS-Heur}(\pi^0, \Niter, \Nrand)$ \quad (Algoritmos~4.3 y 4.1 con evaluación heurística)}
+\label{alg:itsh}
+\begin{algorithmic}[1]
+\Require solución inicial $\pi^0$ de la heurística de 2 fases; $\Niter$; $\Nrand$: movimientos al azar por perturbación.
+\Ensure Mejor ruta encontrada $\pi^*$ y su $\sum_i D_i$ exacto, $z^*$.
+\State $N^* \gets \lfloor \sqrt{\Niter} \rfloor$;\ \ $L \gets \max\{1, \lfloor n/2 \rfloor\}$
+\State $\pi^* \gets \pi^0$;\ \ $z^* \gets \EvalE(\pi^0)$
+\For{$it \gets 1$ \textbf{to} $N^*$}
+    \State $\pi \gets \textsc{Perturbar}(\pi^*, \Nrand)$;\ \ $z \gets \EvalE(\pi)$
+    \State $\pi^b \gets \pi$;\ \ $z^b \gets z$;\ \ $T \gets ()$
+    \For{$t \gets 1$ \textbf{to} $N^*$}
+        \State $\mathcal{A} \gets \{ \sigma \in \mathcal{N}(\pi) : a(\sigma) \notin T \ \lor\ \EvalH(\sigma) < z^b \}$ \Comment{aspiración con el umbral}
+        \If{$\mathcal{A} = \emptyset$}
+            \State \textbf{break}
+        \EndIf
+        \State $\pi \gets \arg\min_{\sigma \in \mathcal{A}} \EvalH(\sigma)$ \Comment{vecinos con el umbral}
+        \State $z \gets \EvalE(\pi)$ \Comment{reevaluar solo el movimiento elegido}
+        \State agregar $a(\pi)$ al final de $T$; si $|T| > L$, quitar el más antiguo
+        \If{$z < z^b$}
+            \State $\pi^b \gets \pi$;\ \ $z^b \gets z$
+        \EndIf
+    \EndFor
+    \If{$z^b < z^*$}
+        \State $\pi^* \gets \pi^b$;\ \ $z^* \gets z^b$
+    \EndIf
+\EndFor
+\State \Return $\pi^*, z^*$
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\caption{$\textsc{Resolver}(M, \Niter, \Nrand)$ \quad (versión 2dir)}
+\label{alg:resolver}
+\begin{algorithmic}[1]
+\Require método $M \in \{\textsc{ILS-Exacto}, \textsc{ILS-Heur}, \textsc{ITS-Exacto}, \textsc{ITS-Heur}\}$; $\Niter$; $\Nrand$.
+\Ensure Ruta $\pi^*$, políticas $s$ y $\sum_i D_i$ de la mejor solución.
+\State $(\pi^{\mathrm{tsp}}, \pi^{\mathrm{inv}}) \gets \textsc{DosFases}(V, c)$
+\State $z^* \gets \infty$
+\ForAll{$\pi^0 \in \{\pi^{\mathrm{tsp}}, \pi^{\mathrm{inv}}\}$} \Comment{una corrida desde cada sentido}
+    \State $(\pi, z) \gets M(\pi^0, \Niter, \Nrand)$
+    \If{$z < z^*$}
+        \State $\pi^* \gets \pi$;\ \ $z^* \gets z$
+    \EndIf
+\EndFor
+\State $(z^*, s) \gets \EvalE(\pi^*)$ \Comment{políticas óptimas de la ruta final}
+\State \Return $\pi^*, s, z^*$
+\end{algorithmic}
+\end{algorithm}
+
+En la heurística de 2 fases no hay búsqueda: su solución es la mejor entre $\pi^{\mathrm{tsp}}$ y $\pi^{\mathrm{inv}}$, con las políticas que da \EvalE. Los movimientos al azar usan un generador con semilla fija por instancia y algoritmo, de modo que cada corrida se puede repetir.
+
+\end{document}
