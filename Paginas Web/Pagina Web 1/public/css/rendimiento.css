@@ -70,3 +70,48 @@
 
 .rend-tabla td:nth-child(2) { font-family: var(--f-texto); color: var(--tinta-2); }
 .rend-tabla td:not(:nth-child(2)) { white-space: nowrap; }
+
+/* --- Tabla comparativa por instancia (comparativa.js) ----------------------
+   Dos columnas por método (tiempo y Σ D) separadas por una regla vertical;
+   la marca ópt./c.s. va en tinta, sin los colores reservados a las políticas. */
+.rend-comp__tabla { min-width: 0; font-size: 12.5px; }
+.rend-comp__tabla th, .rend-comp__tabla td { white-space: nowrap; padding: 6px 6px; }
+.rend-comp__tabla th.rend-comp__grupo { padding-inline: 4px; }
+.rend-comp__tabla col.rend-comp__metodo { border-left: 1px solid var(--regla); }
+.rend-comp .rend-comp__tabla thead th.rend-comp__grupo { text-align: center; border-bottom-color: var(--regla-2); }
+.rend-comp__variante {
+  display: block; margin-top: 3px; font: 500 11px/1.2 var(--f-mono); letter-spacing: 0; text-transform: none; color: var(--tinta-3);
+}
+.rend-comp .rend-comp__tabla thead tr + tr th { text-align: right; text-transform: none; letter-spacing: 0.02em; font-size: 12px; }
+.rend-comp .rend-comp__tabla tfoot td { text-align: right; }
+.rend-comp .rend-comp__tabla td.rend-comp__conteo { text-align: center; font-family: var(--f-texto); }
+.rend-comp__tabla tfoot th {
+  text-align: left; font: 600 12px/1.2 var(--f-texto); letter-spacing: 0; text-transform: none; color: var(--tinta); border-bottom: 0;
+}
+.rend-comp__tabla tfoot tr:first-child > * { border-top: 1px solid var(--regla); }
+
+/* ID y h quedan fijos al desplazar la tabla en pantallas angostas */
+.rend-comp__fija { position: sticky; left: 0; z-index: 1; background: var(--superficie); }
+.rend-comp__tabla .rend-comp__id { box-sizing: border-box; width: 40px; min-width: 40px; max-width: 40px; }
+.rend-comp__tabla .rend-comp__h { left: 40px; box-shadow: inset -1px 0 0 var(--regla); }
+.rend-comp__tabla thead .rend-comp__h { text-transform: none; }
+.rend-comp__tabla tbody tr:hover .rend-comp__fija,
+.rend-comp__tabla tbody tr.resaltado .rend-comp__fija {
+  background: linear-gradient(rgb(255 226 138 / 0.4), rgb(255 226 138 / 0.4)), var(--superficie);
+}
+
+.rend-comp__tiempo { color: var(--tinta-2); }
+.rend-comp__vacia { color: var(--tinta-3); }
+.rend-comp__abrir {
+  font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer;
+  text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 3px;
+}
+.rend-comp__abrir:hover, .rend-comp__abrir:focus-visible { text-decoration-color: currentColor; }
+.rend-comp__mejor { font-weight: 600; color: var(--tinta); }
+.rend-comp__actual { box-shadow: inset 0 -2px 0 var(--tinta); }
+.rend-comp__marca {
+  display: inline-block; margin-left: 4px; padding: 1px 4px; border-radius: 999px; vertical-align: 1px;
+  font: 600 9.5px/1.25 var(--f-texto); letter-spacing: 0;
+}
+.rend-comp__marca--opt { background: var(--tinta); color: var(--superficie); }
+.rend-comp__marca--cs { padding: 0 3px; border: 1px solid var(--tinta-3); color: var(--tinta-2); }

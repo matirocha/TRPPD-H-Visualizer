@@ -47,6 +47,30 @@
 .mapa-svg { display: block; width: 100%; height: auto; overflow: hidden; touch-action: manipulation; }
 .mapa-svg text { user-select: none; -webkit-user-select: none; }
 
+/* --- Zoom y seguimiento del camión (esquina superior derecha de la lámina) -- */
+.mapa-zoom { position: absolute; top: 10px; right: 10px; z-index: 2; display: grid; gap: 6px; }
+.mapa-zoom__grupo {
+  display: grid; overflow: hidden; background: var(--superficie);
+  border: 1px solid var(--regla); border-radius: 10px; box-shadow: var(--sombra-s);
+}
+.mapa-zoom__boton {
+  display: grid; place-items: center; width: 34px; height: 34px; padding: 0; border: 0;
+  background: transparent; color: var(--tinta); cursor: pointer; transition: background 0.15s, color 0.15s;
+}
+.mapa-zoom__boton + .mapa-zoom__boton { border-top: 1px solid var(--regla-2); }
+.mapa-zoom__boton:hover:not(:disabled) { background: var(--papel); }
+.mapa-zoom__boton:disabled { color: var(--tinta-3); opacity: 0.45; cursor: not-allowed; }
+.mapa-zoom__boton:focus-visible { outline: 2px solid var(--tinta); outline-offset: -2px; }
+.mapa-zoom__seguir[aria-pressed='true'], .mapa-zoom__seguir[aria-pressed='true']:hover:not(:disabled) { background: var(--tinta); color: var(--superficie); }
+/* Móvil: en la barra de herramientas, en fila */
+.mapa-zoom--barra { position: static; display: flex; gap: 6px; }
+.mapa-zoom--barra .mapa-zoom__grupo { display: flex; box-shadow: none; }
+.mapa-zoom--barra .mapa-zoom__boton + .mapa-zoom__boton { border-top: 0; border-left: 1px solid var(--regla-2); }
+.mapa-zoom__icono { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+/* Con aumento el mapa se arrastra (también con un dedo: sin gestos del navegador) */
+.mapa-svg--zoom { cursor: grab; touch-action: none; }
+.mapa-svg--arrastrando, .mapa-svg--arrastrando * { cursor: grabbing !important; }
+
 .mapa-rejilla { fill: none; stroke-width: 1; pointer-events: none; }
 .mapa-rejilla--fina { stroke: rgb(23 32 42 / 0.045); }
 .mapa-rejilla--gruesa { stroke: rgb(23 32 42 / 0.1); }

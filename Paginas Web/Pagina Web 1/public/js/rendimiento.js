@@ -4,7 +4,9 @@
 // Una fila por variante en los gráficos de comparacion.js (esta instancia y todas las
 // del mismo banco y n), con una tabla de óptimas, mediana, media y máximo. Con límite de
 // tiempo los segundos se igualan y el GAP es la medida que distingue a las variantes.
+// Debajo, la tabla comparativa por instancia de comparativa.js (heurísticas y Gurobi).
 import { crearComparacion } from './comparacion.js';
+import { tablaComparativa } from './comparativa.js';
 import { VARIANTES, claveVariante, fmt } from './util.js';
 
 const METRICAS = {
@@ -74,7 +76,10 @@ function tooltip(s, v, filas, { valor }) {
 
 /** opciones: manifest() lista de salidas, actual() archivo mostrado, elegir(archivo). */
 export function crear(raiz, _estado, opciones) {
+  // Variante de Gurobi de la tabla comparativa: se conserva al cambiar de solución o de medida
+  let varianteTabla = 'mejor';
   return crearComparacion(raiz, opciones, {
+    extra: (datos) => tablaComparativa({ ...datos, variante: varianteTabla, alCambiarVariante: (v) => { varianteTabla = v; } }),
     metricas: METRICAS,
     series: SERIES,
     serieDe: (s) => claveVariante(s.algoritmo.variante),

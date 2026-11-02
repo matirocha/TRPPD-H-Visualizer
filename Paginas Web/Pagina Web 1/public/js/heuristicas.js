@@ -33,7 +33,7 @@ const METRICAS = {
 };
 
 // corta: eje de los gráficos · etiqueta: tabla y tooltip · nombre: texto de la nota
-const SERIES = [
+export const SERIES = [
   { clave: 'gurobi', corta: 'Gurobi', etiqueta: 'Gurobi · mejor variante', nombre: 'Gurobi', vecindario: 'modelo (1)–(19) y variantes' },
   { clave: 'dos_fases', corta: '2 fases', etiqueta: '2 fases · TSP + Algoritmo 2.1', nombre: '2 fases', vecindario: 'sin búsqueda local' },
   { clave: 'ils_heuristico', corta: 'ILS heur.', etiqueta: 'ILS heurístico', nombre: 'ILS heurístico', vecindario: 'umbral lineal, O(n)' },
@@ -43,13 +43,17 @@ const SERIES = [
 ];
 const CLAVES = new Set(SERIES.map((v) => v.clave));
 
-function serieDe(s) {
+export function serieDe(s) {
   if (s.algoritmo.familia === 'erdogan') return CLAVES.has(s.algoritmo.clave) ? s.algoritmo.clave : null;
   return s.algoritmo.clave === 'gurobi' ? 'gurobi' : null;
 }
 
-/** Menor Σ D y, a igual Σ D, menor tiempo (para Gurobi, que tiene cuatro variantes por instancia). */
-const representante = (salidas) => [...salidas].sort((a, b) => (a.objetivo ?? Infinity) - (b.objetivo ?? Infinity)
+/**
+ * Menor Σ D; a igual Σ D, la que probó optimalidad y después la más rápida (para Gurobi,
+ * que tiene cuatro variantes por instancia).
+ */
+export const representante = (salidas) => [...salidas].sort((a, b) => (a.objetivo ?? Infinity) - (b.objetivo ?? Infinity)
+  || (b.estado === 'OPTIMAL') - (a.estado === 'OPTIMAL')
   || (a.segundos ?? Infinity) - (b.segundos ?? Infinity))[0];
 
 const igual = (a, b) => Math.abs(a - b) <= 1e-6 * Math.max(1, Math.abs(b));

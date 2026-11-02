@@ -44,7 +44,7 @@ para números (con cifras tabulares). Decimales con coma (es-CL).
 |---|---|---|---|
 | 00 | Portada | Título, pregunta del problema y, de fondo, circuitos que cambian: primero la ruta de la instancia, luego los nodos se mueven a posiciones al azar y se traza un recorrido tipo vendedor viajero (vecino más cercano + 2-opt), en bucle | Los nodos se desplazan, el circuito se traza y un marcador lo recorre; paralaje al bajar |
 | 01 | Mapa y carga | A la izquierda, nodos con u<sub>a</sub>, ℓ<sub>a</sub>, u<sub>b</sub>, ℓ<sub>b</sub> y arcos con c<sub>ij</sub>; bajo el mapa, el tiempo por cliente; a la derecha, el camión con las unidades en su posición física y los pasos de la Tabla 3. Debajo, barras de carga por tramo vs Q | Reproductor (ver abajo): el camión se mueve en el mapa y cada operación de carga y descarga se anima al mismo tiempo |
-| 02 | Rendimiento | Tiempo de ejecución de las cuatro variantes del modelo: barras para la instancia mostrada, puntos y mediana para todas las instancias con el mismo banco y n, y tabla resumen con las óptimas de cada variante. Medida: resolución, total, nodos B&B, función objetivo, GAP o GAP sol. entera (con límite de tiempo los segundos se igualan y el GAP es lo que las distingue) | Barras que crecen; puntos que aparecen |
+| 02 | Rendimiento | Tiempo de ejecución de las cuatro variantes del modelo: barras para la instancia mostrada, puntos y mediana para todas las instancias con el mismo banco y n, y tabla resumen con las óptimas de cada variante. Medida: resolución, total, nodos B&B, función objetivo, GAP o GAP sol. entera (con límite de tiempo los segundos se igualan y el GAP es lo que las distingue). Debajo, una tabla comparativa con una fila por instancia del grupo y dos columnas (tiempo y Σ D<sub>i</sub>) por método: heurística 2 fases, ILS e ITS heurístico y exacto, y Gurobi (mejor de las 4 o la variante elegida); cada Σ D<sub>i</sub> lleva *ópt.* (óptimo probado) o *c.s.* (cota superior) | Barras que crecen; puntos que aparecen |
 | 03 | Heurísticas | Las de Erdoğan et al. (2012) adaptadas (2 fases, ILS e ITS con evaluación exacta o heurística) frente a Gurobi con su variante más rápida entre las de menor Σ D<sub>i</sub>: los mismos dos gráficos y tabla que Rendimiento, una fila por algoritmo. Medida: tiempo (escala logarítmica, con puntos en vez de barras), función objetivo, GAP, GAP sol. entera o desviación respecto de la mejor solución conocida. Debajo, una tarjeta por método | Igual que Rendimiento |
 | 04 | El problema | Tres ideas: latencia (Σ D<sub>i</sub>), una sola puerta (LIFO, Figura 1), Política 3 (Tabla 3) | Se construyen al entrar en pantalla |
 | 05 | La instancia | Selector (algoritmo, n, id, h), KPIs, tabla de clientes, parámetros, verificación, leyenda | Contadores |
@@ -61,6 +61,15 @@ arrastre para saltar; los puntos son las llegadas a cada cliente).
 - Modo continuo encendido: recorre la ruta completa sin parar.
 - Con `prefers-reduced-motion` no hay animación: cada Continuar salta a la
   próxima pausa y el modo continuo avanza una pausa cada 2,5 s.
+
+El mapa tiene **acercar**, **alejar**, **ver todo** y **seguir al camión**: en
+escritorio sobre la esquina superior derecha de la lámina (en el margen que deja
+para las tarjetas) y en pantallas angostas en la barra, junto a "Arcos". El zoom
+cambia el `viewBox` (hasta 4×); con aumento el mapa se arrastra, y el clic que
+cierra un arrastre no abre la parada que quedó debajo. Seguir al camión lleva el
+aumento a 2,5× como mínimo y centra la vista en el camión en cada cuadro; se
+apaga al arrastrar, al volver a 1× o con "ver todo", y se conserva al cambiar de
+solución.
 
 **Tiempo por cliente** (bajo el mapa): una fila por cliente en el orden de la
 ruta con el viaje c<sub>ij</sub>, u<sub>a</sub>, ℓ<sub>a</sub>, u<sub>b</sub>, ℓ<sub>b</sub>, el tiempo en el cliente (F<sub>i</sub> − T<sub>i</sub>) y el
@@ -109,8 +118,10 @@ Lo que pide el enunciado y dónde está:
   también salen de esa simulación, porque sin (20)–(23) los flujos del modelo
   no son únicos.
 - El mapa de la sección 01 no usa coordenadas: ubica el depósito arriba y los
-  clientes en un polígono regular, en el orden de la ruta, así la ruta dibuja el
-  polígono. El largo de los arcos no representa c<sub>ij</sub>; el valor va en cada arco.
+  clientes en un polígono regular, en sentido horario según su número (no según
+  el orden de visita). Así cada nodo queda en el mismo lugar en todas las
+  soluciones de una instancia y la ruta cruza el polígono en el orden que eligió
+  el algoritmo. El largo de los arcos no representa c<sub>ij</sub>; el valor va en cada arco.
 
 ## Arquitectura del código
 
@@ -140,6 +151,7 @@ Pagina Web 1/
     js/tiempos.js      reloj
     js/comparacion.js  gráficos y tabla de comparación por serie (lee el manifest)
     js/rendimiento.js  comparación de las variantes de Gurobi
+    js/comparativa.js  tabla por instancia: tiempo y Σ D de cada método
     js/heuristicas.js  comparación de las heurísticas con Gurobi
 ```
 

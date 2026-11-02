@@ -20,6 +20,7 @@
 //   nota(filas, medida)   {clase, icono, html} bajo el gráfico A, o null
 //   tooltip(s, serie, filas)  html del tooltip de una salida
 //   tabla           {encabezados, fila(r, resumen, texto) -> celdas}
+//   extra({manifest, mostrada, actual, elegir})  opcional: tarjeta que va bajo la tabla
 import { el, fmt, mostrarTooltip, moverTooltip, movimientoReducido, ocultarTooltip, svg } from './util.js';
 
 export const mediana = (v) => {
@@ -140,7 +141,8 @@ function montar(raiz, { manifest, actual, elegir, metrica, cambiarMetrica, sinAn
       el('tbody', {}, resumen.map((r) => el('tr', { class: r.v.clave === claveActual ? 'resaltado' : '' },
         C.tabla.fila(r, resumen, texto).map((celda) => el('td', {}, celda))))))));
 
-  const contenedor = el('div', { class: 'contenedor rend' }, control, el('div', { class: 'rend-rejilla' }, tarjetaA, tarjetaB), tabla);
+  const contenedor = el('div', { class: 'contenedor rend' }, control, el('div', { class: 'rend-rejilla' }, tarjetaA, tarjetaB), tabla,
+    C.extra?.({ manifest, mostrada, actual, elegir }));
   raiz.replaceChildren(contenedor);
 
   dibujar();

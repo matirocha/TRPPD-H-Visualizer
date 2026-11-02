@@ -138,11 +138,13 @@ function areaFuera(c, W, H) {
 
 /**
  * Posiciones en un polígono regular: el depósito arriba y los clientes en el
- * sentido de las agujas del reloj según el orden de visita, así la ruta dibuja el
- * polígono. Las distancias del dibujo no representan c_ij (va en cada arco).
+ * sentido de las agujas del reloj según su número, no según el orden de visita.
+ * Así cada nodo queda en el mismo lugar para todas las soluciones de una instancia y
+ * la ruta cruza el polígono en el orden que eligió el algoritmo. Las distancias del
+ * dibujo no representan c_ij (va en cada arco).
  */
 function posicionesPoligono(sim, cx, cy, R) {
-  const orden = sim.ruta.slice(0, -1); // 0, primer cliente, …, último cliente
+  const orden = [0, ...[...sim.clientes].sort((a, b) => a - b)];
   const pos = [];
   orden.forEach((nodo, j) => {
     const angulo = -Math.PI / 2 + (2 * Math.PI * j) / orden.length;
@@ -372,7 +374,7 @@ function htmlDeposito(sim) {
 
 // --- Vista -------------------------------------------------------------------
 
-function construirVista({ sim, salida, nombre, fijo, vinculado, estado, modoArcos, alCambiarArcos }) {
+function construirVista({ sim, salida, nombre, fijo, vinculado, estado, modoArcos, alCambiarArcos, seguirCamion, alCambiarSeguir }) {
   const perfil = PERFILES[nombre];
   const I = salida.instancia;
   const N = sim.paradas.length;
@@ -704,10 +706,139 @@ function construirVista({ sim, salida, nombre, fijo, vinculado, estado, modoArco
     el('span', { class: 'mapa-pie__item' }, el('span', { class: 'mapa-pie__linea mapa-pie__linea--regreso', 'aria-hidden': 'true' }), 'Regreso'),
     el('span', {
       class: 'mapa-pie__fuente',
-      html: 'Nodos en un polígono regular según el orden de la ruta; el largo de los arcos no es c<sub>ij</sub>',
+      html: 'Nodos en un polígono regular según su número de cliente; el largo de los arcos no es c<sub>ij</sub>',
     }));
 
   const lamina = el('figure', { class: 'mapa-lamina' }, raizSVG);
+
+  // --- Zoom y seguimiento del camión -------------------------------------------------
+  // La vista es un rectángulo del viewBox con la proporción de la lámina: centro (cx, cy) y
+  // aumento z. Los botones fijan una meta y un tick de gsap acerca la vista a ella; al seguir
+  // al camión la meta es su posición en cada cuadro. Con aumento, el mapa se arrastra.
+  const ZOOM = { max: 4, paso: 1.5, seguir: 2.5 };
+  const vistaMapa = { cx: G.W / 2, cy: G.H / 2, z: 1 };
+  const meta = { ...vistaMapa };
+  let siguiendo = false;
+  let arrastre = null;
+
+  const icono = (...trazos) => svg('svg', { class: 'mapa-zoom__icono', viewBox: '0 0 16 16', 'aria-hidden': 'true' }, ...trazos);
+  const botonZoom = (texto, contenido, accion, clase = '') => el('button', {
+    type: 'button', class: `mapa-zoom__boton${clase}`, 'aria-label': texto, title: texto, onclick: accion,
+  }, contenido);
+  const masZoom = botonZoom('Acercar', icono(svg('path', { d: 'M8 3v10M3 8h10' })), () => acercar(ZOOM.paso));
+  const menosZoom = botonZoom('Alejar', icono(svg('path', { d: 'M3 8h10' })), () => acercar(1 / ZOOM.paso));
+  const verTodo = botonZoom('Ver todo el mapa', icono(svg('path', { d: 'M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4' })), () => ajustar());
+  const botonSeguir = botonZoom('Seguir al camión', icono(
+    svg('path', { d: 'M1.5 4.5h8v6h-8zM9.5 6.5h2.6l2.4 2.6v1.4h-5' }),
+    svg('circle', { cx: 4.5, cy: 11.8, r: 1.4 }),
+    svg('circle', { cx: 11.6, cy: 11.8, r: 1.4 })), () => alternarSeguir(), ' mapa-zoom__seguir');
+  botonSeguir.setAttribute('aria-pressed', 'false');
+  // Escritorio: sobre la lámina, en el margen derecho que el dibujo deja para las tarjetas.
+  // Móvil: ese margen es angosto y taparía nodos, así que van en la barra junto a "Arcos".
+  const barraZoom = el('div', { class: `mapa-zoom${perfil.tarjetas ? '' : ' mapa-zoom--barra'}`, role: 'toolbar', 'aria-label': 'Zoom del mapa' },
+    el('div', { class: 'mapa-zoom__grupo' }, masZoom, menosZoom, verTodo),
+    el('div', { class: 'mapa-zoom__grupo' }, botonSeguir));
+  if (perfil.tarjetas) lamina.append(barraZoom);
+  else herramientas.append(el('div', { class: 'mapa-control' }, el('span', { class: 'mapa-control__etiqueta', 'aria-hidden': 'true' }, 'Zoom'), barraZoom));
+
+  const tamVista = (z) => [G.W / z, G.H / z];
+  /** Aumento entre 1 y el máximo, y centro tal que la vista no salga de la lámina. */
+  function acotar(v) {
+    v.z = limitar(v.z, 1, ZOOM.max);
+    const [w, h] = tamVista(v.z);
+    v.cx = limitar(v.cx, w / 2, G.W - w / 2);
+    v.cy = limitar(v.cy, h / 2, G.H - h / 2);
+  }
+  function aplicarVista() {
+    const [w, h] = tamVista(vistaMapa.z);
+    raizSVG.setAttribute('viewBox', `${r2(vistaMapa.cx - w / 2)} ${r2(vistaMapa.cy - h / 2)} ${r2(w)} ${r2(h)}`);
+  }
+  function pintarZoom() {
+    const conAumento = meta.z > 1 + 1e-6;
+    masZoom.disabled = meta.z >= ZOOM.max - 1e-6;
+    menosZoom.disabled = !conAumento;
+    verTodo.disabled = !conAumento;
+    botonSeguir.setAttribute('aria-pressed', String(siguiendo));
+    raizSVG.classList.toggle('mapa-svg--zoom', conAumento);
+  }
+  const posicionCamion = () => [Number(gsap.getProperty(camion, 'x')), Number(gsap.getProperty(camion, 'y'))];
+  function fijarSeguir(valor) {
+    siguiendo = valor;
+    alCambiarSeguir(valor);
+  }
+  function acercar(factor) {
+    meta.z *= factor;
+    // Sin aumento no hay nada que seguir
+    if (meta.z <= 1 + 1e-6) fijarSeguir(false);
+    acotar(meta);
+    pintarZoom();
+  }
+  function ajustar() {
+    fijarSeguir(false);
+    Object.assign(meta, { cx: G.W / 2, cy: G.H / 2, z: 1 });
+    pintarZoom();
+  }
+  function alternarSeguir() {
+    fijarSeguir(!siguiendo);
+    if (siguiendo) meta.z = Math.max(meta.z, ZOOM.seguir);
+    pintarZoom();
+  }
+  /** Cada cuadro: la meta sigue al camión y la vista se acerca a la meta (o salta, con movimiento reducido). */
+  function tickVista(_t, dt) {
+    if (siguiendo) {
+      [meta.cx, meta.cy] = posicionCamion();
+      acotar(meta);
+    }
+    const resto = Math.abs(meta.cx - vistaMapa.cx) + Math.abs(meta.cy - vistaMapa.cy) + Math.abs(meta.z - vistaMapa.z) * 100;
+    if (resto === 0) return;
+    const f = resto < 0.05 || movimientoReducido() ? 1 : 1 - Math.exp(-dt / 110);
+    vistaMapa.cx += (meta.cx - vistaMapa.cx) * f;
+    vistaMapa.cy += (meta.cy - vistaMapa.cy) * f;
+    vistaMapa.z *= (meta.z / vistaMapa.z) ** f;
+    if (f === 1) Object.assign(vistaMapa, meta);
+    aplicarVista();
+  }
+
+  // Arrastre con aumento: desde 5 px de movimiento; el clic que lo cierra no abre la parada.
+  raizSVG.addEventListener('pointerdown', (e) => {
+    if (meta.z <= 1 + 1e-6 || e.button !== 0 || !e.isPrimary) return;
+    arrastre = { id: e.pointerId, x: e.clientX, y: e.clientY, cx: vistaMapa.cx, cy: vistaMapa.cy, movido: false };
+  });
+  raizSVG.addEventListener('pointermove', (e) => {
+    if (arrastre?.id !== e.pointerId) return;
+    const dx = e.clientX - arrastre.x;
+    const dy = e.clientY - arrastre.y;
+    if (!arrastre.movido) {
+      if (Math.hypot(dx, dy) < 5) return;
+      arrastre.movido = true;
+      raizSVG.setPointerCapture(e.pointerId);
+      raizSVG.classList.add('mapa-svg--arrastrando');
+      ocultarTooltip();
+      if (siguiendo) {
+        fijarSeguir(false);
+        pintarZoom();
+      }
+    }
+    const caja = raizSVG.getBoundingClientRect();
+    const [w, h] = tamVista(vistaMapa.z);
+    const escala = Math.min(caja.width / w, caja.height / h); // px por unidad, como "meet"
+    Object.assign(meta, { cx: arrastre.cx - dx / escala, cy: arrastre.cy - dy / escala });
+    acotar(meta);
+    Object.assign(vistaMapa, meta);
+    aplicarVista();
+  });
+  const soltar = (e) => {
+    if (arrastre?.id !== e.pointerId) return;
+    if (arrastre.movido) {
+      raizSVG.classList.remove('mapa-svg--arrastrando');
+      const bloquear = (ev) => ev.stopPropagation();
+      raizSVG.addEventListener('click', bloquear, { capture: true, once: true });
+      setTimeout(() => raizSVG.removeEventListener('click', bloquear, { capture: true }), 60);
+    }
+    arrastre = null;
+  };
+  raizSVG.addEventListener('pointerup', soltar);
+  raizSVG.addEventListener('pointercancel', soltar);
 
   // --- Panel lateral -------------------------------------------------------------
   const botonesPaso = [];
@@ -1305,8 +1436,13 @@ function construirVista({ sim, salida, nombre, fijo, vinculado, estado, modoArco
       if (vinculado) iniciarVinculado();
       else if (fijo) iniciarScroll();
       else iniciarPasos(contexto);
+      // El seguimiento del camión se conserva al cambiar de solución
+      if (seguirCamion) alternarSeguir();
+      pintarZoom();
+      gsap.ticker.add(tickVista);
     },
     limpiar() {
+      gsap.ticker.remove(tickVista);
       irA = () => {};
       seguir = () => {};
       desplazamiento?.kill();
@@ -1325,10 +1461,12 @@ export function crear(raiz, estado, { vinculado = false } = {}) {
   let vista = null;
   let bajas = [];
   let modoArcos = 'ruta';
+  let seguirCamion = false;
 
   function montar(sim, salida, nombre, fijo, contexto) {
     const v = construirVista({
       sim, salida, nombre, fijo, vinculado, estado, modoArcos, alCambiarArcos: (m) => { modoArcos = m; },
+      seguirCamion, alCambiarSeguir: (s) => { seguirCamion = s; },
     });
     raiz.append(v.raiz);
     vista = v;
