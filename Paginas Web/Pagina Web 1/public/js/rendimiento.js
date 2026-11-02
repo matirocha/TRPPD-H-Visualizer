@@ -76,10 +76,17 @@ function tooltip(s, v, filas, { valor }) {
 
 /** opciones: manifest() lista de salidas, actual() archivo mostrado, elegir(archivo). */
 export function crear(raiz, _estado, opciones) {
-  // Variante de Gurobi de la tabla comparativa: se conserva al cambiar de solución o de medida
+  // Variante de Gurobi y h de la tabla comparativa: se conservan al cambiar de solución o de medida
   let varianteTabla = 'mejor';
+  let hTabla = 'todos';
   return crearComparacion(raiz, opciones, {
-    extra: (datos) => tablaComparativa({ ...datos, variante: varianteTabla, alCambiarVariante: (v) => { varianteTabla = v; } }),
+    extra: (datos) => tablaComparativa({
+      ...datos,
+      variante: varianteTabla,
+      h: hTabla,
+      alCambiarVariante: (v) => { varianteTabla = v; },
+      alCambiarH: (v) => { hTabla = v; },
+    }),
     metricas: METRICAS,
     series: SERIES,
     serieDe: (s) => claveVariante(s.algoritmo.variante),

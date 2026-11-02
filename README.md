@@ -155,7 +155,9 @@ resumen en `Outputs/resumenes/heuristicas_erdogan.csv`, con las medidas de
 `lote_trppdh3.py` calculadas contra las cuatro variantes de Gurobi de la misma
 instancia: GAP con la mejor cota inferior, GAP sol. entera con la mayor
 relajación lineal y desviación respecto del mejor Σ Dᵢ de Gurobi. Con n = 10
-los dos ILS llegan al óptimo de Gurobi en las 30 instancias en unos 0,03 s.
+los dos ILS llegan al óptimo de Gurobi en las 30 instancias en unos 0,03 s;
+con n = 15 igualan la mejor solución de Gurobi (3 600 s) en 29 y la mejoran en
+vigo_n15_id3_h1, en 0,1–0,2 s.
 
 ## Visualizador web
 

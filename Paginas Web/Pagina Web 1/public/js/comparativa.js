@@ -45,37 +45,54 @@ function filasDe(manifest, mostrada, variante) {
   }).sort((a, b) => a.instancia.id - b.instancia.id || a.instancia.h - b.instancia.h);
 }
 
+/** Fila de botones de la tabla: etiqueta y un segmentado; elegir(clave) se llama al cambiar. */
+function selector(etiqueta, aria, opciones, actual, elegir, clase = '') {
+  return el('div', { class: `rend-control${clase}` },
+    el('span', { class: 'rend-control__etiqueta', html: etiqueta }),
+    el('div', { class: 'segmentado', role: 'group', 'aria-label': aria },
+      opciones.map((o) => el('button', {
+        type: 'button', 'aria-pressed': String(o.clave === actual),
+        onclick: () => o.clave !== actual && elegir(o.clave),
+      }, o.texto))));
+}
+
 /**
  * opciones: manifest, mostrada (salida del manifest), actual (archivo), elegir(archivo),
- * variante ('mejor' o clave de VARIANTES) y alCambiarVariante(clave) para recordarla.
+ * variante ('mejor' o clave de VARIANTES) y h ('todos' o un valor de h) con
+ * alCambiarVariante(clave) y alCambiarH(valor) para recordarlos.
  */
 export function tablaComparativa(opciones) {
-  const { manifest, mostrada, actual, elegir, alCambiarVariante } = opciones;
+  const { manifest, mostrada, actual, elegir, alCambiarVariante, alCambiarH } = opciones;
   let variante = opciones.variante;
-  const grupo = `n = ${mostrada.instancia.n} · banco ${mostrada.instancia.banco}`;
+  let h = opciones.h ?? 'todos';
   const tarjeta = el('article', { class: 'tarjeta rend-tarjeta rend-tarjeta--tabla rend-comp', 'aria-labelledby': 'rend-comp-titulo' });
   pintar();
   return tarjeta;
 
   function pintar() {
-    const filas = filasDe(manifest, mostrada, variante);
+    const todas = filasDe(manifest, mostrada, variante);
+    // Valores de h del grupo; si el elegido no existe en este n y banco, se muestran todos
+    const valoresH = [...new Set(todas.map((f) => f.instancia.h).filter((v) => v != null))].sort((a, b) => a - b);
+    if (h !== 'todos' && !valoresH.includes(h)) h = 'todos';
+    const filas = h === 'todos' ? todas : todas.filter((f) => f.instancia.h === h);
+    const grupo = `n = ${mostrada.instancia.n} · banco ${mostrada.instancia.banco}`;
     const hayGurobi = manifest.some((s) => serieDe(s) === 'gurobi' && mismoGrupo(s, mostrada));
     const metodos = METODOS.filter((m) => m.clave !== 'gurobi' || hayGurobi);
-    const hayHeuristicas = filas.some((f) => f.celdas.slice(0, -1).some((c) => c.s));
+    const hayHeuristicas = todas.some((f) => f.celdas.slice(0, -1).some((c) => c.s));
     const textoGurobi = OPCIONES_GUROBI.find((o) => o.clave === variante)?.texto ?? '';
 
-    const control = hayGurobi ? el('div', { class: 'rend-control' },
-      el('span', { class: 'rend-control__etiqueta' }, 'Gurobi'),
-      el('div', { class: 'segmentado', role: 'group', 'aria-label': 'Variante de Gurobi en la tabla' },
-        OPCIONES_GUROBI.map((o) => el('button', {
-          type: 'button', 'aria-pressed': String(o.clave === variante),
-          onclick: () => {
-            if (o.clave === variante) return;
-            variante = o.clave;
-            alCambiarVariante(o.clave);
-            pintar();
-          },
-        }, o.texto)))) : null;
+    const controles = el('div', { class: 'rend-comp__controles' },
+      valoresH.length > 1 ? selector('h', 'Valor de h en la tabla',
+        [{ clave: 'todos', texto: 'Todos' }, ...valoresH.map((v) => ({ clave: v, texto: fmt(v) }))], h, (v) => {
+          h = v;
+          alCambiarH(v);
+          pintar();
+        }, ' rend-comp__h-control') : null,
+      hayGurobi ? selector('Gurobi', 'Variante de Gurobi en la tabla', OPCIONES_GUROBI, variante, (v) => {
+        variante = v;
+        alCambiarVariante(v);
+        pintar();
+      }) : null);
 
     const marca = (optimo) => el('span', {
       class: `rend-comp__marca rend-comp__marca--${optimo ? 'opt' : 'cs'}`,
@@ -132,7 +149,8 @@ export function tablaComparativa(opciones) {
       el('tfoot', {}, pie));
 
     tarjeta.replaceChildren(
-      el('h3', { class: 'tarjeta__titulo', id: 'rend-comp-titulo' }, `Comparación por instancia · ${grupo}`),
+      el('h3', { class: 'tarjeta__titulo', id: 'rend-comp-titulo' },
+        `Comparación por instancia · ${grupo}`, h === 'todos' ? null : el('span', { class: 'rend-comp__h-titulo' }, ` · h = ${fmt(h)}`)),
       el('p', {
         class: 'rend-bajada',
         html: 'Tiempo de ejecución (en segundos) y función objetivo de cada método en cada instancia. '
@@ -141,7 +159,7 @@ export function tablaComparativa(opciones) {
           + 'En negrita, el menor Σ D<sub>i</sub> de la fila; clic en un valor para abrir esa solución.'
           + (hayHeuristicas ? '' : ` Todavía no hay corridas de las heurísticas para ${grupo}: <code>npm run heuristicas -- ${mostrada.instancia.n}</code>.`),
       }),
-      control,
+      controles,
       el('div', { class: 'tabla-desplazable' }, tabla));
   }
 }

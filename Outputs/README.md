@@ -37,8 +37,9 @@ cuatro variantes del modelo:
 Faltan las de Battarra con n = 30, 40, 50 y 60.
 
 Las heurísticas de `erdogan/` (2 fases, ILS e ITS, con evaluación heurística o
-exacta) están corridas para las 30 instancias con n = 10, con Node.js en un
-solo hilo (`npm run heuristicas -- 10` desde `Paginas Web/Pagina Web 1`). Sus
+exacta) están corridas para las 30 instancias con n = 10 y las 30 con n = 15,
+con Node.js en un solo hilo (`npm run heuristicas -- 10,15` desde
+`Paginas Web/Pagina Web 1`). Sus
 JSON traen además, en `solucion`:
 
 | Campo | Qué es |

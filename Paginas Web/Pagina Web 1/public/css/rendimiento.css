@@ -90,6 +90,12 @@
 }
 .rend-comp__tabla tfoot tr:first-child > * { border-top: 1px solid var(--regla); }
 
+/* Selectores de h y de la variante de Gurobi, en una fila que se parte si no cabe */
+.rend-comp__controles { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 24px; }
+.rend-comp__h-control .rend-control__etiqueta { text-transform: none; font-size: 13px; }
+.rend-comp__controles .segmentado button { padding: 5px 11px; font-size: 13px; }
+.rend-comp__h-titulo { text-transform: none; }
+
 /* ID y h quedan fijos al desplazar la tabla en pantallas angostas */
 .rend-comp__fija { position: sticky; left: 0; z-index: 1; background: var(--superficie); }
 .rend-comp__tabla .rend-comp__id { box-sizing: border-box; width: 40px; min-width: 40px; max-width: 40px; }
