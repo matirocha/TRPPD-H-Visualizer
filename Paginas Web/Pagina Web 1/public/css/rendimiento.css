@@ -73,9 +73,10 @@
 
 /* --- Tabla comparativa por instancia (comparativa.js) ----------------------
    Dos columnas por método (tiempo y Σ D) separadas por una regla vertical;
-   la marca ópt./c.s. va en tinta, sin los colores reservados a las políticas. */
+   las marcas (ópt./c.s. en Gurobi, % en las heurísticas) van en tinta, sin los
+   colores reservados a las políticas. */
 .rend-comp__tabla { min-width: 0; font-size: 12.5px; }
-.rend-comp__tabla th, .rend-comp__tabla td { white-space: nowrap; padding: 6px 6px; }
+.rend-comp__tabla th, .rend-comp__tabla td { white-space: nowrap; padding: 6px 5px; }
 .rend-comp__tabla th.rend-comp__grupo { padding-inline: 4px; }
 .rend-comp__tabla col.rend-comp__metodo { border-left: 1px solid var(--regla); }
 .rend-comp .rend-comp__tabla thead th.rend-comp__grupo { text-align: center; border-bottom-color: var(--regla-2); }
@@ -121,3 +122,6 @@
 }
 .rend-comp__marca--opt { background: var(--tinta); color: var(--superficie); }
 .rend-comp__marca--cs { padding: 0 3px; border: 1px solid var(--tinta-3); color: var(--tinta-2); }
+/* Heurísticas: cuánto quedan sobre la mejor solución conocida; en tinta si la alcanzan */
+.rend-comp__marca--desv { margin-left: 3px; padding: 0; font-weight: 500; font-variant-numeric: tabular-nums; color: var(--tinta-3); }
+.rend-comp__marca--desv.rend-comp__marca--cero { color: var(--tinta); font-weight: 600; }

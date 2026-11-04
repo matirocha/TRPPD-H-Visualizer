@@ -1,8 +1,8 @@
 // Tabla comparativa de la sección Rendimiento: una fila por instancia del mismo banco y n
 // y, por cada método, dos columnas: tiempo de ejecución y Σ D_i. Cada Σ D_i lleva una marca:
-//   ópt.  óptimo probado: Gurobi terminó con estado OPTIMAL, o el método llega a ese valor
-//   c.s.  cota superior: solución entera sin optimalidad probada (Gurobi por límite de
-//         tiempo, o una heurística que no alcanza el óptimo conocido)
+//   heurísticas  +x % sobre la mejor solución conocida de la instancia (la menor entre todos
+//                los métodos y las cuatro variantes de Gurobi; desviacion del manifest)
+//   Gurobi       ópt. si terminó con estado OPTIMAL; c.s. (cota superior) si no
 // Gurobi aparece si tiene corridas en el grupo, con la variante elegida sobre la tabla (por
 // omisión la mejor de las cuatro, como en la sección Heurísticas).
 import { mismoGrupo, segundos } from './comparacion.js';
@@ -19,10 +19,12 @@ const METODOS = [
 ];
 const OPCIONES_GUROBI = [{ clave: 'mejor', texto: 'Mejor de las 4' }, ...VARIANTES.map((v) => ({ clave: v.clave, texto: v.etiqueta }))];
 
-const alcanza = (v, z) => v <= z + 1e-6 * Math.max(1, Math.abs(z));
 const media = (v) => (v.length ? v.reduce((a, b) => a + b, 0) / v.length : null);
+// La desviación del manifest es relativa: 1e-6 absorbe los decimales que redondea cada archivo
+const enLaMejor = (s) => s.desviacion != null && s.desviacion <= 1e-6;
+const textoDesviacion = (d) => (d <= 1e-6 ? '0 %' : d < 5e-5 ? '+<0,01 %' : `+${fmt(d * 100, 2)} %`);
 
-/** Una fila por instancia: la salida de cada método, si es óptima y el menor Σ D de la fila. */
+/** Una fila por instancia: la salida de cada método y, en Gurobi, si probó optimalidad. */
 function filasDe(manifest, mostrada, variante) {
   const porInstancia = new Map();
   for (const s of manifest) {
@@ -31,17 +33,14 @@ function filasDe(manifest, mostrada, variante) {
   }
   return [...porInstancia.values()].map((salidas) => {
     const gurobi = salidas.filter((s) => serieDe(s) === 'gurobi');
-    const probados = gurobi.filter((s) => s.estado === 'OPTIMAL' && s.objetivo != null);
-    const optimo = probados.length ? Math.min(...probados.map((s) => s.objetivo)) : null;
     const celdas = METODOS.map((m) => {
       const s = m.clave !== 'gurobi'
         ? salidas.find((x) => serieDe(x) === m.clave)
         : variante === 'mejor' ? representante(gurobi) : gurobi.find((g) => claveVariante(g.algoritmo.variante) === variante);
       if (s?.objetivo == null) return { s: null };
-      return { s, optimo: m.clave === 'gurobi' ? s.estado === 'OPTIMAL' : optimo != null && alcanza(s.objetivo, optimo) };
+      return { s, gurobi: m.clave === 'gurobi', optimo: m.clave === 'gurobi' && s.estado === 'OPTIMAL' };
     });
-    const valores = celdas.filter((c) => c.s).map((c) => c.s.objetivo);
-    return { instancia: salidas[0].instancia, celdas, menor: valores.length ? Math.min(...valores) : null };
+    return { instancia: salidas[0].instancia, celdas };
   }).sort((a, b) => a.instancia.id - b.instancia.id || a.instancia.h - b.instancia.h);
 }
 
@@ -94,14 +93,21 @@ export function tablaComparativa(opciones) {
         pintar();
       }) : null);
 
-    const marca = (optimo) => el('span', {
-      class: `rend-comp__marca rend-comp__marca--${optimo ? 'opt' : 'cs'}`,
-      title: optimo ? 'Óptimo probado' : 'Cota superior: solución entera sin optimalidad probada',
-    }, optimo ? 'ópt.' : 'c.s.');
+    // Gurobi: ópt. o c.s.; heurísticas: cuánto quedan sobre la mejor solución conocida
+    const marca = ({ s, gurobi, optimo }) => (gurobi
+      ? el('span', {
+        class: `rend-comp__marca rend-comp__marca--${optimo ? 'opt' : 'cs'}`,
+        title: optimo ? 'Óptimo probado' : 'Cota superior: solución entera sin optimalidad probada',
+      }, optimo ? 'ópt.' : 'c.s.')
+      : s.desviacion == null ? null : el('span', {
+        class: `rend-comp__marca rend-comp__marca--desv${enLaMejor(s) ? ' rend-comp__marca--cero' : ''}`,
+        title: enLaMejor(s) ? 'Alcanza la mejor solución conocida' : 'Sobre la mejor solución conocida de la instancia',
+      }, textoDesviacion(s.desviacion)));
 
-    const celdasFila = (f) => f.celdas.slice(0, metodos.length).flatMap(({ s, optimo }) => {
+    const celdasFila = (f) => f.celdas.slice(0, metodos.length).flatMap((celda) => {
+      const { s } = celda;
       if (!s) return [el('td', { class: 'rend-comp__vacia' }, '—'), el('td', { class: 'rend-comp__vacia rend-comp__fo' }, '—')];
-      const mejor = alcanza(s.objetivo, f.menor);
+      const mejor = enLaMejor(s);
       const esActual = s.archivo === actual;
       return [
         el('td', { class: `rend-comp__tiempo${esActual ? ' rend-comp__actual' : ''}` }, segundos(s.segundos)),
@@ -111,7 +117,7 @@ export function tablaComparativa(opciones) {
             title: `Abrir ${s.algoritmo.nombre} en ${s.instancia.nombre}`,
             onclick: () => s.archivo !== actual && elegir(s.archivo),
           }, fmt(s.objetivo)),
-          marca(optimo)),
+          marca(celda)),
       ];
     });
 
@@ -128,11 +134,22 @@ export function tablaComparativa(opciones) {
         const o = media(conValor.map((s) => s.objetivo));
         return [el('td', {}, t == null ? '—' : segundos(t)), el('td', { class: 'rend-comp__fo' }, o == null ? '—' : fmt(o))];
       })),
-      el('tr', {}, el('th', { scope: 'row', colspan: 2, class: 'rend-comp__fija' }, 'Óptimos'), metodos.map((_, k) => {
+      el('tr', {}, el('th', { scope: 'row', colspan: 2, class: 'rend-comp__fija' }, 'Sobre la mejor'), metodos.map((_, k) => {
+        const d = media(completas.map((f) => f.celdas[k].s.desviacion).filter((x) => x != null));
+        return el('td', { colspan: 2, class: 'rend-comp__conteo' }, d == null ? '—' : textoDesviacion(d));
+      })),
+      el('tr', {}, el('th', { scope: 'row', colspan: 2, class: 'rend-comp__fija' }, 'Llega a la mejor'), metodos.map((_, k) => {
+        const conValor = filas.map((f) => f.celdas[k].s).filter(Boolean);
+        return el('td', { colspan: 2, class: 'rend-comp__conteo' },
+          conValor.length ? `${conValor.filter(enLaMejor).length} de ${conValor.length}` : '—');
+      })),
+      // Optimalidad probada: solo la informa Gurobi
+      hayGurobi ? el('tr', {}, el('th', { scope: 'row', colspan: 2, class: 'rend-comp__fija' }, 'Óptimos probados'), metodos.map((m, k) => {
+        if (m.clave !== 'gurobi') return el('td', { colspan: 2 });
         const conValor = filas.map((f) => f.celdas[k]).filter((c) => c.s);
         return el('td', { colspan: 2, class: 'rend-comp__conteo' },
           conValor.length ? `${conValor.filter((c) => c.optimo).length} de ${conValor.length}` : '—');
-      })),
+      })) : null,
     ];
 
     const tabla = el('table', { class: 'tabla rend-comp__tabla' },
@@ -159,9 +176,10 @@ export function tablaComparativa(opciones) {
       el('p', {
         class: 'rend-bajada',
         html: 'Tiempo de ejecución (en segundos) y función objetivo de cada método en cada instancia. '
-          + '<strong>ópt.</strong>: óptimo probado (Gurobi terminó con estado OPTIMAL, o el método llega a ese mismo valor). '
-          + '<strong>c.s.</strong>: cota superior, una solución entera sin optimalidad probada (Gurobi al alcanzar el límite de tiempo, o una heurística que no llega al óptimo). '
-          + 'En negrita, el menor Σ D<sub>i</sub> de la fila; clic en un valor para abrir esa solución.'
+          + 'En las heurísticas y metaheurísticas, el porcentaje es cuánto queda Σ D<sub>i</sub> sobre la <strong>mejor solución conocida</strong> de la instancia, '
+          + 'la menor entre todos los métodos y las cuatro variantes de Gurobi; 0 % es que la alcanza. '
+          + 'En Gurobi, <strong>ópt.</strong> es óptimo probado (estado OPTIMAL) y <strong>c.s.</strong> una cota superior: la mejor solución entera al alcanzar el límite de tiempo. '
+          + 'En negrita, los valores que alcanzan la mejor solución conocida; clic en un valor para abrir esa solución.'
           + (hayHeuristicas ? '' : ` Todavía no hay corridas de las heurísticas para ${grupo}: <code>npm run heuristicas -- ${mostrada.instancia.n}</code>.`),
       }),
       controles,
