@@ -22,6 +22,9 @@ const OPCIONES_GUROBI = [{ clave: 'mejor', texto: 'Mejor de las 4' }, ...VARIANT
 const media = (v) => (v.length ? v.reduce((a, b) => a + b, 0) / v.length : null);
 // La desviación del manifest es relativa: 1e-6 absorbe los decimales que redondea cada archivo
 const enLaMejor = (s) => s.desviacion != null && s.desviacion <= 1e-6;
+// Gurobi lleva una tercera columna con su GAP (MIPGap): (cota superior − cota inferior) / cota superior
+const columnas = (m) => (m.clave === 'gurobi' ? 3 : 2);
+const textoGap = (g) => (g == null ? '—' : `${fmt(g * 100, 2)} %`);
 const textoDesviacion = (d) => (d <= 1e-6 ? '0 %' : d < 5e-5 ? '+<0,01 %' : `+${fmt(d * 100, 2)} %`);
 
 /** Una fila por instancia: la salida de cada método y, en Gurobi, si probó optimalidad. */
@@ -104,9 +107,13 @@ export function tablaComparativa(opciones) {
         title: enLaMejor(s) ? 'Alcanza la mejor solución conocida' : 'Sobre la mejor solución conocida de la instancia',
       }, textoDesviacion(s.desviacion)));
 
-    const celdasFila = (f) => f.celdas.slice(0, metodos.length).flatMap((celda) => {
+    const celdasFila = (f) => f.celdas.slice(0, metodos.length).flatMap((celda, k) => {
       const { s } = celda;
-      if (!s) return [el('td', { class: 'rend-comp__vacia' }, '—'), el('td', { class: 'rend-comp__vacia rend-comp__fo' }, '—')];
+      const gap = metodos[k].clave === 'gurobi';
+      if (!s) {
+        return [el('td', { class: 'rend-comp__vacia' }, '—'), el('td', { class: 'rend-comp__vacia rend-comp__fo' }, '—'),
+          gap ? el('td', { class: 'rend-comp__vacia' }, '—') : null];
+      }
       const mejor = enLaMejor(s);
       const esActual = s.archivo === actual;
       return [
@@ -118,6 +125,7 @@ export function tablaComparativa(opciones) {
             onclick: () => s.archivo !== actual && elegir(s.archivo),
           }, fmt(s.objetivo)),
           marca(celda)),
+        gap ? el('td', { class: `rend-comp__gap${esActual ? ' rend-comp__actual' : ''}` }, textoGap(s.gap)) : null,
       ];
     });
 
@@ -132,37 +140,40 @@ export function tablaComparativa(opciones) {
         const conValor = completas.map((f) => f.celdas[k].s);
         const t = media(conValor.map((s) => s.segundos).filter((x) => x != null));
         const o = media(conValor.map((s) => s.objetivo));
-        return [el('td', {}, t == null ? '—' : segundos(t)), el('td', { class: 'rend-comp__fo' }, o == null ? '—' : fmt(o))];
+        const g = metodos[k].clave === 'gurobi' ? media(conValor.map((s) => s.gap).filter((x) => x != null)) : undefined;
+        return [el('td', {}, t == null ? '—' : segundos(t)), el('td', { class: 'rend-comp__fo' }, o == null ? '—' : fmt(o)),
+          g === undefined ? null : el('td', { class: 'rend-comp__gap' }, textoGap(g))];
       })),
-      el('tr', {}, el('th', { scope: 'row', colspan: 2, class: 'rend-comp__fija' }, 'Sobre la mejor'), metodos.map((_, k) => {
+      el('tr', {}, el('th', { scope: 'row', colspan: 2, class: 'rend-comp__fija' }, 'Sobre la mejor'), metodos.map((m, k) => {
         const d = media(completas.map((f) => f.celdas[k].s.desviacion).filter((x) => x != null));
-        return el('td', { colspan: 2, class: 'rend-comp__conteo' }, d == null ? '—' : textoDesviacion(d));
+        return el('td', { colspan: columnas(m), class: 'rend-comp__conteo' }, d == null ? '—' : textoDesviacion(d));
       })),
-      el('tr', {}, el('th', { scope: 'row', colspan: 2, class: 'rend-comp__fija' }, 'Llega a la mejor'), metodos.map((_, k) => {
+      el('tr', {}, el('th', { scope: 'row', colspan: 2, class: 'rend-comp__fija' }, 'Llega a la mejor'), metodos.map((m, k) => {
         const conValor = filas.map((f) => f.celdas[k].s).filter(Boolean);
-        return el('td', { colspan: 2, class: 'rend-comp__conteo' },
+        return el('td', { colspan: columnas(m), class: 'rend-comp__conteo' },
           conValor.length ? `${conValor.filter(enLaMejor).length} de ${conValor.length}` : '—');
       })),
       // Optimalidad probada: solo la informa Gurobi
       hayGurobi ? el('tr', {}, el('th', { scope: 'row', colspan: 2, class: 'rend-comp__fija' }, 'Óptimos probados'), metodos.map((m, k) => {
         if (m.clave !== 'gurobi') return el('td', { colspan: 2 });
         const conValor = filas.map((f) => f.celdas[k]).filter((c) => c.s);
-        return el('td', { colspan: 2, class: 'rend-comp__conteo' },
+        return el('td', { colspan: columnas(m), class: 'rend-comp__conteo' },
           conValor.length ? `${conValor.filter((c) => c.optimo).length} de ${conValor.length}` : '—');
       })) : null,
     ];
 
     const tabla = el('table', { class: 'tabla rend-comp__tabla' },
-      el('colgroup', {}, el('col', { span: 2 }), metodos.map(() => el('col', { span: 2, class: 'rend-comp__metodo' }))),
+      el('colgroup', {}, el('col', { span: 2 }), metodos.map((m) => el('col', { span: columnas(m), class: 'rend-comp__metodo' }))),
       el('thead', {},
         el('tr', {},
           el('th', { scope: 'col', rowspan: 2, class: 'rend-comp__fija rend-comp__id' }, 'ID'),
           el('th', { scope: 'col', rowspan: 2, class: 'rend-comp__fija rend-comp__h' }, 'h'),
-          metodos.map((m) => el('th', { scope: 'colgroup', colspan: 2, class: 'rend-comp__grupo' },
+          metodos.map((m) => el('th', { scope: 'colgroup', colspan: columnas(m), class: 'rend-comp__grupo' },
             m.titulo, m.clave === 'gurobi' ? el('span', { class: 'rend-comp__variante' }, textoGurobi) : null))),
-        el('tr', {}, metodos.flatMap(() => [
+        el('tr', {}, metodos.flatMap((m) => [
           el('th', { scope: 'col', title: 'Tiempo de ejecución en segundos' }, 'Tiempo'),
           el('th', { scope: 'col', class: 'rend-comp__fo', html: 'Σ D<sub>i</sub>' }),
+          m.clave === 'gurobi' ? el('th', { scope: 'col', title: '(cota superior − cota inferior) / cota superior' }, 'GAP') : null,
         ]))),
       el('tbody', {}, filas.map((f) => el('tr', { class: f.instancia.nombre === mostrada.instancia.nombre ? 'resaltado' : '' },
         el('td', { class: 'rend-comp__fija rend-comp__id' }, String(f.instancia.id ?? '—')),
@@ -178,7 +189,8 @@ export function tablaComparativa(opciones) {
         html: 'Tiempo de ejecución (en segundos) y función objetivo de cada método en cada instancia. '
           + 'En las heurísticas y metaheurísticas, el porcentaje es cuánto queda Σ D<sub>i</sub> sobre la <strong>mejor solución conocida</strong> de la instancia, '
           + 'la menor entre todos los métodos y las cuatro variantes de Gurobi; 0 % es que la alcanza. '
-          + 'En Gurobi, <strong>ópt.</strong> es óptimo probado (estado OPTIMAL) y <strong>c.s.</strong> una cota superior: la mejor solución entera al alcanzar el límite de tiempo. '
+          + 'En Gurobi, <strong>ópt.</strong> es óptimo probado (estado OPTIMAL) y <strong>c.s.</strong> una cota superior: la mejor solución entera al alcanzar el límite de tiempo; '
+          + 'el <strong>GAP</strong> es (cota superior − cota inferior) / cota superior al terminar, el MIPGap de Gurobi (bajo 0,01 % con óptimo probado). '
           + 'En negrita, los valores que alcanzan la mejor solución conocida; clic en un valor para abrir esa solución.'
           + (hayHeuristicas ? '' : ` Todavía no hay corridas de las heurísticas para ${grupo}: <code>npm run heuristicas -- ${mostrada.instancia.n}</code>.`),
       }),
