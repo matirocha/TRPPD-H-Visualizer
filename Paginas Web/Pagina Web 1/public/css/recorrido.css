@@ -86,7 +86,7 @@
   .recorrido { padding-block: 8px 10px; gap: 9px 18px; }
   .recorrido .camion-escena { gap: 9px; }
   .recorrido .camion-cabecera { gap: 6px; }
-  .recorrido .camion-leyenda li:last-child { display: none; }
+  .recorrido .camion-leyenda li.camion-leyenda__nota { font-size: 11.5px; line-height: 1.3; }
   .recorrido__controles .camion-reproductor { padding-block: 6px; }
   .recorrido__controles .camion-reproductor__nota { display: none; }
   .recorrido .mapa-pie { display: none; }

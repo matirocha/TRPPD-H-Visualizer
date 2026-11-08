@@ -56,7 +56,8 @@
 }
 .camion-leyenda li { display: inline-flex; align-items: center; gap: 7px; }
 .camion-leyenda strong { font-family: var(--f-mono); color: var(--tinta); }
-.camion-leyenda__nota { color: var(--tinta-3); }
+/* Nota bajo la leyenda: qué significan el número y las unidades de cada bloque (fila completa) */
+.camion-leyenda li.camion-leyenda__nota { display: block; flex-basis: 100%; color: var(--tinta-2); text-wrap: pretty; }
 .camion-muestra { width: 11px; height: 17px; border-radius: 3px; background: var(--color); flex-shrink: 0; border: 1px solid rgb(23 32 42 / 0.25); }
 .camion-muestra--libre {
   background: repeating-linear-gradient(45deg, var(--regla) 0 1.2px, var(--superficie) 1.2px 4.5px);
@@ -230,6 +231,7 @@
 .camion-vista__parada { font: 400 15px/1.2 var(--f-texto); color: var(--tinta-2); letter-spacing: 0; }
 .camion-vista__titulo--resaltado { background: rgb(255 226 138 / 0.5); }
 .camion-vista__texto { margin: 0; font-size: 14px; line-height: 1.5; color: var(--tinta-2); }
+.camion-vista__politica { font-size: 13px; }
 .camion-vista .politica-chip { justify-self: start; }
 .camion-deposito {
   display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 6px;
@@ -269,7 +271,10 @@
   border: 2px solid var(--color); transition: background 0.25s, color 0.25s;
 }
 .camion-op__cuerpo { display: grid; gap: 1px; min-width: 0; }
-.camion-op__desc { margin: 0; font-size: 13.5px; line-height: 1.3; color: var(--tinta); }
+.camion-op__desc { margin: 0; font-size: 13.5px; font-weight: 600; line-height: 1.3; color: var(--tinta); }
+/* Qué pasa en el paso y por qué, con los números de la parada */
+.camion-op__explica { margin: 2px 0 3px; font-size: 13px; line-height: 1.45; color: var(--tinta-2); text-wrap: pretty; }
+.camion-op.es-activa .camion-op__explica { color: var(--tinta); }
 .camion-op__formula { margin: 0; font: 12.5px/1.45 var(--f-mono); color: var(--tinta-2); overflow-wrap: anywhere; }
 .camion-op__formula strong { font-weight: 600; color: var(--tinta); }
 .camion-op__t { margin: 0; font: 11.5px/1.3 var(--f-mono); color: var(--tinta-2); }

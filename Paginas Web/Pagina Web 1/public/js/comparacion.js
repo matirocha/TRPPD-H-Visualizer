@@ -5,7 +5,9 @@
 //    la corrida y cuánto cambia respecto de la primera serie; si no, barras en SVG con eje.
 // B. Todas las instancias con el mismo banco y n: un punto por instancia en cada serie y una
 //    marca en la mediana; la instancia mostrada lleva un anillo.
-// Debajo, una tabla con la mediana, la media y el máximo de cada serie.
+// Debajo, opcional (config.tabla), una tabla con la mediana, la media y el máximo de cada serie.
+// Si la tarjeta B queda más alta que su gráfico (porque la A, a su lado, es más alta), las filas
+// de B se estiran para llenarla.
 //
 // Los datos salen del manifest, así que no hace falta abrir cada archivo. Clic en una barra o
 // un punto abre esa solución. Con escala logarítmica (tiempos que van de milisegundos a horas)
@@ -24,7 +26,7 @@
 //   titulos         {a(mostrada), bajadaA, b(grupo), bajadaB(total), tabla(grupo, M)}
 //   nota(filas, medida)   {clase, icono, html} bajo el gráfico A, o null
 //   tooltip(s, serie, filas)  html del tooltip de una salida
-//   tabla           {encabezados, fila(r, resumen, texto) -> celdas}
+//   tabla           opcional: {encabezados, fila(r, resumen, texto) -> celdas}
 //   extra({manifest, resultados, mostrada, actual, elegir})  opcional: nodos que van bajo la tabla,
 //                   o {nodo, destruir} si hay que limpiar algo al rehacer la sección
 import { el, fmt, mostrarTooltip, moverTooltip, movimientoReducido, ocultarTooltip, svg } from './util.js';
@@ -143,7 +145,7 @@ function montar(raiz, { manifest, resultados, actual, elegir, metrica, cambiarMe
       mediana: vals.length ? mediana(vals) : null, media: vals.length ? media(vals) : null, max: vals.length ? Math.max(...vals) : null,
     };
   });
-  const tabla = el('article', { class: 'tarjeta rend-tarjeta rend-tarjeta--tabla', 'aria-labelledby': `${raiz.id}-t` },
+  const tabla = C.tabla && el('article', { class: 'tarjeta rend-tarjeta rend-tarjeta--tabla', 'aria-labelledby': `${raiz.id}-t` },
     el('h3', { class: 'tarjeta__titulo', id: `${raiz.id}-t` }, C.titulos.tabla(grupo, M)),
     el('div', { class: 'tabla-desplazable' }, el('table', { class: 'tabla rend-tabla' },
       el('thead', {}, el('tr', {}, C.tabla.encabezados.map((h) => el('th', { scope: 'col', html: h })))),
@@ -180,11 +182,20 @@ function montar(raiz, { manifest, resultados, actual, elegir, metrica, cambiarMe
     }, 160);
   });
   ro.observe(contenedor);
+  // El alto de A cambia sin cambiar el ancho (p. ej. al cargar las fuentes): B se vuelve a ajustar
+  st.altoA = tarjetaA.offsetHeight;
+  const roA = new ResizeObserver(() => {
+    if (st.destruyendo || Math.abs(tarjetaA.offsetHeight - st.altoA) <= 1) return;
+    st.altoA = tarjetaA.offsetHeight;
+    ajustarB();
+  });
+  roA.observe(tarjetaA);
 
   return {
     destruir() {
       st.destruyendo = true;
       ro.disconnect();
+      roA.disconnect();
       clearTimeout(st.temporizador);
       ocultarTooltip();
       extra?.destruir?.();
@@ -196,7 +207,18 @@ function montar(raiz, { manifest, resultados, actual, elegir, metrica, cambiarMe
 
   function dibujar() {
     if (!enLista) dibujarA();
-    dibujarB();
+    ajustarB();
+  }
+
+  /** Dibuja B con sus filas mínimas y, si en la tarjeta sobra alto, lo reparte entre las filas. */
+  function ajustarB() {
+    dibujarB(0);
+    const tarjeta = tarjetaB;
+    const estilo = getComputedStyle(tarjeta);
+    const fondo = tarjeta.getBoundingClientRect().bottom - parseFloat(estilo.paddingBottom) - parseFloat(estilo.borderBottomWidth);
+    const libre = Math.floor(fondo - marcoB.getBoundingClientRect().bottom);
+    if (libre > 4) dibujarB(libre);
+    st.altoA = tarjetaA.offsetHeight;
   }
 
   function medidas(marco) {
@@ -339,9 +361,10 @@ function montar(raiz, { manifest, resultados, actual, elegir, metrica, cambiarMe
     }));
   }
 
-  function dibujarB() {
+  function dibujarB(extra = 0) {
     const { ancho, izq, der } = medidas(marcoB);
-    const fila = 58;
+    const fila = Math.min(130, 58 + extra / C.series.length);
+    const holgura = fila / 58; // al estirar las filas, los puntos se separan más
     const alto = fila * C.series.length;
     const x = escala(delN.flatMap((d) => d.salidas.map(valor)), [izq, ancho - der]);
     const svgB = svg('svg', { class: 'rend-svg', viewBox: `0 -16 ${ancho} ${alto + 44}`, width: ancho, height: alto + 44, role: 'img', 'aria-label': `${M.texto} de cada instancia con ${grupo}, por serie` });
@@ -356,7 +379,7 @@ function montar(raiz, { manifest, resultados, actual, elegir, metrica, cambiarMe
       const orden = [...salidas].sort((a, b) => a.instancia.id - b.instancia.id || a.instancia.h - b.instancia.h);
       let destacado = null;
       orden.forEach((s, k) => {
-        const dy = ((k % 7) - 3) * 4.2;
+        const dy = ((k % 7) - 3) * 4.2 * holgura;
         const p = svg('g', { class: 'rend-punto' },
           svg('circle', { class: 'rend-punto__zona', cx: x(valor(s)), cy: y + dy, r: 8 }),
           svg('circle', { class: 'rend-punto__marca', cx: x(valor(s)), cy: y + dy, r: 4 }));
@@ -368,7 +391,7 @@ function montar(raiz, { manifest, resultados, actual, elegir, metrica, cambiarMe
       });
       const med = mediana(orden.map(valor));
       g.append(
-        svg('line', { class: 'rend-mediana', x1: x(med), x2: x(med), y1: y - 17, y2: y + 17 }),
+        svg('line', { class: 'rend-mediana', x1: x(med), x2: x(med), y1: y - 17 * holgura, y2: y + 17 * holgura }),
         svg('text', { class: 'rend-valor', x: ancho - der + 8, y, 'dominant-baseline': 'middle' }, texto(med)));
       if (destacado) g.append(destacado); // encima de los demás
       return g;

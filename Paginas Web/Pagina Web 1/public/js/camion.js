@@ -45,6 +45,7 @@ const sub = (base, i) => `${base}<sub>${i}</sub>`;
 const cSub = (j, i) => sub('c', j < 10 && i < 10 ? `${j}${i}` : `${j},${i}`);
 const t3 = (x) => fmt(x, 3);
 const nombreNodo = (i) => (i === 0 ? 'el depósito' : `el cliente ${i}`);
+const delNodo = (i) => (i === 0 ? 'del depósito' : `del cliente ${i}`);
 
 function resumen(pila) {
   const c = { w: 0, y: 0, z: 0, total: 0 };
@@ -287,12 +288,19 @@ function prepararVista(sim, salida, estado, { controlesAparte = false, graficoAp
   // Figura del camión
   construirSVG(v);
   const seg = v.geo.segmentos;
+  // Ejemplo de la nota: la entrega del primer cliente de esta ruta (la que va junto a la puerta)
+  const ejemplo = sim.paradas.find((p) => p.alpha > 1e-9);
+  const quien = 'el cliente que recibe la entrega (y) o donde se recogió la carga (w, z)';
+  const nota = seg
+    ? `Cada bloque mide lo que ocupa. Arriba va ${quien}; abajo, sus unidades${ejemplo
+      ? `: el bloque ámbar «${ejemplo.cliente} · ${fmt(ejemplo.alpha)} u.» son las ${fmt(ejemplo.alpha)} unidades que se entregan al cliente ${ejemplo.cliente}` : ''}.`
+    : `Cada cuadro es una unidad; su número es ${quien}.`;
   const leyenda = el('ul', { class: 'camion-leyenda', 'aria-label': 'Leyenda de la carga' },
-    itemLeyenda('var(--a)', '<strong>y</strong> entrega · número = cliente de destino'),
-    itemLeyenda('var(--b-fondo)', '<strong>w</strong> recogida al fondo · número = cliente de origen'),
+    itemLeyenda('var(--a)', '<strong>y</strong> entrega'),
+    itemLeyenda('var(--b-fondo)', '<strong>w</strong> recogida al fondo'),
     itemLeyenda('var(--b-puerta)', '<strong>z</strong> recogida junto a la puerta'),
     el('li', {}, el('span', { class: 'camion-muestra camion-muestra--libre' }), seg ? 'espacio libre' : 'ranura libre'),
-    seg ? el('li', { class: 'camion-leyenda__nota', html: `Bloques a escala: <strong>y·3 (7)</strong> = 7 unidades para el cliente 3` }) : null);
+    el('li', { class: 'camion-leyenda__nota' }, el('span', { text: nota })));
   const figura = el('figure', { class: 'camion-figura' }, v.svgCamion, leyenda);
 
   // Reproductor
@@ -472,7 +480,6 @@ function crearUnidades(v) {
   const { geo, sim } = v;
   v.unidades = [];
   v.porId = new Map();
-  v.rotulosB = [];
   const crear = (id, pref, cliente, k, total, unidades) => {
     // Con segmentos el bloque mide lo que ocupa a bordo y se compacta en el andén.
     const anchoAbordo = geo.segmentos ? Math.max(0.8, unidades * geo.paso - geo.hueco) : geo.ancho;
@@ -486,18 +493,14 @@ function crearUnidades(v) {
         x: anchoAbordo / 2, y: geo.alto / 2, 'font-size': geo.letra.toFixed(1),
       }, String(cliente)));
     } else if (minimo >= 32) {
-      // Rótulo en dos líneas: "y·3" y "(7)"
-      textos.push(svg('text', { class: 'camion-u__num', x: anchoAbordo / 2, y: geo.alto / 2 - 7, 'font-size': '11' }, `${pref === 'y' ? 'y' : 'z'}·${cliente}`));
-      textos.push(svg('text', { class: 'camion-u__num camion-u__num--cant', x: anchoAbordo / 2, y: geo.alto / 2 + 9, 'font-size': '9.5' }, `(${fmt(unidades)})`));
+      // Rótulo en dos líneas: el cliente ("7") y sus unidades ("9 u."); el color dice si es y, w o z
+      textos.push(svg('text', { class: 'camion-u__num', x: anchoAbordo / 2, y: geo.alto / 2 - 7, 'font-size': '12' }, String(cliente)));
+      textos.push(svg('text', { class: 'camion-u__num camion-u__num--cant', x: anchoAbordo / 2, y: geo.alto / 2 + 9, 'font-size': '9.5' }, `${fmt(unidades)} u.`));
     } else if (minimo >= 14) {
       textos.push(svg('text', { class: 'camion-u__num', x: anchoAbordo / 2, y: geo.alto / 2, 'font-size': '10' }, String(cliente)));
     }
     const g = svg('g', { class: `camion-u camion-u--${pref}`, dataset: { unidad: id } }, caja, textos);
-    const u = {
-      id, g, caja, textos, cliente, entrega: pref === 'y', k, total, unidades, anchoAbordo, anchoAnden,
-      tipoRotulo: textos.length === 2 && pref === 'b' ? 'z' : null,
-    };
-    if (u.tipoRotulo) v.rotulosB.push(u);
+    const u = { id, g, caja, textos, cliente, entrega: pref === 'y', k, total, unidades, anchoAbordo, anchoAnden };
     conTooltip(g, () => htmlUnidad(v, u));
     g.addEventListener('pointerenter', () => v.estado.set({ hover: u.cliente }));
     g.addEventListener('pointerleave', () => v.estado.set({ hover: null }));
@@ -597,19 +600,77 @@ function vistaInicio(v) {
 }
 
 function itemViaje(desde, hasta, c, inicio, fin, llegada) {
+  const explica = hasta === 0
+    ? `Con todos los clientes atendidos, el camión vuelve al depósito. Este viaje no suma a la espera de nadie.`
+    : `El camión sale ${delNodo(desde)} en t = ${t3(inicio)} y llega al cliente ${hasta} en t = ${t3(fin)}: ese instante es ${llegada}.`;
   return el('li', { class: 'camion-op camion-op--viaje', style: conColor('var(--viaje)'), dataset: { orden: 0 } },
     el('span', { class: 'camion-op__num', 'aria-hidden': 'true' }, '→'),
     el('div', { class: 'camion-op__cuerpo' },
-      el('p', { class: 'camion-op__desc' }, `Viaje desde ${nombreNodo(desde)}`),
-      el('p', { class: 'camion-op__formula', html: `${cSub(desde, hasta)} = <strong>${t3(c)}</strong>` }),
-      el('p', { class: 'camion-op__t', html: `${t3(inicio)} → ${t3(fin)} = ${llegada}` })));
+      el('p', { class: 'camion-op__desc' }, hasta === 0 ? `Viaje de vuelta desde ${nombreNodo(desde)}` : `Viaje desde ${nombreNodo(desde)} hasta el cliente ${hasta}`),
+      el('p', { class: 'camion-op__explica', html: explica }),
+      el('p', { class: 'camion-op__formula', html: `Tiempo de viaje: ${cSub(desde, hasta)} = <strong>${t3(c)}</strong>` })));
+}
+
+/** "7", "7 y 4", "7, 4 y 9" o, con muchos, "12 clientes". */
+function listaClientes(bloques) {
+  const c = [...new Set(bloques.map((b) => b.cliente))];
+  if (c.length > 4) return `${c.length} clientes`;
+  return c.length < 2 ? `el cliente ${c[0]}` : `los clientes ${c.slice(0, -1).join(', ')} y ${c.at(-1)}`;
+}
+
+/** Frase corta del paso para la cabecera de la escena. */
+function resumenOp(op, p) {
+  const u = fmt(op.unidades);
+  switch (op.clave) {
+    case 'retirarPuerta': return op.unidades > 0 ? `Paso 1 · se bajan ${u} recogidas que tapan la entrega` : 'Paso 1 · nada tapa la entrega';
+    case 'descargar': return `Paso 2 · se entregan ${u} unidades al cliente ${p.cliente}`;
+    case 'retirarEntregas': return op.unidades > 0 ? `Paso 3 · se sacan ${u} entregas para llegar al fondo` : 'Paso 3 · no quedan entregas a bordo';
+    case 'cargarRecogidas': return op.unidades > 0 ? `Paso 4 · ${u} recogidas suben ${op.destino === 'w' ? 'al fondo' : 'junto a la puerta'}` : 'Paso 4 · no hay recogidas que subir';
+    case 'recargarEntregas': return op.unidades > 0 ? `Paso 5 · vuelven a subir ${u} entregas` : 'Paso 5 · no hay entregas que recargar';
+    default: return `Paso ${op.paso} · ${op.etiqueta.charAt(0).toLowerCase()}${op.etiqueta.slice(1)}`;
+  }
+}
+
+/** Qué pasa en el paso y por qué, con los números de esta parada. */
+function explicacionOp(op, p, siguiente) {
+  const i = p.cliente;
+  const u = fmt(op.unidades);
+  const z = p.zEntrada ?? 0;
+  switch (op.clave) {
+    case 'retirarPuerta':
+      return op.unidades > 0
+        ? `Junto a la puerta vienen ${u} unidades recogidas antes (z, de ${listaClientes(op.bloques)}). Tapan la entrega del cliente ${i}, así que se bajan al andén.`
+        : `No hay recogidas junto a la puerta: la entrega del cliente ${i} está al alcance y no hay que mover nada.`;
+    case 'descargar':
+      return `Se bajan las ${u} unidades que pidió el cliente ${i}. Aquí termina su espera: ${sub('D', i)} es el instante en que queda atendido, y la función objetivo suma estos instantes.`;
+    case 'retirarEntregas':
+      return op.unidades > 0
+        ? `Política 2: para dejar las recogidas al fondo hay que despejar la caja. Se sacan al andén las ${u} entregas que siguen a bordo (para ${listaClientes(op.bloques)}).`
+        : 'Política 2: no quedan entregas a bordo, así que no hay nada que sacar para llegar al fondo.';
+    case 'cargarRecogidas': {
+      if (!(op.unidades > 0)) return 'No hay recogidas que subir.';
+      const partes = z > 1e-9 && p.beta > 1e-9
+        ? `las ${fmt(z)} unidades que se bajaron en el paso 1 y las ${fmt(p.beta)} que se recogen en el cliente ${i}`
+        : z > 1e-9 ? `las ${fmt(z)} unidades que se bajaron en el paso 1 (el cliente ${i} no tiene recogidas)`
+          : `las ${fmt(p.beta)} unidades que se recogen en el cliente ${i}`;
+      return op.destino === 'w'
+        ? `Política 2: suben ${partes}, y quedan al fondo de la caja (w). Ahí ya no estorban: en las próximas paradas no habrá que moverlas.`
+        : `Política 1: suben ${partes}, y quedan junto a la puerta (z). Es lo más rápido ahora, pero en la próxima parada habrá que bajarlas otra vez para llegar a la entrega.`;
+    }
+    case 'recargarEntregas':
+      return op.unidades > 0
+        ? `Las ${u} entregas que se sacaron en el paso 3 vuelven a subir delante de las recogidas, en el mismo orden: la del cliente ${siguiente}, que es el próximo, queda junto a la puerta.`
+        : 'No hay entregas que recargar.';
+    default:
+      return '';
+  }
 }
 
 function hito(marca, valor, nota, orden) {
   return el('li', { class: 'camion-hito', dataset: { orden } },
     el('span', { class: 'camion-hito__marca', html: marca }),
     el('span', { class: 'camion-hito__valor' }, `= ${t3(valor)}`),
-    el('span', {}, nota));
+    el('span', { html: nota }));
 }
 
 function vistaParada(v, p, k) {
@@ -619,15 +680,21 @@ function vistaParada(v, p, k) {
   const items = [itemViaje(p.desde, i, p.c, p.salidaPrevia, p.T, sub('T', i))];
   for (const paso of [1, 2, 3, 4, 5]) {
     const op = p.ops.find((o) => o.paso === paso);
-    items.push(op ? itemOp(op, p) : itemNoAplica(paso, p));
-    if (paso === 2) items.push(hito(sub('D', i), p.D, 'entrega completa', 2.5));
+    items.push(op ? itemOp(op, p, siguiente) : itemNoAplica(paso, p));
+    if (paso === 2) items.push(hito(sub('D', i), p.D, `el cliente ${i} queda atendido: es su espera`, 2.5));
   }
-  items.push(hito(sub('F', i), p.F, `sale hacia ${nombreNodo(siguiente)}`, 6));
+  items.push(hito(sub('F', i), p.F, `termina en el cliente ${i} y sale hacia ${nombreNodo(siguiente)}`, 6));
 
   const vista = el('div', { class: 'camion-vista', hidden: true },
     el('p', { class: 'camion-vista__ante' }, 'Secuencia de la Tabla 3'),
     tituloCliente(v, p, el('span', { class: 'camion-vista__parada' }, `· Parada ${p.k} de ${n}`)),
     el('span', { class: `politica-chip politica-chip--p${p.politica === 1 ? 1 : 2}` }, POLITICA_TEXTO[p.politica]),
+    el('p', {
+      class: 'camion-vista__texto camion-vista__politica',
+      text: p.politica === 1
+        ? `Con la política 1 las recogidas quedan junto a la puerta: solo se mueve lo que tapa la entrega (pasos 1, 2 y 4). Es rápido aquí, pero las recogidas estorbarán en la próxima parada.`
+        : `Con la política 2 las recogidas van al fondo: se sacan también las entregas que quedan, se suben las recogidas y se vuelven a cargar las entregas (pasos 1 a 5). Cuesta más aquí, pero deja la puerta libre para las próximas paradas.`,
+    }),
     el('dl', { class: 'camion-vista__datos' },
       dato(sub('α', i), fmt(p.alpha), 'entregas'),
       dato(sub('β', i), fmt(p.beta), 'recogidas'),
@@ -645,7 +712,10 @@ function dato(simbolo, valor, nota) {
   return el('div', { class: 'camion-dato' }, el('dt', { html: `${simbolo} · ${nota}` }), el('dd', {}, valor));
 }
 
-function itemOp(op, p) {
+// Nombre de cada tiempo unitario, para el texto de la fórmula
+const NOMBRE_TASA = { ua: 'descargar a', la: 'cargar a', ub: 'descargar b', lb: 'cargar b' };
+
+function itemOp(op, p, siguiente) {
   const i = p.cliente;
   const variable = { 1: 'z', 2: sub('α', i), 3: 'y', 4: `(z + ${sub('β', i)})`, 5: 'y' }[op.paso] ?? '';
   const cantidad = op.paso === 4 ? `(${fmt(p.zEntrada)} + ${fmt(p.beta)})` : fmt(op.unidades);
@@ -655,8 +725,15 @@ function itemOp(op, p) {
     el('span', { class: 'camion-op__num' }, String(op.paso)),
     el('div', { class: 'camion-op__cuerpo' },
       el('p', { class: 'camion-op__desc' }, op.etiqueta),
-      el('p', { class: 'camion-op__formula', html: `${PARAM_HTML[op.param]} · ${variable} = ${fmt(op.tasa, 4)} × ${cantidad} = <strong>${fmt(op.duracion, 4)}</strong>` }),
-      el('p', { class: 'camion-op__t' }, vacia ? `${t3(op.inicio)} · sin unidades` : `${t3(op.inicio)} → ${t3(op.fin)}`)));
+      el('p', { class: 'camion-op__explica', html: explicacionOp(op, p, siguiente) }),
+      el('p', {
+        class: 'camion-op__formula',
+        title: `${PARAM_HTML[op.param].replace(/<\/?sub>/g, '')} = tiempo por unidad (${NOMBRE_TASA[op.param]}) en el cliente ${i}`,
+        html: vacia
+          ? `Tiempo: ${PARAM_HTML[op.param]} × ${variable} = ${fmt(op.tasa, 4)} × 0 = <strong>0</strong>, no toma tiempo`
+          : `Tiempo: ${PARAM_HTML[op.param]} × ${variable} = ${fmt(op.tasa, 4)} × ${cantidad} = <strong>${fmt(op.duracion, 4)}</strong>`,
+      }),
+      vacia ? null : el('p', { class: 'camion-op__t' }, `de t = ${t3(op.inicio)} a t = ${t3(op.fin)}`)));
 }
 
 function itemNoAplica(paso, p) {
@@ -665,7 +742,9 @@ function itemNoAplica(paso, p) {
     el('span', { class: 'camion-op__num' }, String(paso)),
     el('div', { class: 'camion-op__cuerpo' },
       el('p', { class: 'camion-op__desc' }, info?.etiqueta ?? `Paso ${paso}`),
-      el('p', { class: 'camion-op__na' }, p.politica === 1 ? 'No aplica en P1' : 'Sin operación')));
+      el('p', { class: 'camion-op__na' }, p.politica === 1
+        ? 'No aplica con la política 1: las entregas que siguen a bordo no se mueven.'
+        : 'Sin operación.')));
 }
 
 function vistaRegreso(v) {
@@ -877,7 +956,7 @@ function construirLinea(v, pausada) {
     tl.addLabel(`llega${k}`, t);
     tl.to(v.puerta, { scaleY: 0.1, duration: DUR.puerta, ease: 'power2.inOut' }, t);
     const servicio = { k, anden: i, arcos: [k, k + 1], etiqueta: `Cliente ${i}`, clase: claseServicio };
-    fases.push({ ...servicio, tipo: 'abrir', t0: t, t1: t + DUR.puerta, orden: 0.5, carga0: p.llegada.carga, carga1: p.llegada.carga, reloj0: p.T, reloj1: p.T, html: 'Se abre la puerta trasera' });
+    fases.push({ ...servicio, tipo: 'abrir', t0: t, t1: t + DUR.puerta, orden: 0.5, carga0: p.llegada.carga, carga1: p.llegada.carga, reloj0: p.T, reloj1: p.T, html: `Llega al cliente ${i} y abre la puerta trasera` });
     t += DUR.puerta;
 
     const anden = crearAnden(geo, contarAnden(p, seg));
@@ -886,7 +965,7 @@ function construirLinea(v, pausada) {
       fases.push({
         ...servicio, tipo: 'op', op, t0: t, t1: t + d, orden: op.paso,
         carga0: resumen(op.pilaAntes), carga1: resumen(op.pilaDespues), reloj0: op.inicio, reloj1: op.fin,
-        html: `Paso ${op.paso} · ${op.etiqueta.charAt(0).toLowerCase()}${op.etiqueta.slice(1)}`,
+        html: resumenOp(op, p),
       });
       t += d;
     }
@@ -898,7 +977,7 @@ function construirLinea(v, pausada) {
     fases.push({
       ...servicio, tipo: 'pausa', t0: t, t1: t + DUR.pausa, orden: 6, arcos: [k + 1],
       carga0: p.salida.carga, carga1: p.salida.carga, reloj0: p.F, reloj1: p.F,
-      html: `Atendido en ${sub('D', i)} = ${t3(p.D)} · sale en ${sub('F', i)} = ${t3(p.F)}`,
+      html: `Cliente ${i} atendido en ${sub('D', i)} = ${t3(p.D)} · sale en ${sub('F', i)} = ${t3(p.F)}`,
     });
     t += DUR.pausa;
   });
@@ -955,14 +1034,6 @@ function sincronizar(v, t) {
   }
   const u = f.t1 > f.t0 ? Math.min(1, Math.max(0, (t - f.t0) / (f.t1 - f.t0))) : 1;
   pintarContadores(v, f, u);
-  // Rótulos "z·4" / "w·4" de los bloques de recogida (modo segmentos)
-  for (const b of v.rotulosB) {
-    const tipo = estadoEn(v, b, t)?.tipo ?? 'z';
-    if (tipo !== b.tipoRotulo) {
-      b.tipoRotulo = tipo;
-      b.textos[0].textContent = `${tipo}·${b.cliente}`;
-    }
-  }
   const instante = f.reloj0 + (f.reloj1 - f.reloj0) * u;
   const reloj = `t = ${fmt(instante, 2)}`;
   if (reloj !== v.ultimoReloj) {

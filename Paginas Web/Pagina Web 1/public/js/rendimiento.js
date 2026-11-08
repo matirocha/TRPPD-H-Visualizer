@@ -2,7 +2,7 @@
 // las restricciones (20)-(23) y (24)-(29).
 //
 // Una fila por variante en los gráficos de comparacion.js (esta instancia, como lista con el valor
-// en grande, y todas las del mismo banco y n), con una tabla de óptimas, mediana, media y máximo.
+// en grande, y todas las del mismo banco y n).
 // Con límite de tiempo los segundos se igualan y el GAP es la medida que distingue a las variantes.
 // Debajo, la tabla comparativa por instancia y el tiempo según n de comparativa.js (resultados del
 // Excel de resúmenes: Gurobi y las réplicas de las heurísticas).
@@ -95,20 +95,8 @@ export function crear(raiz, _estado, opciones) {
       bajadaA: 'Una fila por variante del modelo, con la barra a escala de la mayor; en tinta, la que se está mostrando. Bajo cada barra, si probó el óptimo y cuánto cambia respecto de (1)–(19). Clic en una fila para abrirla.',
       b: (grupo) => `Todas las instancias con ${grupo}`,
       bajadaB: (total) => `Un punto por instancia (${total} combinaciones de ID y h) y una raya en la mediana. El anillo es la instancia mostrada.`,
-      tabla: (grupo, M) => `Resumen por variante · ${grupo} · ${M.texto.toLowerCase()}`,
     },
     nota,
     tooltip,
-    tabla: {
-      encabezados: ['Variante', 'Restricciones', 'Instancias', 'Óptimas', 'Mediana', 'Media', 'Máximo', 'Media vs (1)–(19)'],
-      fila: (r, resumen, texto) => {
-        const mediaBase = resumen[0].media;
-        return [
-          r.v.corta, r.v.etiqueta, String(r.cantidad), String(r.salidas.filter((s) => s.estado === 'OPTIMAL').length),
-          texto(r.mediana), texto(r.media), texto(r.max),
-          r.media == null || !mediaBase ? '—' : r.v.clave === '00' ? 'referencia' : `× ${fmt(r.media / mediaBase, 2)}`,
-        ];
-      },
-    },
   });
 }

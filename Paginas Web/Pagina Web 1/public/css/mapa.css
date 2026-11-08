@@ -36,13 +36,8 @@
   font-size: 12.5px; line-height: 1.35; color: var(--tinta-2); text-wrap: pretty;
 }
 
-/* --- Lámina ---------------------------------------------------------------- */
-.mapa-lamina {
-  position: relative; margin: 0; min-width: 0; overflow: hidden;
-  background: var(--superficie);
-  border: 1px solid var(--regla-2); border-radius: var(--radio);
-  box-shadow: var(--sombra-s), inset 0 0 0 6px rgb(244 240 232 / 0.55);
-}
+/* --- Lámina: sin tarjeta, el mapa va directo sobre el papel de la página ---- */
+.mapa-lamina { position: relative; margin: 0; min-width: 0; overflow: hidden; background: transparent; }
 /* manipulation: deja hacer zoom con dos dedos sobre el mapa (en un teléfono se ve a ~0,55×). */
 .mapa-svg { display: block; width: 100%; height: auto; overflow: hidden; touch-action: manipulation; }
 .mapa-svg text { user-select: none; -webkit-user-select: none; }
@@ -410,7 +405,6 @@
   .mapa-ficha__celda { flex-direction: column; align-items: flex-start; gap: 2px; padding: 4px 5px 4px 6px; }
   .mapa-ficha__valor { max-width: 100%; }
   .mapa-control { gap: 5px 8px; }
-  .mapa-lamina { border-radius: var(--radio-s); box-shadow: var(--sombra-s); }
   .mapa-pie { gap: 5px 12px; font-size: 12px; }
   .mapa-parada { padding: 12px 13px; }
   .mapa-parada__titulo { font-size: 21px; }
