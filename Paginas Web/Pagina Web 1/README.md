@@ -16,9 +16,9 @@ npm start
 Abre <http://localhost:3000>. El servidor lee `../../Outputs` (o la carpeta de
 la variable `OUTPUTS_DIR`); después de correr un algoritmo, recarga la página
 para ver sus soluciones. La tabla y el gráfico de tiempos de la sección
-Rendimiento usan los resultados de `Outputs/resumenes/gurobi_resultados.xlsx`,
-recalculados desde los JSON de Gurobi y `heuristicas_replicas.csv`
-(`/api/resultados`). En la versión publicada (Vercel), los cambios en
+Rendimiento leen `Outputs/resumenes/gurobi_resultados.xlsx` (`/api/resultados`);
+al cambiar el Excel basta con recargar. `npm start` no se reinicia solo: si se
+actualiza `server.js` o `lib/`, hay que detenerlo y volver a iniciarlo. En la versión publicada (Vercel), los cambios en
 `Outputs` aparecen al hacer commit y push.
 
 | Comando | Qué hace |

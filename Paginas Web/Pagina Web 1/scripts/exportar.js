@@ -36,8 +36,17 @@ for (const { archivo } of salidas) {
   await cp(resolverSalida(archivo), salida);
 }
 await writeFile(path.join(destino, 'datos', 'manifest.json'), JSON.stringify({ salidas }, null, 2));
-const resultados = await calcularResultados(salidas);
-await writeFile(path.join(destino, 'datos', 'resultados.json'), JSON.stringify(resultados));
+// Resultados del Excel de resúmenes: si no se pueden leer, la página igual se publica y la tabla
+// de Rendimiento explica qué falta
+let resultados = null;
+try {
+  resultados = await calcularResultados(salidas);
+  await writeFile(path.join(destino, 'datos', 'resultados.json'), JSON.stringify(resultados));
+} catch (error) {
+  console.warn(`Aviso: sin datos/resultados.json. ${error.message}`);
+}
 
 console.log(`${salidas.length} soluciones de ${OUTPUTS} exportadas a ${destino}`);
-console.log(`Resultados de ${resultados.instancias.length} instancias en datos/resultados.json`);
+if (resultados) {
+  console.log(`Resultados de ${resultados.instancias.length} instancias (${resultados.fuente.excel}, ${resultados.fuente.modo}) en datos/resultados.json`);
+}

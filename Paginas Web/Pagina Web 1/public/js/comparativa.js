@@ -1,5 +1,5 @@
 // Bajo el resumen de la sección Rendimiento, dos tarjetas con los resultados del Excel de
-// resúmenes (Outputs/resumenes/gurobi_resultados.xlsx, recalculados en lib/resultados.js):
+// resúmenes (Outputs/resumenes/gurobi_resultados.xlsx, leído en lib/resultados.js):
 //
 // 1. Comparación por instancia: una fila por instancia del n elegido, con la BKS (mejor solución
 //    conocida), Gurobi (tiempo, cota superior, GAP y GAP sol. entera de la variante elegida o la
@@ -69,12 +69,11 @@ export function tablaComparativa({ resultados, mostrada, actual, elegir, prefere
   if (!instancias.length) {
     return el('article', { class: 'tarjeta rend-tarjeta rend-comp' },
       el('h3', { class: 'tarjeta__titulo' }, 'Comparación por instancia'),
-      el('p', {
-        class: 'rend-bajada',
-        html: 'No se pudieron leer los resultados por instancia. La página los calcula desde <code>Outputs/gurobi</code> y '
-          + '<code>Outputs/resumenes/heuristicas_replicas.csv</code> (<code>/api/resultados</code> con <code>npm start</code>, o '
-          + '<code>datos/resultados.json</code> en la versión exportada).',
-      }));
+      el('p', { class: 'rend-nota rend-nota--error' },
+        el('span', { class: 'rend-nota__icono', 'aria-hidden': 'true' }, '!'),
+        el('span', {},
+          'No se pudieron leer los resultados de ', el('code', {}, 'Outputs/resumenes/gurobi_resultados.xlsx'), '. ',
+          resultados?.error ?? (resultados ? 'La hoja Resultados no tiene instancias.' : 'No llegó respuesta del servidor.'))));
   }
 
   // n y banco disponibles; si un n tuviera los dos bancos, el botón los distingue
@@ -240,7 +239,9 @@ export function tablaComparativa({ resultados, mostrada, actual, elegir, prefere
         `Comparación por instancia · ${textoGrupo}`, p.h === 'todos' ? null : el('span', { class: 'rend-comp__minuscula' }, ` · h = ${fmt(p.h)}`)),
       el('p', {
         class: 'rend-bajada',
-        html: 'Los resultados de la hoja Resultados de <code>gurobi_resultados.xlsx</code>. '
+        html: `Leído de la hoja Resultados de <code>${resultados.fuente?.excel ?? 'gurobi_resultados.xlsx'}</code>${resultados.fuente?.modo === 'formulas'
+          ? ' (el archivo no guarda el resultado de sus fórmulas hasta que se guarda en Excel, así que BKS, GAP y promedios se calculan con esas mismas fórmulas desde sus hojas)'
+          : ''}. `
           + 'La <strong>BKS</strong> es la mejor solución conocida de la instancia: la menor entre la cota superior de las 4 variantes de Gurobi y el mejor costo de las 5 heurísticas. '
           + 'En Gurobi (límite de 3 600 s), <strong>ópt.</strong> es óptimo probado y <strong>c.s.</strong> la cota superior al llegar al límite; '
           + 'el <strong>GAP</strong> es (cota superior − cota inferior) / cota superior y el <strong>GAP sol. entera</strong>, (cota superior − BKS) / BKS. '

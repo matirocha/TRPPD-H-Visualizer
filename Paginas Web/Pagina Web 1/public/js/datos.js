@@ -19,16 +19,31 @@ export async function cargarManifest() {
   }
 }
 
-/** Resultados por instancia (lib/resultados.js); null si no se pudieron leer. */
+/**
+ * Resultados por instancia, leídos del Excel de resúmenes (lib/resultados.js). Si no se pueden
+ * leer, devuelve {error} con la causa para mostrarla en la tabla.
+ */
 export async function cargarResultados() {
-  for (const url of modo === 'estatico' ? ['datos/resultados.json'] : ['api/resultados', 'datos/resultados.json']) {
+  if (modo === 'estatico') {
     try {
-      return await leerJSON(url);
-    } catch {
-      // se prueba la siguiente fuente
+      return await leerJSON('datos/resultados.json');
+    } catch (error) {
+      return { error: `La versión exportada no trae datos/resultados.json (${error.message}): vuelve a correr npm run exportar y revisa sus avisos.` };
     }
   }
-  return null;
+  let respuesta;
+  try {
+    respuesta = await fetch('api/resultados', { cache: 'no-store' });
+  } catch (error) {
+    return { error: `No se pudo consultar el servidor (${error.message}).` };
+  }
+  if (respuesta.ok) return respuesta.json();
+  // Un servidor iniciado antes de que existiera /api/resultados responde 404: hay que reiniciarlo
+  if (respuesta.status === 404) {
+    return { error: 'El servidor que entrega la página no tiene /api/resultados: se inició antes de esta versión. Deténlo y vuelve a correr npm start.' };
+  }
+  const detalle = await respuesta.json().then((d) => d.error).catch(() => null);
+  return { error: detalle ?? `El servidor respondió ${respuesta.status} al pedir /api/resultados.` };
 }
 
 export function cargarSalida(archivo) {
