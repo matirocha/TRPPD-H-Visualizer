@@ -1,6 +1,6 @@
 {
   "formato": "trppdh3-salida/1",
-  "generado": "2026-11-02T18:39:22",
+  "generado": "2026-11-07T19:33:53",
   "algoritmo": {
     "clave": "its_exacto",
     "nombre": "ITS exacto · Erdoğan et al. (2012)",
@@ -13,7 +13,7 @@
       "iteraciones_tabu": 14,
       "tenencia_tabu": 12,
       "movimientos_aleatorios": 3,
-      "semilla": 3844083327,
+      "semilla": 1,
       "motor": "Node.js v24.20.0"
     }
   },
@@ -990,9 +990,14 @@
       "objetivo": 4534.499988,
       "variantes": 4
     },
-    "segundos": 0.527302,
-    "segundos_inicial": 0.002827,
-    "segundos_total": 0.527302,
+    "segundos": 0.597631,
+    "segundos_inicial": 0.004238,
+    "segundos_total": 0.597631,
+    "segundos_busqueda": 0.593393,
+    "iteraciones": 28,
+    "segundos_por_iteracion": 0.021193,
+    "iteracion_mejor": 9,
+    "segundos_mejor": 0.18516,
     "evaluaciones": {
       "exactas": 352830,
       "heuristicas": 0
@@ -1071,12 +1076,28 @@
           4671.25,
           4671.25,
           4671.25,
-          4671.25,
+          4534.5,
           4534.5,
           4534.5,
           4534.5,
           4534.5,
           4534.5
+        ],
+        "tiempos": [
+          0.022622,
+          0.045725,
+          0.062609,
+          0.079171,
+          0.095933,
+          0.115186,
+          0.134131,
+          0.157563,
+          0.18516,
+          0.208242,
+          0.236799,
+          0.263184,
+          0.29206,
+          0.319563
         ]
       },
       {
@@ -1127,6 +1148,22 @@
           4534.5,
           4534.5,
           4534.5
+        ],
+        "tiempos": [
+          0.336717,
+          0.35729,
+          0.374263,
+          0.393626,
+          0.418666,
+          0.435418,
+          0.452147,
+          0.472759,
+          0.496955,
+          0.51551,
+          0.538636,
+          0.563415,
+          0.580587,
+          0.597605
         ]
       }
     ],

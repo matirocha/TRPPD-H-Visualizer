@@ -67,6 +67,39 @@ JSON traen además, en `solucion`:
 `resumenes/heuristicas_erdogan.csv` se reescribe con todas las corridas de
 `erdogan/` cada vez que se ejecuta el script.
 
+### Réplicas
+
+Para las 240 instancias de `gurobi_resultados.xlsx` (Battarra n = 10 a 25, Erdogan
+n = 30 a 60) cada heurística se corre 10 veces; la réplica r usa la semilla r:
+
+```bash
+cd "Paginas Web/Pagina Web 1"
+npm run heuristicas -- --replicas 10 --sel B:10-25,E:30-60
+```
+
+Cada réplica queda en `resumenes/heuristicas_replicas.csv` (costo, tiempos, iteraciones,
+tiempo por iteración, iteración y tiempo en que se encontró la mejor, ruta y política) y la
+mejor réplica de cada instancia reemplaza su JSON en `erdogan/<algoritmo>/`. Si se corta, al
+relanzarlo se salta lo que ya está en el CSV.
+
+Las 12 000 réplicas actuales (240 instancias × 5 heurísticas × 10) se corrieron el 2026-11-07
+con 8 procesos en paralelo (`--trabajador 1` a `8`, 5 h 10 min en un Ryzen 7 7700) y después
+se unieron en `heuristicas_replicas.csv`; su registro está en `heuristicas_replicas.log`. Con 8
+procesos los tiempos salen ≈ 1,4 veces más altos que con uno solo: lo muestra
+`heuristicas_replicas_un_proceso.csv`, una corrida anterior de un proceso (dos_fases,
+ILS heurístico e ITS heurístico) con los mismos costos, que los scripts no leen.
+
+Después se arma el Excel:
+
+```bash
+cd notebooks
+python excel_resultados_trppdh3.py   # reescribe resumenes/gurobi_resultados.xlsx
+```
+
+El Excel calcula con fórmulas el BKS (mejor Σ D_i entre Gurobi y las 5 heurísticas), su
+origen, el GAP sol. entera = (cota superior − BKS) / BKS y, por heurística, costo promedio,
+mejor costo, sus GAP al BKS, tiempo promedio y tiempo promedio por iteración.
+
 Con n = 5 y n = 10 todas las variantes llegan al mismo óptimo Σ D_i; con n = 5
 también la enumeración. Desde n = 15 casi todas las corridas terminan por el
 límite de tiempo (estado `TIME_LIMIT`), así que su Σ D_i es la mejor solución

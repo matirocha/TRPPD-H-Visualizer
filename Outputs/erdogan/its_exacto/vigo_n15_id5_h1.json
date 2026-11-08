@@ -1,6 +1,6 @@
 {
   "formato": "trppdh3-salida/1",
-  "generado": "2026-11-02T18:03:43",
+  "generado": "2026-11-07T19:35:39",
   "algoritmo": {
     "clave": "its_exacto",
     "nombre": "ITS exacto · Erdoğan et al. (2012)",
@@ -13,7 +13,7 @@
       "iteraciones_tabu": 14,
       "tenencia_tabu": 7,
       "movimientos_aleatorios": 2,
-      "semilla": 143754043,
+      "semilla": 1,
       "motor": "Node.js v24.20.0"
     }
   },
@@ -470,9 +470,14 @@
       "objetivo": 4379,
       "variantes": 4
     },
-    "segundos": 0.071861,
-    "segundos_inicial": 0.000635,
-    "segundos_total": 0.071861,
+    "segundos": 0.092751,
+    "segundos_inicial": 0.000976,
+    "segundos_total": 0.092751,
+    "segundos_busqueda": 0.091775,
+    "iteraciones": 28,
+    "segundos_por_iteracion": 0.003278,
+    "iteracion_mejor": 3,
+    "segundos_mejor": 0.011387,
     "evaluaciones": {
       "exactas": 123510,
       "heuristicas": 0
@@ -537,6 +542,22 @@
           4379,
           4379,
           4379
+        ],
+        "tiempos": [
+          0.004439,
+          0.007336,
+          0.011387,
+          0.016314,
+          0.021038,
+          0.025186,
+          0.028114,
+          0.031736,
+          0.036127,
+          0.040502,
+          0.044911,
+          0.049264,
+          0.052655,
+          0.055281
         ]
       },
       {
@@ -564,12 +585,12 @@
         ],
         "traza": [
           4491,
-          4442.5,
-          4442.5,
-          4379,
-          4379,
-          4379,
-          4379,
+          4491,
+          4491,
+          4398,
+          4398,
+          4398,
+          4398,
           4379,
           4379,
           4379,
@@ -577,6 +598,22 @@
           4379,
           4379,
           4379
+        ],
+        "tiempos": [
+          0.057968,
+          0.060557,
+          0.063217,
+          0.06582,
+          0.068469,
+          0.071307,
+          0.074231,
+          0.076914,
+          0.079532,
+          0.082222,
+          0.08483,
+          0.087517,
+          0.090128,
+          0.092725
         ]
       }
     ],

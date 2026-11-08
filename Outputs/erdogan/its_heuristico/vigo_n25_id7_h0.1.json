@@ -1,6 +1,6 @@
 {
   "formato": "trppdh3-salida/1",
-  "generado": "2026-11-02T18:39:34",
+  "generado": "2026-11-07T19:35:34",
   "algoritmo": {
     "clave": "its_heuristico",
     "nombre": "ITS heurístico · Erdoğan et al. (2012)",
@@ -13,7 +13,7 @@
       "iteraciones_tabu": 14,
       "tenencia_tabu": 12,
       "movimientos_aleatorios": 3,
-      "semilla": 1862772573,
+      "semilla": 1,
       "motor": "Node.js v24.20.0"
     }
   },
@@ -990,9 +990,14 @@
       "objetivo": 5777.348122,
       "variantes": 4
     },
-    "segundos": 0.175865,
-    "segundos_inicial": 0.004361,
-    "segundos_total": 0.175865,
+    "segundos": 0.219977,
+    "segundos_inicial": 0.006539,
+    "segundos_total": 0.219977,
+    "segundos_busqueda": 0.213437,
+    "iteraciones": 28,
+    "segundos_por_iteracion": 0.007623,
+    "iteracion_mejor": 2,
+    "segundos_mejor": 0.024163,
     "evaluaciones": {
       "exactas": 422,
       "heuristicas": 352800
@@ -1063,7 +1068,7 @@
           0
         ],
         "traza": [
-          5777.35,
+          5804.45,
           5777.35,
           5777.35,
           5777.35,
@@ -1077,6 +1082,22 @@
           5777.35,
           5777.35,
           5777.35
+        ],
+        "tiempos": [
+          0.01548,
+          0.024163,
+          0.032938,
+          0.041556,
+          0.05024,
+          0.058924,
+          0.067762,
+          0.076649,
+          0.085848,
+          0.093204,
+          0.0991,
+          0.106909,
+          0.115837,
+          0.122217
         ]
       },
       {
@@ -1127,6 +1148,22 @@
           5777.35,
           5777.35,
           5777.35
+        ],
+        "tiempos": [
+          0.13109,
+          0.136852,
+          0.141943,
+          0.147465,
+          0.153269,
+          0.158702,
+          0.164782,
+          0.173577,
+          0.182298,
+          0.19102,
+          0.199836,
+          0.208863,
+          0.214554,
+          0.219949
         ]
       }
     ],

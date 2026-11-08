@@ -1,6 +1,6 @@
 {
   "formato": "trppdh3-salida/1",
-  "generado": "2026-11-02T18:03:38",
+  "generado": "2026-11-07T19:35:38",
   "algoritmo": {
     "clave": "its_exacto",
     "nombre": "ITS exacto · Erdoğan et al. (2012)",
@@ -13,7 +13,7 @@
       "iteraciones_tabu": 14,
       "tenencia_tabu": 7,
       "movimientos_aleatorios": 2,
-      "semilla": 2097567756,
+      "semilla": 1,
       "motor": "Node.js v24.20.0"
     }
   },
@@ -470,9 +470,14 @@
       "objetivo": 2408.4,
       "variantes": 4
     },
-    "segundos": 0.058215,
-    "segundos_inicial": 0.000624,
-    "segundos_total": 0.058215,
+    "segundos": 0.06536,
+    "segundos_inicial": 0.000544,
+    "segundos_total": 0.06536,
+    "segundos_busqueda": 0.064816,
+    "iteraciones": 28,
+    "segundos_por_iteracion": 0.002315,
+    "iteracion_mejor": 1,
+    "segundos_mejor": 0.00426,
     "evaluaciones": {
       "exactas": 123510,
       "heuristicas": 0
@@ -537,6 +542,22 @@
           2408.4,
           2408.4,
           2408.4
+        ],
+        "tiempos": [
+          0.00426,
+          0.007791,
+          0.010097,
+          0.012084,
+          0.014121,
+          0.016108,
+          0.018109,
+          0.020067,
+          0.022226,
+          0.024318,
+          0.026521,
+          0.028497,
+          0.030506,
+          0.032552
         ]
       },
       {
@@ -563,10 +584,10 @@
           0
         ],
         "traza": [
-          2601.5,
-          2601.5,
-          2601.5,
-          2501.6,
+          2410.65,
+          2408.4,
+          2408.4,
+          2408.4,
           2408.4,
           2408.4,
           2408.4,
@@ -577,6 +598,22 @@
           2408.4,
           2408.4,
           2408.4
+        ],
+        "tiempos": [
+          0.034845,
+          0.03686,
+          0.040176,
+          0.043403,
+          0.045384,
+          0.047771,
+          0.05009,
+          0.052449,
+          0.054539,
+          0.057265,
+          0.059197,
+          0.061171,
+          0.063318,
+          0.06534
         ]
       }
     ],

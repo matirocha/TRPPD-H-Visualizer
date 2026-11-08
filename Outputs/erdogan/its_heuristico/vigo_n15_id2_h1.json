@@ -1,6 +1,6 @@
 {
   "formato": "trppdh3-salida/1",
-  "generado": "2026-11-02T18:03:39",
+  "generado": "2026-11-07T19:35:51",
   "algoritmo": {
     "clave": "its_heuristico",
     "nombre": "ITS heurístico · Erdoğan et al. (2012)",
@@ -13,7 +13,7 @@
       "iteraciones_tabu": 14,
       "tenencia_tabu": 7,
       "movimientos_aleatorios": 2,
-      "semilla": 3991205115,
+      "semilla": 1,
       "motor": "Node.js v24.20.0"
     }
   },
@@ -470,9 +470,14 @@
       "objetivo": 3991.499772,
       "variantes": 4
     },
-    "segundos": 0.034055,
-    "segundos_inicial": 0.000604,
-    "segundos_total": 0.034055,
+    "segundos": 0.046826,
+    "segundos_inicial": 0.000926,
+    "segundos_total": 0.046826,
+    "segundos_busqueda": 0.0459,
+    "iteraciones": 28,
+    "segundos_por_iteracion": 0.001639,
+    "iteracion_mejor": 3,
+    "segundos_mejor": 0.006213,
     "evaluaciones": {
       "exactas": 422,
       "heuristicas": 123480
@@ -524,9 +529,9 @@
         ],
         "traza": [
           4129.5,
-          4053,
           4040,
-          4040,
+          3991.5,
+          3991.5,
           3991.5,
           3991.5,
           3991.5,
@@ -537,6 +542,22 @@
           3991.5,
           3991.5,
           3991.5
+        ],
+        "tiempos": [
+          0.002807,
+          0.004268,
+          0.006213,
+          0.0085,
+          0.010368,
+          0.012421,
+          0.013797,
+          0.015084,
+          0.016462,
+          0.018948,
+          0.020859,
+          0.023236,
+          0.025141,
+          0.02738
         ]
       },
       {
@@ -563,7 +584,7 @@
           0
         ],
         "traza": [
-          4040,
+          3991.5,
           3991.5,
           3991.5,
           3991.5,
@@ -577,6 +598,22 @@
           3991.5,
           3991.5,
           3991.5
+        ],
+        "tiempos": [
+          0.029417,
+          0.030823,
+          0.032141,
+          0.033464,
+          0.035278,
+          0.036503,
+          0.038028,
+          0.039185,
+          0.040377,
+          0.041528,
+          0.042929,
+          0.044089,
+          0.045221,
+          0.046803
         ]
       }
     ],

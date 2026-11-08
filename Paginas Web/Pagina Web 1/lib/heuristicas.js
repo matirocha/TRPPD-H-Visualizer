@@ -455,17 +455,20 @@ function perturbar(B, ruta, veces) {
   return actual;
 }
 
-/** Algoritmo 4.2 (ILS): perturbación de la mejor ruta y búsqueda local, N_iter veces. */
+/** Algoritmo 4.2 (ILS): perturbación de la mejor ruta y búsqueda local, N_iter veces.
+ *  traza: mejor Σ D al cerrar cada iteración; marcas: performance.now() al cerrarla. */
 function ils(B, inicial, { iteraciones, aleatorios }) {
   let mejor = { ruta: inicial, costo: B.exacto(inicial) };
   const traza = [];
+  const marcas = [];
   for (let it = 0; it < iteraciones; it++) {
     const ruta = perturbar(B, mejor.ruta, aleatorios);
     const res = busquedaLocal(B, ruta, B.exacto(ruta));
     if (res.costo < mejor.costo - EPS) mejor = res;
     traza.push(mejor.costo);
+    marcas.push(performance.now());
   }
-  return { ...mejor, traza };
+  return { ...mejor, traza, marcas };
 }
 
 /** Algoritmo 4.3 (ITS): como ILS, con TS de N*_iter iteraciones en vez de la búsqueda local. */
@@ -473,13 +476,15 @@ function its(B, inicial, { iteraciones, aleatorios }) {
   const internas = Math.floor(Math.sqrt(iteraciones));
   let mejor = { ruta: inicial, costo: B.exacto(inicial) };
   const traza = [];
+  const marcas = [];
   for (let it = 0; it < internas; it++) {
     const ruta = perturbar(B, mejor.ruta, aleatorios);
     const res = tabu(B, ruta, B.exacto(ruta), internas);
     if (res.costo < mejor.costo - EPS) mejor = res;
     traza.push(mejor.costo);
+    marcas.push(performance.now());
   }
-  return { ...mejor, traza };
+  return { ...mejor, traza, marcas };
 }
 
 // --- Algoritmos -------------------------------------------------------------------
@@ -508,7 +513,7 @@ export function resolver(instancia, clave, { iteraciones = 200, aleatorios = nul
   const B = crearBusqueda(P, alg.evaluacion, crearAzar(semilla));
 
   const corridas = inicial.direcciones.filter((d) => d.ruta).map((d) => {
-    if (!alg.metodo) return { direccion: d.direccion, inicial: d.costo, ruta: d.ruta, costo: d.costo, traza: [] };
+    if (!alg.metodo) return { direccion: d.direccion, inicial: d.costo, ruta: d.ruta, costo: d.costo, traza: [], marcas: [] };
     const res = (alg.metodo === 'ils' ? ils : its)(B, d.ruta, { iteraciones, aleatorios: nRand });
     return { direccion: d.direccion, inicial: d.costo, ...res };
   });
@@ -517,6 +522,26 @@ export function resolver(instancia, clave, { iteraciones = 200, aleatorios = nul
   const { costo, politica } = evaluarExacto(P, mejor.ruta, true);
   const segundos = (performance.now() - inicio) / 1000;
 
+  // Convergencia: iteraciones de las dos corridas (una tras otra) y el momento en que se alcanzó
+  // por primera vez la mejor Σ D informada. Si ya era una de las soluciones iniciales (la búsqueda
+  // no la mejoró), cuenta la iteración 0 y el tiempo de las 2 fases.
+  const iteracionesTotales = corridas.reduce((s, c) => s + c.traza.length, 0);
+  let iteracionMejor = 0;
+  let segundosMejor = segundosInicial;
+  let previas = 0;
+  for (const c of corridas) {
+    if (c === mejor) {
+      if (c.inicial > c.costo + EPS) {
+        const k = c.traza.findIndex((x) => x <= c.costo + EPS);
+        iteracionMejor = previas + k + 1;
+        segundosMejor = (c.marcas[k] - inicio) / 1000;
+      }
+      break;
+    }
+    previas += c.traza.length;
+  }
+  const segundosBusqueda = segundos - segundosInicial;
+
   return {
     clave,
     ruta: [0, ...mejor.ruta, 0],
@@ -524,6 +549,12 @@ export function resolver(instancia, clave, { iteraciones = 200, aleatorios = nul
     objetivo: costo,
     segundos,
     segundosInicial,
+    segundosBusqueda,
+    iteracionesTotales,
+    // Tiempo de búsqueda (sin las 2 fases) dividido por las iteraciones de las dos corridas
+    segundosPorIteracion: iteracionesTotales ? segundosBusqueda / iteracionesTotales : null,
+    iteracionMejor,
+    segundosMejor,
     parametros: {
       evaluacion: alg.evaluacion,
       metodo: alg.metodo,
@@ -537,6 +568,8 @@ export function resolver(instancia, clave, { iteraciones = 200, aleatorios = nul
     tsp: { tour: inicial.tsp.tour, costo: inicial.tsp.costo },
     corridas: corridas.map((c) => ({
       direccion: c.direccion, inicial: c.inicial, final: c.costo, ruta: [0, ...c.ruta, 0], traza: c.traza,
+      // segundos desde el inicio de la corrida al cerrar cada iteración
+      tiempos: c.marcas.map((m) => (m - inicio) / 1000),
     })),
     evaluaciones: { ...B.cuenta },
   };

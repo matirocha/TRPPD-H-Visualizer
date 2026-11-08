@@ -1,6 +1,6 @@
 {
   "formato": "trppdh3-salida/1",
-  "generado": "2026-11-02T18:29:03",
+  "generado": "2026-11-07T19:34:53",
   "algoritmo": {
     "clave": "its_exacto",
     "nombre": "ITS exacto · Erdoğan et al. (2012)",
@@ -13,7 +13,7 @@
       "iteraciones_tabu": 14,
       "tenencia_tabu": 10,
       "movimientos_aleatorios": 2,
-      "semilla": 3278769469,
+      "semilla": 1,
       "motor": "Node.js v24.20.0"
     }
   },
@@ -705,9 +705,14 @@
       "objetivo": 4325.949674,
       "variantes": 4
     },
-    "segundos": 0.199528,
-    "segundos_inicial": 0.001581,
-    "segundos_total": 0.199528,
+    "segundos": 0.313047,
+    "segundos_inicial": 0.002575,
+    "segundos_total": 0.313047,
+    "segundos_busqueda": 0.310472,
+    "iteraciones": 28,
+    "segundos_por_iteracion": 0.011088,
+    "iteracion_mejor": 2,
+    "segundos_mejor": 0.019424,
     "evaluaciones": {
       "exactas": 223470,
       "heuristicas": 0
@@ -768,7 +773,7 @@
           0
         ],
         "traza": [
-          4313.3,
+          4325.95,
           4313.3,
           4313.3,
           4313.3,
@@ -782,6 +787,22 @@
           4313.3,
           4313.3,
           4313.3
+        ],
+        "tiempos": [
+          0.011764,
+          0.019424,
+          0.028912,
+          0.040629,
+          0.05269,
+          0.064392,
+          0.076284,
+          0.08803,
+          0.099906,
+          0.111752,
+          0.120812,
+          0.12781,
+          0.13708,
+          0.148976
         ]
       },
       {
@@ -813,7 +834,7 @@
           0
         ],
         "traza": [
-          4393.4,
+          4313.3,
           4313.3,
           4313.3,
           4313.3,
@@ -827,6 +848,22 @@
           4313.3,
           4313.3,
           4313.3
+        ],
+        "tiempos": [
+          0.158956,
+          0.170752,
+          0.182408,
+          0.194387,
+          0.206179,
+          0.218153,
+          0.230118,
+          0.241993,
+          0.2536,
+          0.265489,
+          0.277399,
+          0.28932,
+          0.301202,
+          0.313017
         ]
       }
     ],

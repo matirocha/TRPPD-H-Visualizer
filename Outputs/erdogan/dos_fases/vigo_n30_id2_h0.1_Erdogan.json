@@ -1,6 +1,6 @@
 {
   "formato": "trppdh3-salida/1",
-  "generado": "2026-11-02T18:41:48",
+  "generado": "2026-11-07T19:35:52",
   "algoritmo": {
     "clave": "dos_fases",
     "nombre": "2 fases · TSP + Algoritmo 2.1 adaptado",
@@ -1325,9 +1325,14 @@
       "objetivo": 6505.699795,
       "variantes": 4
     },
-    "segundos": 0.007738,
-    "segundos_inicial": 0.007723,
-    "segundos_total": 0.007738,
+    "segundos": 0.00834,
+    "segundos_inicial": 0.008315,
+    "segundos_total": 0.00834,
+    "segundos_busqueda": 0.000025,
+    "iteraciones": 0,
+    "segundos_por_iteracion": null,
+    "iteracion_mejor": 0,
+    "segundos_mejor": 0.008315,
     "evaluaciones": {
       "exactas": 0,
       "heuristicas": 0
@@ -1407,7 +1412,8 @@
           14,
           0
         ],
-        "traza": []
+        "traza": [],
+        "tiempos": []
       },
       {
         "direccion": "inversa",
@@ -1447,7 +1453,8 @@
           4,
           0
         ],
-        "traza": []
+        "traza": [],
+        "tiempos": []
       }
     ],
     "T": {

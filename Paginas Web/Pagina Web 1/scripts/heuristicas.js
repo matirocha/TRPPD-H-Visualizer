@@ -13,7 +13,19 @@
 //   <n> e --id: 10 · 10,15 · 10-25 · all
 //   --sin-resumen  no reescribe el CSV (para correr varios procesos en paralelo)
 //   npm run heuristicas -- --resumen   solo reescribe el CSV con lo que hay en Outputs/erdogan
-import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
+//
+// Réplicas: npm run heuristicas -- --replicas 10 --sel B:10-25,E:30-60 [--alg a,b] [--iter 200]
+//   Corre cada algoritmo R veces por instancia, la réplica r con la semilla r (1..R); la de
+//   2 fases no usa azar y se repite solo para promediar el tiempo. Recorre los pares
+//   instancia-algoritmo de los más largos a los más cortos y, al completar las R réplicas de uno, agrega sus
+//   filas a Outputs/resumenes/heuristicas_replicas.csv y guarda la mejor réplica en
+//   Outputs/erdogan/<algoritmo>/<instancia>.json. Si se corta, al volver a lanzarlo se salta lo
+//   que ya está en el CSV. --sel combina banco y n (B = Battarra, E = Erdogan); sin --sel usa
+//   <n>, --banco e --id como siempre.
+//   --trabajador k: varios procesos con el mismo comando y distinto k se reparten los pares
+//   (candados en Outputs/resumenes/.candados_replicas, los más largos primero) y cada uno
+//   escribe heuristicas_replicas_<k>.csv. Los candados de un proceso cortado se liberan solos.
+import { appendFile, mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { ALGORITMOS, resolver, semillaDe } from '../lib/heuristicas.js';
 import { OUTPUTS, RAIZ, bancoDe, listarSalidas, resolverSalida } from '../lib/salidas.js';
@@ -32,10 +44,20 @@ const NOMBRES = {
 function argumentos(argv) {
   const opciones = {
     n: null, algoritmos: Object.keys(ALGORITMOS), iteraciones: 200, banco: null, id: 'all', resumen: true, soloResumen: false,
+    replicas: null, sel: null,
   };
   for (let k = 0; k < argv.length; k++) {
     const a = argv[k];
     if (a === '--alg') opciones.algoritmos = argv[++k].split(',');
+    else if (a === '--replicas') opciones.replicas = Number(argv[++k]);
+    else if (a === '--trabajador') opciones.trabajador = Number(argv[++k]);
+    else if (a === '--sel') {
+      opciones.sel = argv[++k].split(',').map((parte) => {
+        const [b, n] = parte.split(':');
+        return { banco: { B: 'Battarra', E: 'Erdogan' }[b.toUpperCase()], n };
+      });
+      opciones.n ??= 'all';
+    }
     else if (a === '--iter') opciones.iteraciones = Number(argv[++k]);
     else if (a === '--banco') opciones.banco = { B: 'Battarra', E: 'Erdogan' }[argv[++k].toUpperCase()];
     else if (a === '--id') opciones.id = argv[++k];
@@ -94,8 +116,21 @@ const fecha = () => {
   return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 19);
 };
 
-async function correr(inst, clave, iteraciones, ref) {
-  const res = resolver(inst, clave, { iteraciones, semilla: semillaDe(`${inst.nombre}|${clave}`) });
+async function correr(inst, clave, iteraciones, ref, semilla = semillaDe(`${inst.nombre}|${clave}`)) {
+  const { salida } = calcular(inst, clave, iteraciones, ref, semilla);
+  await guardar(salida);
+  return salida;
+}
+
+async function guardar(salida) {
+  const destino = path.join(OUTPUTS, CARPETA, salida.algoritmo.clave, `${salida.instancia.nombre}.json`);
+  await mkdir(path.dirname(destino), { recursive: true });
+  await writeFile(destino, `${JSON.stringify(salida, null, 2)}\n`, 'utf8');
+}
+
+/** Resuelve, comprueba Σ D con la simulación de la página y arma el JSON (sin guardarlo). */
+function calcular(inst, clave, iteraciones, ref, semilla) {
+  const res = resolver(inst, clave, { iteraciones, semilla });
   const salida = {
     formato: 'trppdh3-salida/1',
     generado: fecha(),
@@ -123,9 +158,16 @@ async function correr(inst, clave, iteraciones, ref) {
     segundos: r6(res.segundos),
     segundos_inicial: r6(res.segundosInicial),
     segundos_total: r6(res.segundos),
+    segundos_busqueda: r6(res.segundosBusqueda),
+    iteraciones: res.iteracionesTotales,
+    segundos_por_iteracion: r6(res.segundosPorIteracion),
+    iteracion_mejor: res.iteracionMejor,
+    segundos_mejor: r6(res.segundosMejor),
     evaluaciones: res.evaluaciones,
     tsp: res.tsp,
-    corridas: res.corridas.map((c) => ({ ...c, inicial: r6(c.inicial), final: r6(c.final), traza: c.traza.map(r6) })),
+    corridas: res.corridas.map((c) => ({
+      ...c, inicial: r6(c.inicial), final: r6(c.final), traza: c.traza.map(r6), tiempos: c.tiempos.map(r6),
+    })),
     T: porCliente(sim, 'T'),
     D: porCliente(sim, 'D'),
     F: porCliente(sim, 'F'),
@@ -134,10 +176,7 @@ async function correr(inst, clave, iteraciones, ref) {
     manipulacion_adicional: r6(sim.manipulacionAdicional),
     regreso: r6(sim.regreso),
   });
-  const destino = path.join(OUTPUTS, CARPETA, clave, `${inst.nombre}.json`);
-  await mkdir(path.dirname(destino), { recursive: true });
-  await writeFile(destino, `${JSON.stringify(salida, null, 2)}\n`, 'utf8');
-  return salida;
+  return { salida, res };
 }
 
 /** Reescribe el CSV con todas las salidas de Outputs/erdogan (no solo las de esta corrida). */
@@ -161,6 +200,106 @@ async function escribirResumen() {
   return { destino, filas: filas.length };
 }
 
+const COLUMNAS_REPLICAS = ['banco', 'instancia', 'n', 'id', 'h', 'algoritmo', 'replica', 'semilla', 'costo',
+  'segundos', 'segundos_inicial', 'segundos_busqueda', 'iteraciones', 'segundos_por_iteracion', 'iteracion_mejor',
+  'segundos_mejor', 'evaluaciones_exactas', 'evaluaciones_heuristicas', 'n_iter', 'motor', 'fecha', 'ruta', 'politica'];
+const RESUMENES = path.join(OUTPUTS, 'resumenes');
+// heuristicas_replicas.csv (un proceso) o heuristicas_replicas_<k>.csv (trabajador k)
+const ES_CSV_REPLICAS = /^heuristicas_replicas(_\d+)?\.csv$/;
+const CANDADOS = path.join(RESUMENES, '.candados_replicas');
+// Peso relativo de cada algoritmo (× n⁴) para repartir primero los pares más largos
+const PESO = { ils_exacto: 1, ils_heuristico: 0.15, its_exacto: 0.08, its_heuristico: 0.012, dos_fases: 0.0005 };
+
+/** Pares "instancia|algoritmo" con todas sus réplicas en alguno de los CSV de réplicas. */
+async function replicasHechas(R) {
+  const cuenta = new Map();
+  await mkdir(RESUMENES, { recursive: true });
+  for (const archivo of (await readdir(RESUMENES)).filter((a) => ES_CSV_REPLICAS.test(a))) {
+    const [cabecera, ...filas] = (await readFile(path.join(RESUMENES, archivo), 'utf8')).trim().split('\n');
+    const col = Object.fromEntries(cabecera.split(',').map((c, i) => [c, i]));
+    for (const fila of filas) {
+      const v = fila.split(',');
+      const clave = `${v[col.instancia]}|${v[col.algoritmo]}`;
+      cuenta.set(clave, (cuenta.get(clave) ?? 0) + 1);
+    }
+  }
+  return new Set([...cuenta].filter(([, k]) => k >= R).map(([c]) => c));
+}
+
+const vivo = (pid) => {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (e) {
+    return e.code === 'EPERM';
+  }
+};
+
+/** Reserva un par para este proceso (varios trabajadores comparten la cola). Un candado cuyo
+ *  dueño ya no existe (proceso cortado) se toma; uno marcado "hecho" no. */
+async function reservar(nombre) {
+  const archivo = path.join(CANDADOS, nombre.replace('|', '__'));
+  try {
+    await writeFile(archivo, String(process.pid), { flag: 'wx' });
+    return true;
+  } catch {
+    const contenido = await readFile(archivo, 'utf8').catch(() => 'hecho');
+    if (contenido === 'hecho' || vivo(Number(contenido))) return false;
+    await writeFile(archivo, String(process.pid));
+    return true;
+  }
+}
+
+async function correrReplicas(instancias, { algoritmos, iteraciones, replicas: R, trabajador }) {
+  const hechas = await replicasHechas(R);
+  const csv = path.join(RESUMENES, trabajador ? `heuristicas_replicas_${trabajador}.csv` : 'heuristicas_replicas.csv');
+  try {
+    await readFile(csv);
+  } catch {
+    await writeFile(csv, `${COLUMNAS_REPLICAS.join(',')}\n`, 'utf8');
+  }
+  await mkdir(CANDADOS, { recursive: true });
+  const pares = [];
+  for (const clave of algoritmos) {
+    for (const inst of instancias) if (!hechas.has(`${inst.nombre}|${clave}`)) pares.push({ clave, inst });
+  }
+  // Los más largos primero, para que al final no quede un solo proceso trabajando
+  pares.sort((a, b) => PESO[b.clave] * b.inst.n ** 4 - PESO[a.clave] * a.inst.n ** 4
+    || a.inst.n - b.inst.n || a.inst.id - b.inst.id || a.inst.h - b.inst.h);
+  console.log(`${instancias.length} instancias × ${algoritmos.length} algoritmos × ${R} réplicas, N_iter = ${iteraciones}; `
+    + `faltan ${pares.length} pares instancia-algoritmo (${hechas.size} ya hechos). Escribe en ${csv}`);
+  const motor = `Node.js ${process.version}`;
+  const refs = new Map();
+  for (const { clave, inst } of pares) {
+    {
+      const nombrePar = `${inst.nombre}|${clave}`;
+      if (!(await reservar(nombrePar))) continue;
+      if (!refs.has(inst.nombre)) refs.set(inst.nombre, await referencias(inst.nombre));
+      const ref = refs.get(inst.nombre);
+      const filas = [];
+      let mejor = null;
+      for (let r = 1; r <= R; r++) {
+        const { salida, res } = calcular(inst, clave, iteraciones, ref, r);
+        const s = salida.solucion;
+        if (!mejor || res.objetivo < mejor.solucion.objetivo - 1e-9) mejor = salida;
+        filas.push([bancoDe(inst.nombre), inst.nombre, inst.n, inst.id, inst.h, clave, r,
+          ALGORITMOS[clave].metodo ? r : '', s.objetivo, s.segundos, s.segundos_inicial, s.segundos_busqueda,
+          s.iteraciones, s.segundos_por_iteracion, s.iteracion_mejor, s.segundos_mejor, s.evaluaciones.exactas,
+          s.evaluaciones.heuristicas, iteraciones, motor, salida.generado, s.ruta.join('-'),
+          s.ruta.slice(1, -1).map((c) => s.politica[c]).join('')]);
+      }
+      await guardar(mejor);
+      await appendFile(csv, filas.map((f) => f.map((v) => v ?? '').join(',')).join('\n') + '\n', 'utf8');
+      await writeFile(path.join(CANDADOS, nombrePar.replace('|', '__')), 'hecho');
+      const costos = filas.map((f) => f[8]);
+      const tiempos = filas.map((f) => f[9]);
+      console.log(`${clave.padEnd(15)} ${inst.nombre.padEnd(26)} Σ D mejor ${Math.min(...costos).toFixed(2)} `
+        + `prom ${(costos.reduce((a, b) => a + b, 0) / R).toFixed(2)} · ${(tiempos.reduce((a, b) => a + b, 0) / R).toFixed(3)} s/réplica`);
+    }
+  }
+  console.log(`Listo: ${csv}`);
+}
+
 const opciones = argumentos(process.argv.slice(2));
 if (opciones.soloResumen) {
   const { destino, filas } = await escribirResumen();
@@ -173,12 +312,18 @@ for (const archivo of archivos) {
   const inst = JSON.parse(await readFile(path.join(INSTANCIAS, archivo), 'utf8'));
   if (!aceptaN(opciones.n, inst.n) || !aceptaN(opciones.id, inst.id)) continue;
   if (opciones.banco && bancoDe(inst.nombre) !== opciones.banco) continue;
+  if (opciones.sel && !opciones.sel.some((s) => s.banco === bancoDe(inst.nombre) && aceptaN(s.n, inst.n))) continue;
   instancias.push(inst);
 }
 instancias.sort((a, b) => a.n - b.n || a.id - b.id || a.h - b.h || a.nombre.localeCompare(b.nombre));
 if (!instancias.length) {
   console.error(`No hay instancias con n = ${opciones.n} en ${INSTANCIAS}`);
   process.exit(1);
+}
+
+if (opciones.replicas) {
+  await correrReplicas(instancias, opciones);
+  process.exit(0);
 }
 
 console.log(`${instancias.length} instancias × ${opciones.algoritmos.length} algoritmos, N_iter = ${opciones.iteraciones}`);

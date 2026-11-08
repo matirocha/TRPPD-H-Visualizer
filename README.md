@@ -27,6 +27,12 @@ TRPPD-H Visualizer/
 │   ├── instancias_trppdh3.py crea Instancias/ a partir de e_vigo
 │   ├── modelo_trppdh3.py     modelo en Gurobi; guarda las soluciones en Outputs/
 │   ├── lote_trppdh3.py       las 4 variantes sobre un banco: lote_trppdh3.py B|E all|N
+│   ├── heuristicas_trppdh3.py      base común de las heurísticas de Erdoğan en Python
+│   ├── dos_fases_trppdh3.py        heurística de 2 fases
+│   ├── ils_heuristico_trppdh3.py   ILS con evaluación heurística
+│   ├── ils_exacto_trppdh3.py       ILS con evaluación exacta
+│   ├── its_heuristico_trppdh3.py   ITS con evaluación heurística
+│   ├── its_exacto_trppdh3.py       ITS con evaluación exacta
 │   └── ejecutables/          N10.bat … N60.bat y all.bat (Battarra y Erdogan)
 ├── Instancias/               390 instancias JSON: n ∈ {5, 10, 15, 20, 25, 30, 40, 50, 60}, id 1–10, h ∈ {0,1; 0,5; 1}
 ├── Outputs/                  soluciones en formato trppdh3-salida/1 (ver Outputs/README.md)
@@ -163,6 +169,27 @@ por el límite de tiempo y ILS exacto nunca queda peor: mejora su solución en
 promedio 0,35 % (n = 25), 0,59 % (30), 3,9 % (40), 10,6 % (50) y 13,9 % (60,
 15 instancias), en 3 a 260 s. Las corridas de n ≥ 25 se hicieron con 8 procesos
 en paralelo (ver [Outputs/README.md](Outputs/README.md)).
+
+### Versión en Python
+
+`notebooks/` tiene la misma implementación en Python, un archivo por algoritmo
+(`dos_fases_trppdh3.py`, `ils_heuristico_trppdh3.py`, `ils_exacto_trppdh3.py`,
+`its_heuristico_trppdh3.py`, `its_exacto_trppdh3.py`) más la base común
+`heuristicas_trppdh3.py` (evaluaciones exacta y heurística, vecindarios,
+perturbación, búsqueda local y tabú). Solo usa la biblioteca estándar:
+
+```bash
+cd notebooks
+python ils_exacto_trppdh3.py 10                # también 10,15 · 10-25 · all · vigo_n15_id2_h0.5
+python its_heuristico_trppdh3.py 30 --banco E --id 1-3 --iter 200 --no-guardar
+```
+
+Con la misma semilla (`<instancia>|<algoritmo>`) da las mismas rutas,
+políticas, Σ Dᵢ y número de evaluaciones que la versión JavaScript, pero tarda
+unas 50 veces más: úsala para leer o modificar los algoritmos, y la de
+JavaScript para las corridas grandes. Guarda cada solución en
+`notebooks/erdogan/<algoritmo>/<instancia>.json` (formato trppdh3-salida/1, sin
+los campos T, D, F y q, que la página recalcula).
 
 ## Visualizador web
 
