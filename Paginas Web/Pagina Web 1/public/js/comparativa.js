@@ -1,53 +1,53 @@
-// Tabla comparativa de la sección Rendimiento: una fila por instancia del mismo banco y n
-// y, por cada método, dos columnas: tiempo de ejecución y Σ D_i. Cada Σ D_i lleva una marca:
-//   heurísticas  +x % sobre la mejor solución conocida de la instancia (la menor entre todos
-//                los métodos y las cuatro variantes de Gurobi; desviacion del manifest)
-//   Gurobi       ópt. si terminó con estado OPTIMAL; c.s. (cota superior) si no
-// Gurobi aparece si tiene corridas en el grupo, con la variante elegida sobre la tabla (por
-// omisión la mejor de las cuatro, como en la sección Heurísticas).
-import { mismoGrupo, segundos } from './comparacion.js';
-import { representante, serieDe } from './heuristicas.js';
-import { VARIANTES, claveVariante, el, fmt } from './util.js';
+// Bajo el resumen de la sección Rendimiento, dos tarjetas con los resultados del Excel de
+// resúmenes (Outputs/resumenes/gurobi_resultados.xlsx, recalculados en lib/resultados.js):
+//
+// 1. Comparación por instancia: una fila por instancia del n elegido, con la BKS (mejor solución
+//    conocida), Gurobi (tiempo, cota superior, GAP y GAP sol. entera de la variante elegida o la
+//    mejor de las 4) y cada heurística (tiempo promedio de sus réplicas y su mejor costo o su
+//    costo promedio, con cuánto queda sobre la BKS). Selectores de n, h, variante de Gurobi y
+//    costo de las heurísticas; el pie da promedios y cuántas instancias alcanzan la BKS.
+// 2. Tiempo de ejecución según n (escalamiento.js), con la variante de Gurobi y el h de la tabla.
+import { segundos } from './comparacion.js';
+import { graficoTiempos } from './escalamiento.js';
+import { VARIANTES, el, fmt } from './util.js';
 
-const METODOS = [
-  { clave: 'dos_fases', titulo: 'Heurística 2 fases' },
-  { clave: 'ils_heuristico', titulo: 'ILS heurístico' },
-  { clave: 'ils_exacto', titulo: 'ILS exacto' },
-  { clave: 'its_heuristico', titulo: 'ITS heurístico' },
-  { clave: 'its_exacto', titulo: 'ITS exacto' },
-  { clave: 'gurobi', titulo: 'Gurobi' },
+export const HEURISTICAS = [
+  { clave: 'dos_fases', titulo: 'Heurística 2 fases', corto: '2 fases' },
+  { clave: 'ils_exacto', titulo: 'ILS exacto', corto: 'ILS exacto' },
+  { clave: 'ils_heuristico', titulo: 'ILS heurístico', corto: 'ILS heurístico' },
+  { clave: 'its_exacto', titulo: 'ITS exacto', corto: 'ITS exacto' },
+  { clave: 'its_heuristico', titulo: 'ITS heurístico', corto: 'ITS heurístico' },
 ];
 const OPCIONES_GUROBI = [{ clave: 'mejor', texto: 'Mejor de las 4' }, ...VARIANTES.map((v) => ({ clave: v.clave, texto: v.etiqueta }))];
+const OPCIONES_COSTO = [{ clave: 'mejor', texto: 'Mejor réplica' }, { clave: 'promedio', texto: 'Promedio de las réplicas' }];
+const ETIQUETA_VARIANTE = Object.fromEntries(VARIANTES.map((v) => [v.clave, v.etiqueta]));
 
+// Mismo criterio del Excel: un costo alcanza la BKS si queda a 1E-6 relativo o menos
+const TOL = 1e-6;
+const alcanza = (gap) => gap != null && gap <= TOL;
 const media = (v) => (v.length ? v.reduce((a, b) => a + b, 0) / v.length : null);
-// La desviación del manifest es relativa: 1e-6 absorbe los decimales que redondea cada archivo
-const enLaMejor = (s) => s.desviacion != null && s.desviacion <= 1e-6;
-// Gurobi lleva una tercera columna con su GAP (MIPGap): (cota superior − cota inferior) / cota superior
-const columnas = (m) => (m.clave === 'gurobi' ? 3 : 2);
-const textoGap = (g) => (g == null ? '—' : `${fmt(g * 100, 2)} %`);
-const textoDesviacion = (d) => (d <= 1e-6 ? '0 %' : d < 5e-5 ? '+<0,01 %' : `+${fmt(d * 100, 2)} %`);
+const pct = (g) => (g == null ? '—' : `${fmt(g * 100, 2)} %`);
+const sobreBks = (g) => (g == null ? '—' : g <= TOL ? '0 %' : g < 5e-5 ? '+<0,01 %' : `+${fmt(g * 100, 2)} %`);
+const claveGrupo = (g) => `${g.banco}|${g.n}`;
 
-/** Una fila por instancia: la salida de cada método y, en Gurobi, si probó optimalidad. */
-function filasDe(manifest, mostrada, variante) {
-  const porInstancia = new Map();
-  for (const s of manifest) {
-    if (!serieDe(s) || !mismoGrupo(s, mostrada)) continue;
-    porInstancia.set(s.instancia.nombre, [...(porInstancia.get(s.instancia.nombre) ?? []), s]);
-  }
-  return [...porInstancia.values()].map((salidas) => {
-    const gurobi = salidas.filter((s) => serieDe(s) === 'gurobi');
-    const celdas = METODOS.map((m) => {
-      const s = m.clave !== 'gurobi'
-        ? salidas.find((x) => serieDe(x) === m.clave)
-        : variante === 'mejor' ? representante(gurobi) : gurobi.find((g) => claveVariante(g.algoritmo.variante) === variante);
-      if (s?.objetivo == null) return { s: null };
-      return { s, gurobi: m.clave === 'gurobi', optimo: m.clave === 'gurobi' && s.estado === 'OPTIMAL' };
-    });
-    return { instancia: salidas[0].instancia, celdas };
-  }).sort((a, b) => a.instancia.id - b.instancia.id || a.instancia.h - b.instancia.h);
+/**
+ * Corrida de Gurobi de una fila: la variante pedida o, con 'mejor', la de menor cota superior;
+ * a igual cota, la que probó optimalidad y después la más rápida (como en la sección Heurísticas).
+ */
+export function gurobiDe(fila, variante) {
+  if (variante !== 'mejor') return fila.gurobi[variante] ? { clave: variante, ...fila.gurobi[variante] } : null;
+  return Object.entries(fila.gurobi).map(([clave, g]) => ({ clave, ...g })).sort((a, b) =>
+    (Math.abs(a.costo - b.costo) > TOL * b.costo ? a.costo - b.costo : 0)
+    || (b.estado === 'OPTIMAL') - (a.estado === 'OPTIMAL')
+    || (a.segundos ?? Infinity) - (b.segundos ?? Infinity))[0] ?? null;
 }
 
-/** Fila de botones de la tabla: etiqueta y un segmentado; elegir(clave) se llama al cambiar. */
+/** Nombre legible de cada método que alcanza la BKS (origen del Excel). */
+function textoOrigen(origen) {
+  return origen.map((o) => (o.startsWith('gurobi:') ? `Gurobi ${ETIQUETA_VARIANTE[o.slice(7)]}` : HEURISTICAS.find((h) => h.clave === o)?.corto ?? o)).join(', ');
+}
+
+/** Fila de botones: etiqueta y un segmentado; elegir(clave) se llama al cambiar. */
 function selector(etiqueta, aria, opciones, actual, elegir, clase = '') {
   return el('div', { class: `rend-control${clase}` },
     el('span', { class: 'rend-control__etiqueta', html: etiqueta }),
@@ -59,142 +59,197 @@ function selector(etiqueta, aria, opciones, actual, elegir, clase = '') {
 }
 
 /**
- * opciones: manifest, mostrada (salida del manifest), actual (archivo), elegir(archivo),
- * variante ('mejor' o clave de VARIANTES) y h ('todos' o un valor de h) con
- * alCambiarVariante(clave) y alCambiarH(valor) para recordarlos.
+ * opciones: resultados ({instancias} de lib/resultados.js o null), mostrada (salida del manifest),
+ * actual (archivo), elegir(archivo) y preferencias {grupo, grupoMostrada, h, variante, costo}, que se
+ * modifican al cambiar los selectores para conservarlos entre renders.
+ * Devuelve {nodo: [tarjetas], destruir}.
  */
-export function tablaComparativa(opciones) {
-  const { manifest, mostrada, actual, elegir, alCambiarVariante, alCambiarH } = opciones;
-  let variante = opciones.variante;
-  let h = opciones.h ?? 'todos';
+export function tablaComparativa({ resultados, mostrada, actual, elegir, preferencias: p }) {
+  const instancias = resultados?.instancias ?? [];
+  if (!instancias.length) {
+    return el('article', { class: 'tarjeta rend-tarjeta rend-comp' },
+      el('h3', { class: 'tarjeta__titulo' }, 'Comparación por instancia'),
+      el('p', {
+        class: 'rend-bajada',
+        html: 'No se pudieron leer los resultados por instancia. La página los calcula desde <code>Outputs/gurobi</code> y '
+          + '<code>Outputs/resumenes/heuristicas_replicas.csv</code> (<code>/api/resultados</code> con <code>npm start</code>, o '
+          + '<code>datos/resultados.json</code> en la versión exportada).',
+      }));
+  }
+
+  // n y banco disponibles; si un n tuviera los dos bancos, el botón los distingue
+  const grupos = [...new Map(instancias.map((f) => [claveGrupo(f), { n: f.n, banco: f.banco }])).values()];
+  const repetido = (g) => grupos.filter((x) => x.n === g.n).length > 1;
+  // La tabla sigue al n de la solución mostrada hasta que se elige otro; al mostrar otro n, vuelve a seguirla
+  const deMostrada = claveGrupo(mostrada.instancia);
+  if (p.grupoMostrada !== deMostrada) {
+    p.grupo = null;
+    p.grupoMostrada = deMostrada;
+  }
+
   const tarjeta = el('article', { class: 'tarjeta rend-tarjeta rend-tarjeta--tabla rend-comp', 'aria-labelledby': 'rend-comp-titulo' });
+  const grafico = graficoTiempos({ instancias, heuristicas: HEURISTICAS, gurobiDe });
   pintar();
-  return tarjeta;
+  return { nodo: [tarjeta, grafico.nodo], destruir: () => grafico.destruir() };
 
   function pintar() {
-    const todas = filasDe(manifest, mostrada, variante);
-    // Valores de h del grupo; si el elegido no existe en este n y banco, se muestran todos
-    const valoresH = [...new Set(todas.map((f) => f.instancia.h).filter((v) => v != null))].sort((a, b) => a - b);
-    if (h !== 'todos' && !valoresH.includes(h)) h = 'todos';
-    const filas = h === 'todos' ? todas : todas.filter((f) => f.instancia.h === h);
-    const grupo = `n = ${mostrada.instancia.n} · banco ${mostrada.instancia.banco}`;
-    const hayGurobi = manifest.some((s) => serieDe(s) === 'gurobi' && mismoGrupo(s, mostrada));
-    const metodos = METODOS.filter((m) => m.clave !== 'gurobi' || hayGurobi);
-    const hayHeuristicas = todas.some((f) => f.celdas.slice(0, -1).some((c) => c.s));
-    const textoGurobi = OPCIONES_GUROBI.find((o) => o.clave === variante)?.texto ?? '';
+    const grupo = grupos.find((g) => claveGrupo(g) === p.grupo)
+      ?? grupos.find((g) => claveGrupo(g) === deMostrada)
+      ?? grupos.find((g) => g.n === mostrada.instancia.n)
+      ?? grupos[0];
+    const todas = instancias.filter((f) => f.n === grupo.n && f.banco === grupo.banco)
+      .sort((a, b) => a.id - b.id || a.h - b.h);
+    // Valores de h del grupo; si el elegido no existe en este n, se muestran todos
+    const valoresH = [...new Set(todas.map((f) => f.h))].sort((a, b) => a - b);
+    if (p.h !== 'todos' && !valoresH.includes(p.h)) p.h = 'todos';
+    const filas = p.h === 'todos' ? todas : todas.filter((f) => f.h === p.h);
+    const textoGrupo = `n = ${grupo.n} · banco ${grupo.banco}`;
+    const textoGurobi = OPCIONES_GUROBI.find((o) => o.clave === p.variante)?.texto ?? '';
+    const conMejor = p.costo === 'mejor';
+    const rehacer = (cambio) => (v) => {
+      cambio(v);
+      pintar();
+    };
 
     const controles = el('div', { class: 'rend-comp__controles' },
+      selector('n', 'Número de clientes de la tabla', grupos.map((g) => ({ clave: claveGrupo(g), texto: repetido(g) ? `${g.n} · ${g.banco}` : String(g.n) })),
+        claveGrupo(grupo), rehacer((v) => { p.grupo = v; }), ' rend-comp__minuscula'),
       valoresH.length > 1 ? selector('h', 'Valor de h en la tabla',
-        [{ clave: 'todos', texto: 'Todos' }, ...valoresH.map((v) => ({ clave: v, texto: fmt(v) }))], h, (v) => {
-          h = v;
-          alCambiarH(v);
-          pintar();
-        }, ' rend-comp__h-control') : null,
-      hayGurobi ? selector('Gurobi', 'Variante de Gurobi en la tabla', OPCIONES_GUROBI, variante, (v) => {
-        variante = v;
-        alCambiarVariante(v);
-        pintar();
-      }) : null);
+        [{ clave: 'todos', texto: 'Todos' }, ...valoresH.map((v) => ({ clave: v, texto: fmt(v) }))], p.h, rehacer((v) => { p.h = v; }), ' rend-comp__minuscula') : null,
+      selector('Gurobi', 'Variante de Gurobi en la tabla y el gráfico', OPCIONES_GUROBI, p.variante, rehacer((v) => { p.variante = v; })),
+      selector('Heurísticas', 'Costo de las heurísticas en la tabla', OPCIONES_COSTO, p.costo, rehacer((v) => { p.costo = v; })));
 
-    // Gurobi: ópt. o c.s.; heurísticas: cuánto quedan sobre la mejor solución conocida
-    const marca = ({ s, gurobi, optimo }) => (gurobi
-      ? el('span', {
-        class: `rend-comp__marca rend-comp__marca--${optimo ? 'opt' : 'cs'}`,
-        title: optimo ? 'Óptimo probado' : 'Cota superior: solución entera sin optimalidad probada',
-      }, optimo ? 'ópt.' : 'c.s.')
-      : s.desviacion == null ? null : el('span', {
-        class: `rend-comp__marca rend-comp__marca--desv${enLaMejor(s) ? ' rend-comp__marca--cero' : ''}`,
-        title: enLaMejor(s) ? 'Alcanza la mejor solución conocida' : 'Sobre la mejor solución conocida de la instancia',
-      }, textoDesviacion(s.desviacion)));
+    // --- Cuerpo -------------------------------------------------------------------
+    const esActual = (archivo) => archivo != null && archivo === actual;
+    const abrir = (archivo, texto, titulo, mejor) => (archivo
+      ? el('button', {
+        type: 'button', class: `rend-comp__abrir${mejor ? ' rend-comp__mejor' : ''}`, title: titulo,
+        onclick: () => archivo !== actual && elegir(archivo),
+      }, texto)
+      : el('span', { class: mejor ? 'rend-comp__mejor' : null }, texto));
+    const vacias = (k) => Array.from({ length: k }, (_, i) => el('td', { class: `rend-comp__vacia${i === 0 ? ' rend-comp__inicio' : ''}` }, '—'));
 
-    const celdasFila = (f) => f.celdas.slice(0, metodos.length).flatMap((celda, k) => {
-      const { s } = celda;
-      const gap = metodos[k].clave === 'gurobi';
-      if (!s) {
-        return [el('td', { class: 'rend-comp__vacia' }, '—'), el('td', { class: 'rend-comp__vacia rend-comp__fo' }, '—'),
-          gap ? el('td', { class: 'rend-comp__vacia' }, '—') : null];
-      }
-      const mejor = enLaMejor(s);
-      const esActual = s.archivo === actual;
+    const celdasGurobi = (f) => {
+      const g = gurobiDe(f, p.variante);
+      if (!g) return vacias(4);
+      const optimo = g.estado === 'OPTIMAL';
+      const clase = esActual(g.archivo) ? ' rend-comp__actual' : '';
+      const variante = ETIQUETA_VARIANTE[g.clave];
       return [
-        el('td', { class: `rend-comp__tiempo${esActual ? ' rend-comp__actual' : ''}` }, segundos(s.segundos)),
-        el('td', { class: `rend-comp__fo${esActual ? ' rend-comp__actual' : ''}` },
-          el('button', {
-            type: 'button', class: `rend-comp__abrir${mejor ? ' rend-comp__mejor' : ''}`,
-            title: `Abrir ${s.algoritmo.nombre} en ${s.instancia.nombre}`,
-            onclick: () => s.archivo !== actual && elegir(s.archivo),
-          }, fmt(s.objetivo)),
-          marca(celda)),
-        gap ? el('td', { class: `rend-comp__gap${esActual ? ' rend-comp__actual' : ''}` }, textoGap(s.gap)) : null,
+        el('td', { class: `rend-comp__tiempo rend-comp__inicio${clase}`, title: `${variante} · ${fmt(g.nodos, 0)} nodos B&B` }, segundos(g.segundos)),
+        el('td', { class: `rend-comp__fo${clase}` },
+          abrir(g.archivo, fmt(g.costo), `Abrir Gurobi ${variante} en ${f.nombre} · cota inferior ${fmt(g.cota)}`, alcanza(g.gapEntera)),
+          el('span', {
+            class: `rend-comp__marca rend-comp__marca--${optimo ? 'opt' : 'cs'}`,
+            title: optimo ? 'Óptimo probado' : 'Cota superior: mejor solución entera al llegar al límite de tiempo',
+          }, optimo ? 'ópt.' : 'c.s.')),
+        el('td', { class: `rend-comp__gap${clase}` }, pct(g.gap)),
+        el('td', { class: `rend-comp__gap${alcanza(g.gapEntera) ? ' rend-comp__mejor' : ''}${clase}` }, sobreBks(g.gapEntera)),
       ];
-    });
+    };
 
-    // Pie: promedios y cuántas instancias son óptimas en cada método. Los promedios se toman
-    // solo en las filas donde están todos los métodos, para que comparen las mismas instancias.
-    const completas = filas.filter((f) => f.celdas.slice(0, metodos.length).every((c) => c.s));
-    const rotuloPromedio = completas.length === filas.length
-      ? 'Promedio'
-      : el('span', { title: 'Solo las instancias que tienen resultados de todos los métodos' }, `Promedio (${completas.length} de ${filas.length})`);
+    const celdasHeuristica = (f, m) => {
+      const r = f.heuristicas[m.clave];
+      if (!r) return vacias(2);
+      const costo = conMejor ? r.mejor : r.promedio;
+      const gap = conMejor ? r.gapMejor : r.gapPromedio;
+      const clase = conMejor && esActual(r.archivo) ? ' rend-comp__actual' : '';
+      const porIteracion = r.segundosIteracion != null ? ` · ${fmt(r.segundosIteracion, 6)} s por iteración` : '';
+      return [
+        el('td', { class: `rend-comp__tiempo rend-comp__inicio${clase}`, title: `Promedio de ${r.replicas} réplicas${porIteracion}` }, segundos(r.segundos)),
+        el('td', { class: `rend-comp__fo${clase}` },
+          conMejor
+            ? abrir(r.archivo, fmt(costo), `Abrir la mejor réplica de ${m.titulo} en ${f.nombre}`, alcanza(gap))
+            : el('span', { class: alcanza(gap) ? 'rend-comp__mejor' : null, title: `Promedio de ${r.replicas} réplicas; la mejor da ${fmt(r.mejor)}` }, fmt(costo)),
+          el('span', {
+            class: `rend-comp__marca rend-comp__marca--desv${alcanza(gap) ? ' rend-comp__marca--cero' : ''}`,
+            title: alcanza(gap) ? 'Alcanza la BKS' : 'Sobre la BKS de la instancia',
+          }, sobreBks(gap))),
+      ];
+    };
+
+    const cuerpo = filas.map((f) => el('tr', { class: f.nombre === mostrada.instancia.nombre ? 'resaltado' : '' },
+      el('td', { class: 'rend-comp__fija rend-comp__id' }, String(f.id)),
+      el('td', { class: 'rend-comp__fija rend-comp__h' }, fmt(f.h)),
+      el('td', { class: 'rend-comp__bks', title: `Alcanzada por ${textoOrigen(f.origen)}` }, fmt(f.bks)),
+      celdasGurobi(f),
+      HEURISTICAS.flatMap((m) => celdasHeuristica(f, m))));
+
+    // --- Pie: promedios de cada columna y cuántas instancias alcanzan la BKS ------------
+    const promedio = (valores) => media(valores.filter((x) => x != null));
+    const corridasGurobi = filas.map((f) => gurobiDe(f, p.variante)).filter(Boolean);
+    const conteo = (lista, prueba) => (lista.length ? `${lista.filter(prueba).length} de ${lista.length}` : '—');
+    const textoSeg = (x) => (x == null ? '—' : segundos(x));
+    const textoNum = (x) => (x == null ? '—' : fmt(x));
+    const rotulo = (texto, titulo) => el('th', { scope: 'row', colspan: 2, class: 'rend-comp__fija rend-comp__pie-rotulo', title: titulo }, texto);
     const pie = [
-      el('tr', {}, el('th', { scope: 'row', colspan: 2, class: 'rend-comp__fija' }, rotuloPromedio), metodos.flatMap((_, k) => {
-        const conValor = completas.map((f) => f.celdas[k].s);
-        const t = media(conValor.map((s) => s.segundos).filter((x) => x != null));
-        const o = media(conValor.map((s) => s.objetivo));
-        const g = metodos[k].clave === 'gurobi' ? media(conValor.map((s) => s.gap).filter((x) => x != null)) : undefined;
-        return [el('td', {}, t == null ? '—' : segundos(t)), el('td', { class: 'rend-comp__fo' }, o == null ? '—' : fmt(o)),
-          g === undefined ? null : el('td', { class: 'rend-comp__gap' }, textoGap(g))];
-      })),
-      el('tr', {}, el('th', { scope: 'row', colspan: 2, class: 'rend-comp__fija' }, 'Sobre la mejor'), metodos.map((m, k) => {
-        const d = media(completas.map((f) => f.celdas[k].s.desviacion).filter((x) => x != null));
-        return el('td', { colspan: columnas(m), class: 'rend-comp__conteo' }, d == null ? '—' : textoDesviacion(d));
-      })),
-      el('tr', {}, el('th', { scope: 'row', colspan: 2, class: 'rend-comp__fija' }, 'Llega a la mejor'), metodos.map((m, k) => {
-        const conValor = filas.map((f) => f.celdas[k].s).filter(Boolean);
-        return el('td', { colspan: columnas(m), class: 'rend-comp__conteo' },
-          conValor.length ? `${conValor.filter(enLaMejor).length} de ${conValor.length}` : '—');
-      })),
-      // Optimalidad probada: solo la informa Gurobi
-      hayGurobi ? el('tr', {}, el('th', { scope: 'row', colspan: 2, class: 'rend-comp__fija' }, 'Óptimos probados'), metodos.map((m, k) => {
-        if (m.clave !== 'gurobi') return el('td', { colspan: 2 });
-        const conValor = filas.map((f) => f.celdas[k]).filter((c) => c.s);
-        return el('td', { colspan: columnas(m), class: 'rend-comp__conteo' },
-          conValor.length ? `${conValor.filter((c) => c.optimo).length} de ${conValor.length}` : '—');
-      })) : null,
+      el('tr', {}, rotulo('Promedio', `Promedio de las ${filas.length} instancias de la tabla`),
+        el('td', { class: 'rend-comp__bks' }, textoNum(promedio(filas.map((f) => f.bks)))),
+        el('td', { class: 'rend-comp__inicio' }, textoSeg(promedio(corridasGurobi.map((g) => g.segundos)))),
+        el('td', { class: 'rend-comp__fo' }, textoNum(promedio(corridasGurobi.map((g) => g.costo)))),
+        el('td', { class: 'rend-comp__gap' }, pct(promedio(corridasGurobi.map((g) => g.gap)))),
+        el('td', { class: 'rend-comp__gap' }, sobreBks(promedio(corridasGurobi.map((g) => g.gapEntera)))),
+        HEURISTICAS.flatMap((m) => {
+          const rs = filas.map((f) => f.heuristicas[m.clave]).filter(Boolean);
+          const gap = promedio(rs.map((r) => (conMejor ? r.gapMejor : r.gapPromedio)));
+          return [
+            el('td', { class: 'rend-comp__inicio' }, textoSeg(promedio(rs.map((r) => r.segundos)))),
+            el('td', { class: 'rend-comp__fo' }, textoNum(promedio(rs.map((r) => (conMejor ? r.mejor : r.promedio)))),
+              rs.length ? el('span', { class: 'rend-comp__marca rend-comp__marca--desv' }, sobreBks(gap)) : null),
+          ];
+        })),
+      el('tr', {}, rotulo('Alcanza la BKS', conMejor
+        ? 'Instancias en que el método llega a la BKS: Gurobi con su cota superior y las heurísticas con su mejor réplica'
+        : 'Instancias en que el método llega a la BKS: Gurobi con su cota superior y las heurísticas en todas sus réplicas (costo promedio = BKS)'),
+      el('td'),
+      el('td', { colspan: 4, class: 'rend-comp__conteo rend-comp__inicio' }, conteo(corridasGurobi, (g) => alcanza(g.gapEntera))),
+      HEURISTICAS.map((m) => el('td', { colspan: 2, class: 'rend-comp__conteo rend-comp__inicio' },
+        conteo(filas.map((f) => f.heuristicas[m.clave]).filter(Boolean), (r) => alcanza(conMejor ? r.gapMejor : r.gapPromedio))))),
+      el('tr', {}, rotulo('Óptimos probados', 'Instancias en que Gurobi termina con estado OPTIMAL'),
+        el('td'),
+        el('td', { colspan: 4, class: 'rend-comp__conteo rend-comp__inicio' }, conteo(corridasGurobi, (g) => g.estado === 'OPTIMAL')),
+        HEURISTICAS.map(() => el('td', { colspan: 2, class: 'rend-comp__inicio' }))),
     ];
 
     const tabla = el('table', { class: 'tabla rend-comp__tabla' },
-      el('colgroup', {}, el('col', { span: 2 }), metodos.map((m) => el('col', { span: columnas(m), class: 'rend-comp__metodo' }))),
       el('thead', {},
         el('tr', {},
           el('th', { scope: 'col', rowspan: 2, class: 'rend-comp__fija rend-comp__id' }, 'ID'),
           el('th', { scope: 'col', rowspan: 2, class: 'rend-comp__fija rend-comp__h' }, 'h'),
-          metodos.map((m) => el('th', { scope: 'colgroup', colspan: columnas(m), class: 'rend-comp__grupo' },
-            m.titulo, m.clave === 'gurobi' ? el('span', { class: 'rend-comp__variante' }, textoGurobi) : null))),
-        el('tr', {}, metodos.flatMap((m) => [
-          el('th', { scope: 'col', title: 'Tiempo de ejecución en segundos' }, 'Tiempo'),
-          el('th', { scope: 'col', class: 'rend-comp__fo', html: 'Σ D<sub>i</sub>' }),
-          m.clave === 'gurobi' ? el('th', { scope: 'col', title: '(cota superior − cota inferior) / cota superior' }, 'GAP') : null,
-        ]))),
-      el('tbody', {}, filas.map((f) => el('tr', { class: f.instancia.nombre === mostrada.instancia.nombre ? 'resaltado' : '' },
-        el('td', { class: 'rend-comp__fija rend-comp__id' }, String(f.instancia.id ?? '—')),
-        el('td', { class: 'rend-comp__fija rend-comp__h' }, f.instancia.h == null ? '—' : fmt(f.instancia.h)),
-        celdasFila(f)))),
+          el('th', { scope: 'col', rowspan: 2, class: 'rend-comp__bks', title: 'Mejor solución conocida: menor Σ Dᵢ entre la cota superior de las 4 variantes de Gurobi y el mejor costo de las 5 heurísticas' }, 'BKS'),
+          el('th', { scope: 'colgroup', colspan: 4, class: 'rend-comp__grupo rend-comp__inicio' },
+            'Gurobi', el('span', { class: 'rend-comp__variante' }, textoGurobi)),
+          HEURISTICAS.map((m) => el('th', { scope: 'colgroup', colspan: 2, class: 'rend-comp__grupo rend-comp__inicio' },
+            m.titulo, el('span', { class: 'rend-comp__variante' }, conMejor ? 'mejor réplica' : 'promedio de réplicas')))),
+        el('tr', {},
+          el('th', { scope: 'col', class: 'rend-comp__inicio', title: 'Tiempo de resolución en segundos (Runtime)' }, 'Tiempo'),
+          el('th', { scope: 'col', class: 'rend-comp__fo', title: 'Valor de la mejor solución entera (ObjVal)' }, 'Cota sup.'),
+          el('th', { scope: 'col', title: '(cota superior − cota inferior) / cota superior' }, 'GAP'),
+          el('th', { scope: 'col', title: '(cota superior − BKS) / BKS' }, 'GAP sol. entera'),
+          HEURISTICAS.flatMap(() => [
+            el('th', { scope: 'col', class: 'rend-comp__inicio', title: 'Tiempo promedio de las réplicas, en segundos' }, 'Tiempo prom.'),
+            el('th', { scope: 'col', class: 'rend-comp__fo', title: conMejor ? 'Menor Σ Dᵢ de las réplicas y cuánto queda sobre la BKS' : 'Σ Dᵢ promedio de las réplicas y cuánto queda sobre la BKS' },
+              conMejor ? 'Mejor costo' : 'Costo prom.'),
+          ]))),
+      el('tbody', {}, cuerpo),
       el('tfoot', {}, pie));
 
+    const replicas = Math.max(0, ...filas.flatMap((f) => Object.values(f.heuristicas).map((r) => r.replicas)));
     tarjeta.replaceChildren(
       el('h3', { class: 'tarjeta__titulo', id: 'rend-comp-titulo' },
-        `Comparación por instancia · ${grupo}`, h === 'todos' ? null : el('span', { class: 'rend-comp__h-titulo' }, ` · h = ${fmt(h)}`)),
+        `Comparación por instancia · ${textoGrupo}`, p.h === 'todos' ? null : el('span', { class: 'rend-comp__minuscula' }, ` · h = ${fmt(p.h)}`)),
       el('p', {
         class: 'rend-bajada',
-        html: 'Tiempo de ejecución (en segundos) y función objetivo de cada método en cada instancia. '
-          + 'En las heurísticas y metaheurísticas, el porcentaje es cuánto queda Σ D<sub>i</sub> sobre la <strong>mejor solución conocida</strong> de la instancia, '
-          + 'la menor entre todos los métodos y las cuatro variantes de Gurobi; 0 % es que la alcanza. '
-          + 'En Gurobi, <strong>ópt.</strong> es óptimo probado (estado OPTIMAL) y <strong>c.s.</strong> una cota superior: la mejor solución entera al alcanzar el límite de tiempo; '
-          + 'el <strong>GAP</strong> es (cota superior − cota inferior) / cota superior al terminar, el MIPGap de Gurobi (bajo 0,01 % con óptimo probado). '
-          + 'En negrita, los valores que alcanzan la mejor solución conocida; clic en un valor para abrir esa solución.'
-          + (hayHeuristicas ? '' : ` Todavía no hay corridas de las heurísticas para ${grupo}: <code>npm run heuristicas -- ${mostrada.instancia.n}</code>.`),
+        html: 'Los resultados de la hoja Resultados de <code>gurobi_resultados.xlsx</code>. '
+          + 'La <strong>BKS</strong> es la mejor solución conocida de la instancia: la menor entre la cota superior de las 4 variantes de Gurobi y el mejor costo de las 5 heurísticas. '
+          + 'En Gurobi (límite de 3 600 s), <strong>ópt.</strong> es óptimo probado y <strong>c.s.</strong> la cota superior al llegar al límite; '
+          + 'el <strong>GAP</strong> es (cota superior − cota inferior) / cota superior y el <strong>GAP sol. entera</strong>, (cota superior − BKS) / BKS. '
+          + `En las heurísticas, con ${replicas || 10} réplicas cada una, el tiempo es el promedio de las réplicas y el porcentaje, cuánto queda el costo sobre la BKS. `
+          + 'En negrita, los valores que alcanzan la BKS; clic en un valor para abrir esa solución.',
       }),
       controles,
       el('div', { class: 'tabla-desplazable' }, tabla));
+
+    grafico.pintar({ variante: p.variante, textoVariante: textoGurobi, h: p.h, grupo });
   }
 }

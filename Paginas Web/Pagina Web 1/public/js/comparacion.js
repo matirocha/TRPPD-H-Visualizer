@@ -1,6 +1,8 @@
 // Comparación de corridas, compartida por Rendimiento (variantes de Gurobi) y Heurísticas.
 //
 // A. Esta instancia: una fila por serie (variante o algoritmo); la que se está mostrando va en tinta.
+//    Con estiloA = 'lista' (Rendimiento) es una lista HTML: nombre, valor grande, barra, estado de
+//    la corrida y cuánto cambia respecto de la primera serie; si no, barras en SVG con eje.
 // B. Todas las instancias con el mismo banco y n: un punto por instancia en cada serie y una
 //    marca en la mediana; la instancia mostrada lleva un anillo.
 // Debajo, una tabla con la mediana, la media y el máximo de cada serie.
@@ -10,9 +12,12 @@
 // la fila A se dibuja con un punto en vez de una barra, porque el largo no sería proporcional.
 //
 // config:
-//   metricas        {clave: {texto, unidad, decimales, escala?, log?, formato?, ayuda}}; el valor
-//                   de una salida es salida[clave] · escala
-//   series          [{clave, corta, etiqueta}], filas de los gráficos en orden
+//   metricas        {clave: {texto, unidad, decimales, escala?, log?, formato?, ayuda, relativo?}}; el
+//                   valor de una salida es salida[clave] · escala. relativo (solo estiloA 'lista'):
+//                   'veces' (con mas y menos: «más lento», «más rápido»), 'puntos' o 'porcentaje'
+//   series          [{clave, corta, etiqueta, descripcion?}], filas de los gráficos en orden
+//   estiloA         opcional: 'lista' para el gráfico A en HTML (sin escala logarítmica)
+//   estadoA(s)      opcional, con estiloA 'lista': {texto, clase} del estado de una corrida
 //   serieDe(s)      clave de la serie de una salida del manifest, o null si no participa
 //   representante(salidas)  opcional: cuál usar cuando una serie tiene varias salidas por instancia
 //   hayDatos(salidas, mostrada)  opcional: false muestra config.vacio(mostrada) en vez de los gráficos
@@ -20,7 +25,8 @@
 //   nota(filas, medida)   {clase, icono, html} bajo el gráfico A, o null
 //   tooltip(s, serie, filas)  html del tooltip de una salida
 //   tabla           {encabezados, fila(r, resumen, texto) -> celdas}
-//   extra({manifest, mostrada, actual, elegir})  opcional: tarjeta que va bajo la tabla
+//   extra({manifest, resultados, mostrada, actual, elegir})  opcional: nodos que van bajo la tabla,
+//                   o {nodo, destruir} si hay que limpiar algo al rehacer la sección
 import { el, fmt, mostrarTooltip, moverTooltip, movimientoReducido, ocultarTooltip, svg } from './util.js';
 
 export const mediana = (v) => {
@@ -45,13 +51,15 @@ function barra(x0, x1, y, alto, r = 4) {
   return `M${x0},${y}H${x - rr}Q${x},${y} ${x},${y + rr}V${y + alto - rr}Q${x},${y + alto} ${x - rr},${y + alto}H${x0}Z`;
 }
 
-/** opciones: manifest() lista de salidas, actual() archivo mostrado, elegir(archivo). */
-export function crearComparacion(raiz, { manifest, actual, elegir }, config) {
+/** opciones: manifest() lista de salidas, resultados() opcional, actual() archivo mostrado, elegir(archivo). */
+export function crearComparacion(raiz, { manifest, resultados, actual, elegir }, config) {
   let vista = null;
   let metrica = Object.keys(config.metricas)[0];
   const abrir = (sinAnimar) => {
     vista?.destruir();
-    vista = montar(raiz, { manifest: manifest(), actual: actual(), elegir, metrica, cambiarMetrica, sinAnimar }, config);
+    vista = montar(raiz, {
+      manifest: manifest(), resultados: resultados?.() ?? null, actual: actual(), elegir, metrica, cambiarMetrica, sinAnimar,
+    }, config);
   };
   function cambiarMetrica(nueva) {
     metrica = nueva;
@@ -69,7 +77,7 @@ export function crearComparacion(raiz, { manifest, actual, elegir }, config) {
   };
 }
 
-function montar(raiz, { manifest, actual, elegir, metrica, cambiarMetrica, sinAnimar = false }, C) {
+function montar(raiz, { manifest, resultados, actual, elegir, metrica, cambiarMetrica, sinAnimar = false }, C) {
   const d3 = window.d3;
   const M = C.metricas[metrica];
   const valor = (s) => (s?.[metrica] == null ? null : s[metrica] * (M.escala ?? 1));
@@ -109,7 +117,8 @@ function montar(raiz, { manifest, actual, elegir, metrica, cambiarMetrica, sinAn
 
   // --- A · Esta instancia --------------------------------------------------------
   const nota = C.nota?.(delInstancia, medida);
-  const marcoA = el('div', { class: 'rend-grafico' });
+  const enLista = C.estiloA === 'lista';
+  const marcoA = enLista ? el('ol', { class: 'rend-lista' }) : el('div', { class: 'rend-grafico' });
   const tarjetaA = el('article', { class: 'tarjeta rend-tarjeta', 'aria-labelledby': `${raiz.id}-a` },
     el('h3', { class: 'tarjeta__titulo', id: `${raiz.id}-a` }, C.titulos.a(mostrada)),
     el('p', { class: 'rend-bajada', html: C.titulos.bajadaA }),
@@ -141,14 +150,16 @@ function montar(raiz, { manifest, actual, elegir, metrica, cambiarMetrica, sinAn
       el('tbody', {}, resumen.map((r) => el('tr', { class: r.v.clave === claveActual ? 'resaltado' : '' },
         C.tabla.fila(r, resumen, texto).map((celda) => el('td', {}, celda))))))));
 
+  const extra = C.extra?.({ manifest, resultados, mostrada, actual, elegir });
   const contenedor = el('div', { class: 'contenedor rend' }, control, el('div', { class: 'rend-rejilla' }, tarjetaA, tarjetaB), tabla,
-    C.extra?.({ manifest, mostrada, actual, elegir }));
+    extra?.nodo ?? extra);
   raiz.replaceChildren(contenedor);
 
+  if (enLista) pintarLista();
   dibujar();
   if (!sinAnimar && !movimientoReducido()) {
     ctx.add(() => {
-      gsap.fromTo(marcoA.querySelectorAll('.rend-barra'), { scaleX: 0, transformOrigin: '0% 50%' }, {
+      gsap.fromTo(marcoA.querySelectorAll('.rend-barra, .rend-lista__relleno'), { scaleX: 0, transformOrigin: '0% 50%' }, {
         scaleX: 1, duration: 0.9, ease: 'power3.out', stagger: 0.08, clearProps: 'transform',
         scrollTrigger: { trigger: marcoA, start: 'top 85%', once: true },
       });
@@ -176,6 +187,7 @@ function montar(raiz, { manifest, actual, elegir, metrica, cambiarMetrica, sinAn
       ro.disconnect();
       clearTimeout(st.temporizador);
       ocultarTooltip();
+      extra?.destruir?.();
       ctx.revert();
     },
   };
@@ -183,7 +195,7 @@ function montar(raiz, { manifest, actual, elegir, metrica, cambiarMetrica, sinAn
   // --- Dibujo -------------------------------------------------------------------
 
   function dibujar() {
-    dibujarA();
+    if (!enLista) dibujarA();
     dibujarB();
   }
 
@@ -272,6 +284,59 @@ function montar(raiz, { manifest, actual, elegir, metrica, cambiarMetrica, sinAn
     svgA.append(guias(x, alto), ...filas, gEje);
     eje(gEje, x, alto);
     marcoA.replaceChildren(svgA);
+  }
+
+  /** Cuánto cambia x respecto del valor de la primera serie (xBase), según M.relativo. */
+  function relativo(x, xBase, vBase) {
+    if (!M.relativo || xBase == null) return null;
+    const ref = vBase.etiqueta;
+    const igual = `igual que ${ref}`;
+    if (M.relativo === 'veces') {
+      if (x <= 0 || xBase <= 0) return x === xBase ? igual : null;
+      const r = x / xBase;
+      if (Math.abs(r - 1) < 0.005) return igual;
+      const veces = r > 1 ? r : 1 / r;
+      return `${fmt(veces, veces >= 10 ? 0 : 1)} veces ${r > 1 ? M.mas : M.menos} que ${ref}`;
+    }
+    const d = M.relativo === 'porcentaje' ? (xBase ? ((x - xBase) / xBase) * 100 : null) : x - xBase;
+    if (d == null) return null;
+    if (Math.abs(d) < (M.relativo === 'porcentaje' ? 0.0005 : 0.005)) return igual;
+    return `${d > 0 ? '+' : '−'}${fmt(Math.abs(d), 2)} ${M.relativo === 'porcentaje' ? '%' : 'pp'} respecto de ${ref}`;
+  }
+
+  /** A como lista HTML: una fila por serie con su valor en grande y una barra a escala del mayor. */
+  function pintarLista() {
+    const max = Math.max(0, ...delInstancia.map((d) => valor(d.s) ?? 0));
+    const base = delInstancia[0];
+    const xBase = valor(base.s);
+    marcoA.replaceChildren(...delInstancia.map(({ v, s }) => {
+      const x = valor(s);
+      const esActual = v.clave === claveActual;
+      const nombre = el('span', { class: 'rend-lista__nombre' },
+        el('strong', {}, v.etiqueta), v.descripcion ? el('span', { class: 'rend-lista__descripcion' }, v.descripcion) : null);
+      if (x == null) {
+        return el('li', { class: 'rend-lista__fila rend-lista__fila--vacia' }, el('div', { class: 'rend-lista__contenido' }, nombre,
+          el('span', { class: 'rend-lista__valor rend-lista__valor--falta' }, s ? 'sin dato para esta medida' : 'sin solución en Outputs')));
+      }
+      const estado = C.estadoA?.(s);
+      const comparacion = v === base.v ? 'referencia' : relativo(x, xBase, base.v);
+      const boton = el('button', {
+        type: 'button', class: 'rend-lista__contenido', 'aria-current': esActual ? 'true' : null,
+        'aria-label': `${v.etiqueta}: ${texto(x)}${estado ? `, ${estado.texto}` : ''}${comparacion ? `, ${comparacion}` : ''}. ${esActual ? 'Es la solución mostrada' : 'Abrir esta solución'}`,
+      },
+      nombre,
+      el('span', { class: 'rend-lista__valor' }, texto(x)),
+      el('span', { class: 'rend-lista__pista', 'aria-hidden': 'true' },
+        el('span', { class: 'rend-lista__relleno', style: { width: `max(3px, ${max > 0 ? (x / max) * 100 : 0}%)` } })),
+      estado || comparacion ? el('span', { class: 'rend-lista__meta' },
+        estado ? el('span', { class: `rend-lista__estado rend-lista__estado--${estado.clase}` }, estado.texto) : null,
+        comparacion ? el('span', { class: 'rend-lista__relativo' }, comparacion) : null) : null);
+      boton.addEventListener('pointerenter', (e) => mostrarTooltip(C.tooltip(s, v, delInstancia, medida), e));
+      boton.addEventListener('pointermove', moverTooltip);
+      boton.addEventListener('pointerleave', ocultarTooltip);
+      boton.addEventListener('click', () => s.archivo !== actual && elegir(s.archivo));
+      return el('li', { class: `rend-lista__fila${esActual ? ' rend-lista__fila--actual' : ''}` }, boton);
+    }));
   }
 
   function dibujarB() {

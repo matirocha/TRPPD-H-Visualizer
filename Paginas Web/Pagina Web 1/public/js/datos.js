@@ -19,6 +19,18 @@ export async function cargarManifest() {
   }
 }
 
+/** Resultados por instancia (lib/resultados.js); null si no se pudieron leer. */
+export async function cargarResultados() {
+  for (const url of modo === 'estatico' ? ['datos/resultados.json'] : ['api/resultados', 'datos/resultados.json']) {
+    try {
+      return await leerJSON(url);
+    } catch {
+      // se prueba la siguiente fuente
+    }
+  }
+  return null;
+}
+
 export function cargarSalida(archivo) {
   const ruta = archivo.split('/').map(encodeURIComponent).join('/');
   return leerJSON(modo === 'estatico' ? `datos/${ruta}` : `api/salidas/${ruta}`);

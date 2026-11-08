@@ -2,7 +2,18 @@
    02 · Rendimiento y 03 · Heurísticas (comparacion.js): una sola serie por
    gráfico, la variante o el algoritmo mostrado va en tinta y el resto en
    gris; los colores salen de los tokens de base.css.
+   El gráfico de tiempo según n (escalamiento.js) es el único con varias
+   series: color por familia (Gurobi en tinta; 2 fases, ILS e ITS con tres
+   tonos validados contra --superficie: ΔE con daltonismo ≥ 9 entre todos los
+   pares) y trazo por evaluación (continuo exacta, discontinuo heurística).
    ========================================================================== */
+
+:root {
+  --serie-gurobi: var(--tinta);
+  --serie-2f: #1baf7a;
+  --serie-ils: #2a78d6;
+  --serie-its: #eb6834;
+}
 
 .rend { display: grid; gap: clamp(18px, 2.6vw, 24px); }
 .rend-rejilla { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(18px, 2.6vw, 24px); }
@@ -43,6 +54,36 @@
 .rend-fila--actual .rend-barra, .rend-fila--actual:hover .rend-barra { fill: var(--tinta); }
 .rend-fila--actual .rend-valor { fill: var(--tinta); font-weight: 600; }
 
+/* A como lista (Rendimiento): nombre y valor en grande, barra a escala de la mayor,
+   estado de la corrida y comparación con (1)–(19) */
+.rend-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.rend-lista__contenido {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: 'nombre valor' 'pista pista' 'meta meta';
+  align-items: baseline; gap: 6px 14px; width: 100%; padding: 10px 12px; margin: 0;
+  border: 0; border-radius: var(--radio-s); background: transparent; text-align: left; transition: background 0.2s;
+}
+button.rend-lista__contenido:hover { background: var(--papel); }
+button.rend-lista__contenido:focus-visible { outline: 2px solid var(--tinta); outline-offset: 0; }
+.rend-lista__fila--actual .rend-lista__contenido { cursor: default; }
+.rend-lista__nombre { grid-area: nombre; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; min-width: 0; }
+.rend-lista__nombre strong { font: 500 14px/1.3 var(--f-mono); color: var(--tinta-2); }
+.rend-lista__descripcion { font-size: 12.5px; color: var(--tinta-3); }
+.rend-lista__fila--actual .rend-lista__nombre strong { font-weight: 600; color: var(--tinta); }
+.rend-lista__valor {
+  grid-area: valor; font: 500 19px/1.2 var(--f-mono); font-variant-numeric: tabular-nums; color: var(--tinta-2); white-space: nowrap;
+}
+.rend-lista__fila--actual .rend-lista__valor { font-weight: 600; color: var(--tinta); }
+.rend-lista__valor--falta { font: italic 400 13px/1.3 var(--f-texto); color: var(--tinta-3); }
+.rend-lista__pista { grid-area: pista; display: block; height: 12px; border-radius: 0 4px 4px 0; background: var(--papel-2); overflow: hidden; }
+.rend-lista__relleno { display: block; height: 100%; border-radius: 0 4px 4px 0; background: var(--viaje); transition: background 0.2s; }
+button.rend-lista__contenido:hover .rend-lista__relleno { background: var(--tinta-3); }
+.rend-lista__fila--actual .rend-lista__relleno,
+.rend-lista__fila--actual button.rend-lista__contenido:hover .rend-lista__relleno { background: var(--tinta); }
+.rend-lista__meta { grid-area: meta; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: 12.5px; line-height: 1.35; color: var(--tinta-2); }
+.rend-lista__estado { padding: 1px 7px; border-radius: 999px; font: 600 11px/1.4 var(--f-texto); }
+.rend-lista__estado--opt { background: var(--tinta); color: var(--superficie); }
+.rend-lista__estado--limite { border: 1px solid var(--tinta-3); padding: 0 6px; color: var(--tinta-2); }
+
 /* A con escala logarítmica: un punto sobre el carril en vez de una barra */
 .rend-marca { fill: var(--viaje); stroke: var(--superficie); stroke-width: 2; transition: fill 0.2s; }
 .rend-fila:hover .rend-marca { fill: var(--tinta-3); }
@@ -72,13 +113,16 @@
 .rend-tabla td:not(:nth-child(2)) { white-space: nowrap; }
 
 /* --- Tabla comparativa por instancia (comparativa.js) ----------------------
-   Dos columnas por método (tiempo y Σ D) separadas por una regla vertical;
-   las marcas (ópt./c.s. en Gurobi, % en las heurísticas) van en tinta, sin los
-   colores reservados a las políticas. */
+   ID, h y BKS; Gurobi con cuatro columnas y cada heurística con dos (tiempo y
+   costo), separados por una regla vertical (rend-comp__inicio). Las marcas
+   (ópt./c.s. en Gurobi, % sobre la BKS en las heurísticas) van en tinta, sin
+   los colores reservados a las políticas. */
 .rend-comp__tabla { min-width: 0; font-size: 12.5px; }
-.rend-comp__tabla th, .rend-comp__tabla td { white-space: nowrap; padding: 6px 5px; }
-.rend-comp__tabla th.rend-comp__grupo { padding-inline: 4px; }
-.rend-comp__tabla col.rend-comp__metodo { border-left: 1px solid var(--regla); }
+.rend-comp__tabla th, .rend-comp__tabla td { white-space: nowrap; padding: 6px 6px; }
+.rend-comp__tabla th.rend-comp__grupo { padding-inline: 6px; }
+.rend-comp__tabla .rend-comp__inicio { border-left: 1px solid var(--regla); }
+.rend-comp__tabla .rend-comp__bks { font-weight: 600; color: var(--tinta); }
+.rend-comp__tabla thead .rend-comp__bks { text-align: right; vertical-align: bottom; }
 .rend-comp .rend-comp__tabla thead th.rend-comp__grupo { text-align: center; border-bottom-color: var(--regla-2); }
 .rend-comp__variante {
   display: block; margin-top: 3px; font: 500 11px/1.2 var(--f-mono); letter-spacing: 0; text-transform: none; color: var(--tinta-3);
@@ -93,14 +137,15 @@
 
 /* Selectores de h y de la variante de Gurobi, en una fila que se parte si no cabe */
 .rend-comp__controles { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 24px; }
-.rend-comp__h-control .rend-control__etiqueta { text-transform: none; font-size: 13px; }
+.rend-comp__minuscula .rend-control__etiqueta { text-transform: none; font-size: 13px; }
 .rend-comp__controles .segmentado button { padding: 5px 11px; font-size: 13px; }
-.rend-comp__h-titulo { text-transform: none; }
+span.rend-comp__minuscula { text-transform: none; }
 
 /* ID y h quedan fijos al desplazar la tabla en pantallas angostas */
 .rend-comp__fija { position: sticky; left: 0; z-index: 1; background: var(--superficie); }
 .rend-comp__tabla .rend-comp__id { box-sizing: border-box; width: 40px; min-width: 40px; max-width: 40px; }
 .rend-comp__tabla .rend-comp__h { left: 40px; box-shadow: inset -1px 0 0 var(--regla); }
+.rend-comp__tabla tfoot .rend-comp__fija { box-shadow: inset -1px 0 0 var(--regla); }
 .rend-comp__tabla thead .rend-comp__h { text-transform: none; }
 .rend-comp__tabla tbody tr:hover .rend-comp__fija,
 .rend-comp__tabla tbody tr.resaltado .rend-comp__fija {
@@ -126,3 +171,57 @@
 /* Heurísticas: cuánto quedan sobre la mejor solución conocida; en tinta si la alcanzan */
 .rend-comp__marca--desv { margin-left: 3px; padding: 0; font-weight: 500; font-variant-numeric: tabular-nums; color: var(--tinta-3); }
 .rend-comp__marca--desv.rend-comp__marca--cero { color: var(--tinta); font-weight: 600; }
+
+/* --- Tiempo de ejecución según n (escalamiento.js) ------------------------- */
+.rend-esc__serie--gurobi { --serie: var(--serie-gurobi); }
+.rend-esc__serie--2f { --serie: var(--serie-2f); }
+.rend-esc__serie--ils { --serie: var(--serie-ils); }
+.rend-esc__serie--its { --serie: var(--serie-its); }
+
+.rend-esc__leyenda { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; color: var(--tinta); }
+.rend-esc__leyenda li { display: inline-flex; align-items: center; gap: 7px; }
+.rend-esc__nota { color: var(--tinta-3); font-family: var(--f-mono); font-size: 12px; }
+.rend-esc__muestra { flex-shrink: 0; overflow: visible; }
+
+.rend-esc__grafico { min-width: 0; }
+.rend-esc__svg { display: block; width: 100%; height: auto; overflow: visible; -webkit-user-select: none; user-select: none; }
+.rend-esc__svg text { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+
+.rend-esc__grilla line { stroke: var(--regla-2); stroke-width: 1; }
+.rend-esc__base { stroke: var(--regla); stroke-width: 1; }
+.rend-esc__eje text { fill: var(--tinta-3); font-size: 11px; }
+.rend-esc__eje text.rend-esc__actual { fill: var(--tinta); font-weight: 600; }
+.rend-esc__eje .rend-esc__titulo-eje { font-family: var(--f-texto); font-size: 11.5px; fill: var(--tinta-2); }
+.rend-esc__franja { fill: var(--resalte); fill-opacity: 0.4; }
+.rend-esc__limite line { stroke: var(--tinta-3); stroke-width: 1; }
+.rend-esc__limite text { fill: var(--tinta-2); font-size: 11px; }
+.rend-esc__banco line { stroke: var(--regla); stroke-width: 1; }
+.rend-esc__banco text { fill: var(--tinta-3); font-family: var(--f-texto) !important; font-size: 11px; letter-spacing: 0.04em; }
+
+.rend-esc__linea { fill: none; stroke: var(--serie); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.rend-esc__serie--heuristica .rend-esc__linea { stroke-dasharray: 6 4; stroke-linecap: butt; }
+/* Marcadores de 8 px con un anillo del color de la superficie; huecos en la evaluación heurística */
+.rend-esc__punto { fill: var(--serie); stroke: var(--superficie); stroke-width: 2; transition: r 0.15s; }
+.rend-esc__serie--heuristica .rend-esc__punto { fill: var(--superficie); stroke: var(--serie); stroke-width: 2; }
+.rend-esc__punto--activo { r: 5.5px; }
+.rend-esc__cursor { stroke: var(--tinta-2); stroke-width: 1; pointer-events: none; }
+.rend-esc__zonas rect { fill: transparent; cursor: crosshair; }
+
+.rend-esc__guia { fill: none; stroke: var(--serie); stroke-width: 1.5; }
+.rend-esc__serie--heuristica .rend-esc__guia { stroke-dasharray: 3 2; }
+.rend-esc__rotulo { fill: var(--tinta); font-size: 11.5px; }
+.rend-esc__rotulo-valor { fill: var(--tinta-3); }
+
+/* Clave de color dentro del tooltip (fondo en tinta: Gurobi va en papel) */
+.rend-esc__clave {
+  display: inline-block; width: 14px; height: 0; margin-right: 7px; vertical-align: 0.3em;
+  border-top: 2px solid var(--serie);
+}
+.rend-esc__clave.rend-esc__serie--heuristica { border-top-style: dashed; }
+.tooltip .rend-esc__serie--gurobi { --serie: var(--papel); }
+
+.rend-esc__datos summary { cursor: pointer; font-size: 13px; color: var(--tinta-2); width: fit-content; }
+.rend-esc__datos summary:hover { color: var(--tinta); }
+.rend-esc__datos[open] summary { margin-bottom: 8px; }
+.rend-esc__tabla { font-size: 12.5px; }
+.rend-esc__tabla td, .rend-esc__tabla th { padding: 6px 8px; white-space: nowrap; }

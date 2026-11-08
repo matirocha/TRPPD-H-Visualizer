@@ -2,12 +2,14 @@
 //
 //   GET /api/salidas           lista de soluciones encontradas en Outputs
 //   GET /api/salidas/<archivo> contenido de una solución (p. ej. gurobi/base/vigo_n5_id1_h0.5.json)
+//   GET /api/resultados        resultados por instancia del Excel de resúmenes (BKS, GAP, réplicas)
 //
 // Los cambios en Outputs se ven al recargar la página.
 // Uso: npm start  (PORT y OUTPUTS_DIR son opcionales)
 import express from 'express';
 import path from 'node:path';
 import { OUTPUTS, RAIZ, VENDOR, listarSalidas, resolverSalida } from './lib/salidas.js';
+import { calcularResultados } from './lib/resultados.js';
 
 const PUERTO = Number(process.env.PORT ?? 3000);
 const app = express();
@@ -16,6 +18,14 @@ app.disable('x-powered-by');
 app.get('/api/salidas', async (_req, res, next) => {
   try {
     res.set('Cache-Control', 'no-store').json({ salidas: await listarSalidas() });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/api/resultados', async (_req, res, next) => {
+  try {
+    res.set('Cache-Control', 'no-store').json(await calcularResultados());
   } catch (error) {
     next(error);
   }

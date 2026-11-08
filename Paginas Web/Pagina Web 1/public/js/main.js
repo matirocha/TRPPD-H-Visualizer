@@ -3,7 +3,7 @@
 //
 // Cada sección es un módulo con crear(raiz, estado) -> { render(sim, salida), destruir() }.
 // render se llama cada vez que cambia la solución elegida, siempre después de destruir().
-import { cargarManifest, cargarSalida } from './datos.js';
+import { cargarManifest, cargarResultados, cargarSalida } from './datos.js';
 import { crearEstado } from './estado.js';
 import { PARAMETROS, PARAMETRO_INFO, normalizar, simular } from './modelo.js';
 import { $, $$, PARAM_HTML, avisar, el, fmt, movimientoReducido } from './util.js';
@@ -20,6 +20,7 @@ gsap.registerPlugin(ScrollTrigger, ScrollToPlugin, DrawSVGPlugin, MotionPathPlug
 
 const estado = crearEstado({ salida: null, sim: null, hover: null, modoNodo: 'tiempo', avance: null, modoContinuo: false });
 let manifest = [];
+let resultados = null; // resultados por instancia del Excel de resúmenes (tabla de Rendimiento)
 let archivoActual = null;
 let modulos = [];
 let selector = null;
@@ -283,6 +284,8 @@ async function iniciar() {
     aviso.innerHTML = 'No se encontraron soluciones en <code>Outputs</code>.<br>Ejecuta <code>python modelo_trppdh3.py</code> desde <code>notebooks/</code> y recarga.';
     return;
   }
+  // Después del manifest, que fija si la página corre con el servidor o en la versión estática
+  resultados = await cargarResultados();
 
   selector = crearSelector({ barra: $('#selector-barra'), enLinea: $('#selector'), alElegir: (archivo) => mostrar(archivo) });
 
@@ -297,7 +300,7 @@ async function iniciar() {
     }),
     tiempos.crear($('#tiempos-escena'), estado),
     rendimiento.crear($('#rendimiento-escena'), estado, {
-      manifest: () => manifest, actual: () => archivoActual, elegir: (archivo) => mostrar(archivo),
+      manifest: () => manifest, resultados: () => resultados, actual: () => archivoActual, elegir: (archivo) => mostrar(archivo),
     }),
     heuristicas.crear($('#heuristicas-escena'), estado, {
       manifest: () => manifest, actual: () => archivoActual, elegir: (archivo) => mostrar(archivo),

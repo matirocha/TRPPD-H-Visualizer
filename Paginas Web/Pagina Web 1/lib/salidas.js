@@ -40,8 +40,10 @@ function resumir(archivo, d) {
     ? { explicitacion: p.explicitacion, latencia: p.latencia }
     : null;
   const nombre = i.nombre ?? path.basename(archivo, '.json');
-  // GAP sol. entera de notebooks/lote_trppdh3.py: (Σ D − relajación lineal) / Σ D. Las heurísticas
-  // lo traen calculado con la mayor relajación de las variantes de Gurobi.
+  // GAP relajación lineal (antes "GAP sol. entera" en notebooks/lote_trppdh3.py):
+  // (Σ D − relajación lineal) / Σ D. Las heurísticas lo traen calculado con la mayor relajación
+  // de las variantes de Gurobi. El GAP sol. entera del Excel, (cota superior − BKS) / BKS, es la
+  // desviación que se calcula abajo.
   const gapEntera = s.gap_entera
     ?? (s.objetivo && s.relajacion_lineal != null ? (s.objetivo - s.relajacion_lineal) / s.objetivo : null);
   return {
@@ -80,7 +82,9 @@ export async function listarSalidas(dir = OUTPUTS) {
     if (error.code !== 'ENOENT') throw error;
   }
   // Desviación respecto de la mejor solución conocida de la instancia (cualquier algoritmo),
-  // como la columna Dev. (%) de Erdoğan et al. (2012)
+  // como la columna Dev. (%) de Erdoğan et al. (2012). Las heurísticas guardan su mejor réplica,
+  // así que la mejor conocida es el BKS del Excel y, en Gurobi, la desviación es el
+  // GAP sol. entera: (cota superior − BKS) / BKS.
   const mejor = new Map();
   for (const s of salidas) {
     if (s.objetivo != null) mejor.set(s.instancia.nombre, Math.min(mejor.get(s.instancia.nombre) ?? Infinity, s.objetivo));

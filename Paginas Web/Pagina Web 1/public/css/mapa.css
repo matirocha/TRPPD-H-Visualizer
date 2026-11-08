@@ -36,7 +36,7 @@
   font-size: 12.5px; line-height: 1.35; color: var(--tinta-2); text-wrap: pretty;
 }
 
-/* --- Lámina (papel cuadriculado) ----------------------------------------- */
+/* --- Lámina ---------------------------------------------------------------- */
 .mapa-lamina {
   position: relative; margin: 0; min-width: 0; overflow: hidden;
   background: var(--superficie);
@@ -70,10 +70,6 @@
 /* Con aumento el mapa se arrastra (también con un dedo: sin gestos del navegador) */
 .mapa-svg--zoom { cursor: grab; touch-action: none; }
 .mapa-svg--arrastrando, .mapa-svg--arrastrando * { cursor: grabbing !important; }
-
-.mapa-rejilla { fill: none; stroke-width: 1; pointer-events: none; }
-.mapa-rejilla--fina { stroke: rgb(23 32 42 / 0.045); }
-.mapa-rejilla--gruesa { stroke: rgb(23 32 42 / 0.1); }
 
 /* --- Grafo completo (Arcos: Todos) --------------------------------------- */
 .mapa-todos { display: none; }

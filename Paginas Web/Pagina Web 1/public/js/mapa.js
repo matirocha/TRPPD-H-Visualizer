@@ -34,14 +34,14 @@ const PERFILES = {
   ancho: {
     W: 940, H: 700, margen: { izq: 190, der: 190, sup: 108, inf: 120 },
     r: 20, rDep: 16, fNodo: 15, fPildora: 12.5, altoPildora: 21, insignia: 1, camion: 1, flecha: 1,
-    pasoMin: 34, tarjetas: true,
+    tarjetas: true,
   },
   // A 360 px la lámina se ve a ~0,55×: insignias y márgenes más holgados para que
   // P1/P2 y #k sigan legibles.
   estrecho: {
     W: 600, H: 540, margen: { izq: 56, der: 56, sup: 60, inf: 84 },
     r: 24, rDep: 19, fNodo: 19, fPildora: 17, altoPildora: 27, insignia: 1.45, camion: 1.3, flecha: 1.35,
-    pasoMin: 30, tarjetas: false,
+    tarjetas: false,
   },
 };
 
@@ -231,18 +231,7 @@ function calcularGeometria(sim, perfil) {
     return { arco, geo, a, texto, fFlecha, fPildora: mejor.f, pildora: { x: mejor.px, y: mejor.py, w, h } };
   });
 
-  // Cuadrícula de papel centrada en el polígono (cada `paso` unidades del viewBox).
-  // Se extiende fuera del viewBox para cubrir el área sobrante de "meet".
-  const paso = perfil.pasoMin;
-  const rejilla = { fina: '', gruesa: '' };
-  for (let i = Math.ceil((-W - cx) / paso); i <= Math.floor((2 * W - cx) / paso); i++) {
-    rejilla[i % 5 === 0 ? 'gruesa' : 'fina'] += `M${r2(cx + i * paso)} ${-H}V${2 * H}`;
-  }
-  for (let i = Math.ceil((-H - cy) / paso); i <= Math.floor((2 * H - cy) / paso); i++) {
-    rejilla[i % 5 === 0 ? 'gruesa' : 'fina'] += `M${-W} ${r2(cy + i * paso)}H${2 * W}`;
-  }
-
-  const G = { W, H, pos, radio, curvaEntre, rectaEntre, arcos, rejilla };
+  const G = { W, H, pos, radio, curvaEntre, rectaEntre, arcos };
   G.tarjetas = perfil.tarjetas ? colocarTarjetas(sim, G) : new Map();
   return G;
 }
@@ -440,10 +429,6 @@ function construirVista({ sim, salida, nombre, fijo, vinculado, estado, modoArco
   const defs = svg('defs', {}, svg('mask', {
     id: idMascara, maskUnits: 'userSpaceOnUse', x: -G.W, y: -G.H, width: 3 * G.W, height: 3 * G.H,
   }, mascaraTrazo));
-
-  const fondo = svg('g', { class: 'mapa-fondo', 'aria-hidden': 'true' },
-    G.rejilla.fina ? svg('path', { class: 'mapa-rejilla mapa-rejilla--fina', d: G.rejilla.fina, 'vector-effect': 'non-scaling-stroke' }) : null,
-    G.rejilla.gruesa ? svg('path', { class: 'mapa-rejilla mapa-rejilla--gruesa', d: G.rejilla.gruesa, 'vector-effect': 'non-scaling-stroke' }) : null);
 
   // Grafo completo (control "Arcos: Todos"): una línea por par si c_ij = c_ji.
   const capaTodos = svg('g', { class: 'mapa-todos' });
@@ -668,7 +653,7 @@ function construirVista({ sim, salida, nombre, fijo, vinculado, estado, modoArco
       svg('rect', { class: 'mapa-camion__cabina', x: 7, y: -6.5, width: 8, height: 13, rx: 2.5 }),
       svg('rect', { class: 'mapa-camion__vidrio', x: 11.6, y: -5, width: 2, height: 10, rx: 1 })));
 
-  raizSVG.append(defs, fondo, capaTodos, capaFantasmas, capaArcos, capaGuias, capaTarjetas,
+  raizSVG.append(defs, capaTodos, capaFantasmas, capaArcos, capaGuias, capaTarjetas,
     capaPildoras, capaNodos, svg('g', { class: 'mapa-capa-camion' }, camion));
 
   // --- Barra de herramientas y pie del mapa -------------------------------------

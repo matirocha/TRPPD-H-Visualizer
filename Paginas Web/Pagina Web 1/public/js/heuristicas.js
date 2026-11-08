@@ -23,8 +23,8 @@ const METRICAS = {
     ayuda: '(Σ D<sub>i</sub> − cota inferior) / Σ D<sub>i</sub>. Las heurísticas no tienen cota propia: se usa la mejor de las cuatro variantes de Gurobi.',
   },
   gapEntera: {
-    texto: 'GAP sol. entera', unidad: ' %', decimales: 2, escala: 100,
-    ayuda: '(Σ D<sub>i</sub> − relajación lineal) / Σ D<sub>i</sub>, con la mayor relajación lineal de las variantes de Gurobi.',
+    texto: 'GAP relajación lineal', unidad: ' %', decimales: 2, escala: 100,
+    ayuda: '(Σ D<sub>i</sub> − relajación lineal) / Σ D<sub>i</sub>, con la mayor relajación lineal de las variantes de Gurobi (antes «GAP sol. entera»; el GAP sol. entera del Excel es la desviación).',
   },
   desviacion: {
     texto: 'Desviación', unidad: ' %', decimales: 3, escala: 100,
@@ -100,7 +100,7 @@ function tooltip(s, v) {
   return `<strong>${v.etiqueta}</strong>${variante} · ${s.instancia.nombre}<br>`
     + `Tiempo ${segundos(s.segundos)} s<br>`
     + `Σ D<sub>i</sub> = ${fmt(s.objetivo)} · desviación ${pct(s.desviacion)}<br>`
-    + `GAP ${pct(s.gap)} · GAP sol. entera ${pct(s.gapEntera, 2)}`;
+    + `GAP ${pct(s.gap)} · GAP relajación lineal ${pct(s.gapEntera, 2)}`;
 }
 
 /** opciones: manifest() lista de salidas, actual() archivo mostrado, elegir(archivo). */

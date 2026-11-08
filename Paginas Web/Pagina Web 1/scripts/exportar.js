@@ -1,11 +1,13 @@
 // Copia la página, sus dependencias y las soluciones de Outputs en dist/, para
 // publicarla en cualquier hosting estático (GitHub Pages, Netlify, etc.).
-// La página busca primero /api/salidas y, si no existe, datos/manifest.json.
+// La página busca primero /api/salidas y, si no existe, datos/manifest.json (y lo mismo con
+// /api/resultados y datos/resultados.json).
 //
 // Uso: npm run exportar [-- carpeta_destino]
 import { cp, mkdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { OUTPUTS, RAIZ, VENDOR, listarSalidas, resolverSalida } from '../lib/salidas.js';
+import { calcularResultados } from '../lib/resultados.js';
 
 const destino = path.resolve(process.argv[2] ?? path.join(RAIZ, 'dist'));
 
@@ -34,5 +36,8 @@ for (const { archivo } of salidas) {
   await cp(resolverSalida(archivo), salida);
 }
 await writeFile(path.join(destino, 'datos', 'manifest.json'), JSON.stringify({ salidas }, null, 2));
+const resultados = await calcularResultados(salidas);
+await writeFile(path.join(destino, 'datos', 'resultados.json'), JSON.stringify(resultados));
 
 console.log(`${salidas.length} soluciones de ${OUTPUTS} exportadas a ${destino}`);
+console.log(`Resultados de ${resultados.instancias.length} instancias en datos/resultados.json`);

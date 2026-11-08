@@ -44,8 +44,8 @@ para números (con cifras tabulares). Decimales con coma (es-CL).
 |---|---|---|---|
 | 00 | Portada | Título, pregunta del problema y, de fondo, circuitos que cambian: primero la ruta de la instancia, luego los nodos se mueven a posiciones al azar y se traza un recorrido tipo vendedor viajero (vecino más cercano + 2-opt), en bucle | Los nodos se desplazan, el circuito se traza y un marcador lo recorre; paralaje al bajar |
 | 01 | Mapa y carga | A la izquierda, nodos con u<sub>a</sub>, ℓ<sub>a</sub>, u<sub>b</sub>, ℓ<sub>b</sub> y arcos con c<sub>ij</sub>; bajo el mapa, el tiempo por cliente; a la derecha, el camión con las unidades en su posición física y los pasos de la Tabla 3. Debajo, barras de carga por tramo vs Q | Reproductor (ver abajo): el camión se mueve en el mapa y cada operación de carga y descarga se anima al mismo tiempo |
-| 02 | Rendimiento | Tiempo de ejecución de las cuatro variantes del modelo: barras para la instancia mostrada, puntos y mediana para todas las instancias con el mismo banco y n, y tabla resumen con las óptimas de cada variante. Medida: resolución, total, nodos B&B, función objetivo, GAP o GAP sol. entera (con límite de tiempo los segundos se igualan y el GAP es lo que las distingue). Debajo, una tabla comparativa con una fila por instancia del grupo y dos columnas (tiempo y Σ D<sub>i</sub>) por método: heurística 2 fases, ILS e ITS heurístico y exacto, y Gurobi (mejor de las 4 o la variante elegida); cada Σ D<sub>i</sub> de una heurística lleva el % que queda sobre la mejor solución conocida de la instancia (la menor entre todos los métodos y las cuatro variantes de Gurobi; 0 % si la alcanza) y el de Gurobi, *ópt.* (óptimo probado) o *c.s.* (cota superior); Gurobi tiene además una tercera columna con su GAP (MIPGap), promediado en el pie. Un selector de h (todos o un valor) filtra las filas; el pie da el promedio de tiempo, Σ D<sub>i</sub> y % sobre la mejor (solo en las filas con todos los métodos, para comparar las mismas instancias), cuántas llegan a la mejor y los óptimos probados de Gurobi | Barras que crecen; puntos que aparecen |
-| 03 | Heurísticas | Las de Erdoğan et al. (2012) adaptadas (2 fases, ILS e ITS con evaluación exacta o heurística) frente a Gurobi con su variante más rápida entre las de menor Σ D<sub>i</sub>: los mismos dos gráficos y tabla que Rendimiento, una fila por algoritmo. Medida: tiempo (escala logarítmica, con puntos en vez de barras), función objetivo, GAP, GAP sol. entera o desviación respecto de la mejor solución conocida. Debajo, una tarjeta por método | Igual que Rendimiento |
+| 02 | Rendimiento | Tiempo de ejecución de las cuatro variantes del modelo. Para la instancia mostrada, una lista con una fila por variante: nombre, valor en grande, barra a escala de la mayor, estado (*óptima* o *límite de tiempo*) y cuánto cambia respecto de (1)–(19) («131 veces más rápido», «−1,9 pp»); al lado, puntos y mediana para todas las instancias con el mismo banco y n, y tabla resumen con las óptimas de cada variante. Medida: tiempo, total, nodos B&B, función objetivo, GAP o GAP sol. entera = (cota superior − BKS) / BKS (con límite de tiempo los segundos se igualan y el GAP es lo que las distingue). Debajo, la **comparación por instancia** con los resultados de `Outputs/resumenes/gurobi_resultados.xlsx` (recalculados en `lib/resultados.js`): una fila por instancia del n elegido con la BKS (menor Σ D<sub>i</sub> entre la cota superior de las 4 variantes y el mejor costo de las 5 heurísticas), Gurobi (tiempo, cota superior con *ópt.* o *c.s.*, GAP y GAP sol. entera; mejor de las 4 o la variante elegida) y cada heurística (tiempo promedio de sus 10 réplicas y su mejor costo o su costo promedio, con el % sobre la BKS). Selectores de n, h, variante de Gurobi y costo de las heurísticas; la tabla sigue al n de la solución mostrada hasta que se elige otro. El pie da los promedios, cuántas instancias alcanzan la BKS y los óptimos probados. Al final, **tiempo de ejecución según n**: una línea por método (Gurobi, 2 fases, ILS e ITS exacto y heurístico) con el tiempo promedio de cada n, en escala logarítmica, con la variante de Gurobi y el h de la tabla, el límite de 3 600 s, el cambio de banco, una franja en el n de la tabla, tooltip por n y los datos en una tabla plegable | Barras que crecen; puntos que aparecen; las líneas se trazan de izquierda a derecha |
+| 03 | Heurísticas | Las de Erdoğan et al. (2012) adaptadas (2 fases, ILS e ITS con evaluación exacta o heurística) frente a Gurobi con su variante más rápida entre las de menor Σ D<sub>i</sub>: los mismos dos gráficos y tabla que Rendimiento, una fila por algoritmo. Medida: tiempo (escala logarítmica, con puntos en vez de barras), función objetivo, GAP, GAP relajación lineal ((Σ D<sub>i</sub> − relajación lineal) / Σ D<sub>i</sub>, antes «GAP sol. entera») o desviación respecto de la mejor solución conocida. Debajo, una tarjeta por método | Igual que Rendimiento |
 | 04 | El problema | Tres ideas: latencia (Σ D<sub>i</sub>), una sola puerta (LIFO, Figura 1), Política 3 (Tabla 3) | Se construyen al entrar en pantalla |
 | 05 | La instancia | Selector (algoritmo, n, id, h), KPIs, tabla de clientes, parámetros, verificación, leyenda | Contadores |
 | 06 | Reloj | Línea de tiempo de la ruta con lupa de servicio y barras de espera D<sub>i</sub> por cliente | Sin animaciones de scroll: el cabezal se mueve al elegir una parada |
@@ -112,6 +112,11 @@ Lo que pide el enunciado y dónde está:
 - En local, el servidor (`server.js`, Express) las lista en `/api/salidas`; en
   la versión publicada, `npm run exportar` las copia a `dist/datos/`. En ambos
   casos se leen al cargar la página.
+- La comparación por instancia y el tiempo según n de Rendimiento usan los
+  resultados del Excel de resúmenes. Como el Excel guarda fórmulas sin valores,
+  `lib/resultados.js` los recalcula desde sus mismas fuentes (los JSON de
+  Gurobi y `Outputs/resumenes/heuristicas_replicas.csv`) y el servidor los
+  entrega en `/api/resultados` (en la versión publicada, `datos/resultados.json`).
 - La página **no confía ciegamente en los números del archivo**: vuelve a
   recorrer la ruta con la secuencia de la Tabla 3 (`public/js/modelo.js`) y
   compara T<sub>i</sub>, D<sub>i</sub>, F<sub>i</sub>, q<sub>i</sub> y Σ D<sub>i</sub> con lo reportado. Las cargas físicas (w, y, z)
@@ -127,8 +132,9 @@ Lo que pide el enunciado y dónde está:
 
 ```
 Pagina Web 1/
-  server.js            Express: estáticos y /api/salidas
+  server.js            Express: estáticos, /api/salidas y /api/resultados
   lib/salidas.js       lectura de Outputs (compartida con los scripts)
+  lib/resultados.js    resultados por instancia del Excel: BKS, GAP y réplicas
   lib/heuristicas.js   heurísticas de Erdoğan et al. (2012) adaptadas: DP exacto,
                        evaluación lineal, 2 fases, ILS e ITS (sin DOM ni Node)
   scripts/exportar.js  copia estática en dist/
@@ -151,7 +157,8 @@ Pagina Web 1/
     js/tiempos.js      reloj
     js/comparacion.js  gráficos y tabla de comparación por serie (lee el manifest)
     js/rendimiento.js  comparación de las variantes de Gurobi
-    js/comparativa.js  tabla por instancia: tiempo y Σ D de cada método
+    js/comparativa.js  tabla por instancia con los resultados del Excel (selectores de n, h, Gurobi y costo)
+    js/escalamiento.js tiempo de ejecución según n, una línea por método
     js/heuristicas.js  comparación de las heurísticas con Gurobi
 ```
 
