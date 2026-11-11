@@ -116,8 +116,13 @@ export function crear(raiz, _estado, opciones) {
     serieDe,
     representante,
     hayDatos: (salidas, mostrada) => salidas.some((s) => s.algoritmo.familia === 'erdogan' && mismoGrupo(s, mostrada)),
-    vacio: (mostrada) => `Todavía no hay corridas de las heurísticas para n = ${mostrada?.instancia.n ?? '—'} en Outputs. `
-      + `Ejecuta <code>npm run heuristicas -- ${mostrada?.instancia.n ?? 10}</code> en <code>Paginas Web/Pagina Web 1</code> y recarga la página.`,
+    vacio: (mostrada) => {
+      // Valores de n con corridas de las heurísticas, para decir dónde mirar
+      const ns = [...new Set(opciones.manifest().filter((s) => s.algoritmo.familia === 'erdogan').map((s) => s.instancia.n))].sort((a, b) => a - b);
+      const rango = ns.length ? ` (están para n = ${ns.length > 2 ? `${ns[0]} a ${ns.at(-1)}` : ns.join(' y ')})` : '';
+      return `Las heurísticas no se corrieron con n = ${mostrada?.instancia.n ?? '—'}${rango}. `
+        + 'Elige en el selector de arriba una instancia con otro n para compararlas con Gurobi.';
+    },
     titulos: {
       a: (mostrada) => `Esta instancia · ${mostrada.instancia.nombre}`,
       bajadaA: 'Una fila por algoritmo; en tinta, el que se está mostrando. Gurobi aparece con su variante más rápida entre las que llegan al menor Σ D<sub>i</sub>. Clic en una fila para abrir esa solución.',

@@ -59,7 +59,8 @@ export function graficoTiempos({ instancias, heuristicas, gurobiDe }) {
       st.opciones = opciones;
       calcular();
       textos();
-      dibujar();
+      // Antes de entrar a la página no tiene ancho: lo dibuja el ResizeObserver al insertarse
+      if (marco.isConnected && marco.clientWidth > 0) dibujar();
     },
     destruir() {
       ro.disconnect();

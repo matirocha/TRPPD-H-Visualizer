@@ -4,7 +4,7 @@
     python excel_resultados_trppdh3.py otro.xlsx    # o lo guarda en otro archivo
 
 Lee
-    Outputs/gurobi/<variante>/<instancia>.json         las 960 corridas de Gurobi (n = 10 a 60)
+    Outputs/gurobi/<variante>/<instancia>.json         las corridas de Gurobi (n = 5 a 60)
     Outputs/resumenes/heuristicas_replicas.csv         las réplicas de las heurísticas
                                                        (npm run heuristicas -- --replicas 10 ...)
 y escribe cinco hojas:
@@ -67,14 +67,17 @@ SEPARADOR = Border(left=Side(style="medium", color="1F3864"))
 
 # Lectura de la hoja Resumen (Gurobi); las de las heurísticas se agregan al terminar las réplicas
 LECTURA = [
-    "• Solo N = 10 se resuelve al óptimo en 1 hora: las 30 instancias con (24)-(29), 29 con (1)-(19) "
-    "y 28 con (20)-(23). Las variantes óptimas dan exactamente el mismo Σ Dᵢ en las 30 instancias.",
+    "• N = 5 se resuelve al óptimo con las 4 variantes en las 30 instancias, en menos de 0,1 s; las 5 "
+    "heurísticas salvo 2 fases también llegan al óptimo en todas, y 2 fases en 14 de 30.",
+    "• Solo N = 5 y N = 10 se resuelven al óptimo en 1 hora. En N = 10: las 30 instancias con (24)-(29), "
+    "29 con (1)-(19) y 28 con (20)-(23). Las variantes óptimas dan exactamente el mismo Σ Dᵢ en las 30 "
+    "instancias.",
     "• En N = 10 la desigualdad de latencia (24)-(29) acelera unas 25 veces: 44 s en promedio contra "
     "1 092 s de (1)-(19), con unas 45 veces menos nodos. (20)-(23) no acelera: 1 175 s.",
     "• Desde N = 15 casi todas las corridas llegan al límite de tiempo (salvo vigo_n15_id9_h0.1 con "
     "(24)-(29)). El GAP crece con N y con h: con (1)-(19) va de 58 % (N = 15) a 91 % (N = 60).",
-    "• La relajación lineal de (1)-(19) es casi nula (GAP relajación lineal ≈ 99 %, hoja Detalle) por "
-    "las big-M de (13); (20)-(23) no la cambia y (24)-(29) la sube a ≈ 48 % del óptimo en N = 10. Por "
+    "• La relajación lineal de (1)-(19) es casi nula (GAP relajación lineal ≈ 99 %, hoja Detalle; sin "
+    "dato en N = 5) por las big-M de (13); (20)-(23) no la cambia y (24)-(29) la sube a ≈ 48 % del óptimo en N = 10. Por "
     "eso las variantes con (24)-(29) dan la mejor cota inferior en casi todas las instancias.",
     "• En N ≥ 40, (1)-(19) y (1)-(19)+(20)-(23) encuentran mejores soluciones (cota superior) que las "
     "variantes con (24)-(29), que exploran muchos menos nodos.",
@@ -82,33 +85,38 @@ LECTURA = [
     "en que solo las heurísticas llegan a la BKS, y desde N = 40 son todas: la mejor heurística mejora "
     "la mejor cota superior de Gurobi en 3,9 % (N = 40), 10,6 % (N = 50) y 14,7 % (N = 60) en "
     "promedio, y hasta en 29,8 %.",
-    "• ILS exacto alcanza la BKS en las 240 instancias (con su mejor réplica) y su GAP promedio sobre "
+    "• ILS exacto alcanza la BKS en las 270 instancias (con su mejor réplica) y su GAP promedio sobre "
     "las 10 réplicas no pasa de 0,03 % en ningún N. Es también la más lenta: 242 s por réplica en N = 60.",
     "• La evaluación heurística, O(n), hace cada iteración unas 7 veces más rápido que la exacta en "
     "N = 60 (0,09 s contra 0,61 s en ILS), pero pierde calidad al crecer N: en N = 60 ILS heurístico "
     "alcanza la BKS en 13 de 30 instancias e ITS heurístico en 5 (GAP promedio 0,4 % y 2,0 %).",
     "• ITS exacto queda entre ambos ILS: alcanza la BKS en 15 de 30 instancias de N = 60, con GAP "
     "promedio 1,2 % y 18 s por réplica. La heurística de 2 fases, punto de partida de ILS e ITS, tiene "
-    "un GAP de 4,7 % (N = 10) a 19,1 % (N = 60).",
-    "• Las réplicas se corrieron con 8 procesos en paralelo (semilla r en la réplica r): sus tiempos "
-    "salen ≈ 1,4 veces más altos que con un proceso solo; los costos no cambian.",
+    "un GAP de 4,4 % (N = 5) a 19,1 % (N = 60).",
+    "• Las réplicas de N = 10 a 60 se corrieron con 8 procesos en paralelo (semilla r en la réplica r): "
+    "sus tiempos salen ≈ 1,4 veces más altos que con un proceso solo; los costos no cambian. Las de "
+    "N = 5, con un proceso.",
+    "• Las corridas de Gurobi con N = 5 son anteriores (29-10-2026) y no registran límite de tiempo, "
+    "hilos ni relajación lineal; todas terminan óptimas, así que su costo no depende de eso.",
 ]
 
 
 # ------------------------------ Datos ------------------------------
+
+N_MIN = 5   # menor N que entra al Excel (N = 5 a 60)
 
 def banco_de(nombre):
     return "Erdogan" if nombre.endswith("_Erdogan") else "Battarra"
 
 
 def leer_gurobi():
-    """{instancia: {variante: fila}} de las corridas con n ≥ 10."""
+    """{instancia: {variante: fila}} de las corridas con n ≥ N_MIN."""
     datos = {}
     for variante, etiqueta in VARIANTES:
         for archivo in sorted((GUROBI / variante).glob("*.json")):
             d = json.loads(archivo.read_text(encoding="utf-8"))
             inst, s = d["instancia"], d["solucion"]
-            if inst["n"] < 10:
+            if inst["n"] < N_MIN:
                 continue
             costo, lp = s.get("objetivo"), s.get("relajacion_lineal")
             datos.setdefault(inst["nombre"], {})[variante] = {
@@ -355,8 +363,9 @@ def hoja_detalle(ws, gurobi, instancias, ultima_res):
 
 def hoja_resumen(ws, grupos, n_inst, n_det, n_rep_total):
     cg, ch = columnas_resultados()
-    celda(ws, 1, 1, "TRPPD-H3 · Gurobi 11.0.0, 1 hilo y 3 600 s por modelo · 240 instancias × 4 variantes "
-                    f"= 960 corridas · 5 heurísticas × 10 réplicas ({n_rep_total} corridas)", TITULO)
+    celda(ws, 1, 1, "TRPPD-H3 · Gurobi 11.0.0, 1 hilo y 3 600 s por modelo (N = 5: corrida previa, ver "
+                    f"Definiciones) · {n_inst} instancias × 4 variantes = {n_det - 1} corridas · 5 heurísticas × "
+                    f"10 réplicas ({n_rep_total} corridas)", TITULO)
     celda(ws, 2, 1, "Promedios sobre las 30 instancias de cada N (ID 1 a 10 × h 0,1 / 0,5 / 1). "
                     "Fórmulas sobre las hojas Resultados y Detalle.")
     por_variante = [("Óptimos", 9, ENTERO), ("Tiempo prom. (s)", 11, NUM), ("GAP prom.", 10, PCT),
@@ -430,14 +439,16 @@ def hoja_definiciones(ws, gurobi, replicas):
     n_rep = max((f["replica"] for f in replicas), default=0)
     fmt = lambda d: d.strftime("%Y-%m-%d %H:%M")
     parametros = [
-        ("Corridas de Gurobi", "960 = 240 instancias × 4 variantes"),
-        ("Banco Battarra", "N = 10, 15, 20, 25 (instancias sin sufijo, compartidas con el banco de Erdogan)"),
+        ("Corridas de Gurobi", f"{sum(len(c) for c in gurobi.values())} = {len(gurobi)} instancias × 4 variantes"),
+        ("Banco Battarra", "N = 5, 10, 15, 20, 25 (instancias sin sufijo, compartidas con el banco de Erdogan)"),
         ("Banco Erdogan", "N = 30, 40, 50, 60 (instancias con sufijo _Erdogan)"),
         ("Pendiente", "Battarra N = 30, 40, 50 (sin sufijo) y 60 (_Battarra) no están en estos resultados"),
         ("ID / h", "1 a 10 / 0,1, 0,5 y 1"),
         ("Límite de tiempo", "3 600 s por modelo"),
         ("Hilos", 1),
-        ("Gurobi", "11.0.0 (clúster, arreglos SLURM 18139548 a 18147117)"),
+        ("Gurobi", "11.0.0 (clúster, arreglos SLURM 18139548 a 18147117), N = 10 a 60. Las 120 corridas de "
+                   "N = 5 son anteriores (29-10-2026) y sus JSON no registran límite de tiempo, hilos ni "
+                   "relajación lineal; todas terminan en el óptimo"),
         ("Gurobi corrido entre", f"{fmt(fechas[0])} y {fmt(fechas[-1])}" if fechas else "—"),
         ("JSON de Gurobi", "Outputs/gurobi/<variante>/<instancia>.json"),
         ("Corridas de heurísticas", f"{len(replicas)} = instancias × 5 algoritmos × {n_rep} réplicas"),
@@ -450,8 +461,8 @@ def hoja_definiciones(ws, gurobi, replicas):
                                  "de perturbación + búsqueda local. ITS: ⌊√N_iter⌋ = 14 iteraciones de "
                                  "perturbación + búsqueda tabú de 14 pasos, tenencia ⌊0,5·n⌋. N_rand = "
                                  "round(0,1·n) movimientos al azar por perturbación."),
-        ("Heurísticas corridas con", f"{', '.join(motores) or '—'} en el PC del autor, un solo proceso a la vez "
-                                     "(npm run heuristicas -- --replicas 10 --sel B:10-25,E:30-60)"),
+        ("Heurísticas corridas con", f"{', '.join(motores) or '—'} en el PC del autor: N = 10 a 60 con 8 procesos en paralelo y N = 5 con uno "
+                                     "(npm run heuristicas -- --replicas 10 --sel B:5-25,E:30-60)"),
         ("Heurísticas corridas entre", f"{fmt(fechas_rep[0])} y {fmt(fechas_rep[-1])}" if fechas_rep else "—"),
         ("CSV de réplicas", "Outputs/resumenes/heuristicas_replicas.csv; la mejor réplica de cada instancia "
                             "queda en Outputs/erdogan/<algoritmo>/<instancia>.json"),

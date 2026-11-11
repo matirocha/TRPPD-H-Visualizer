@@ -288,12 +288,9 @@ function prepararVista(sim, salida, estado, { controlesAparte = false, graficoAp
   // Figura del camión
   construirSVG(v);
   const seg = v.geo.segmentos;
-  // Ejemplo de la nota: la entrega del primer cliente de esta ruta (la que va junto a la puerta)
-  const ejemplo = sim.paradas.find((p) => p.alpha > 1e-9);
   const quien = 'el cliente que recibe la entrega (y) o donde se recogió la carga (w, z)';
   const nota = seg
-    ? `Cada bloque mide lo que ocupa. Arriba va ${quien}; abajo, sus unidades${ejemplo
-      ? `: el bloque ámbar «${ejemplo.cliente} · ${fmt(ejemplo.alpha)} u.» son las ${fmt(ejemplo.alpha)} unidades que se entregan al cliente ${ejemplo.cliente}` : ''}.`
+    ? `Cada bloque mide lo que ocupa. Arriba va ${quien}; abajo, sus unidades.`
     : `Cada cuadro es una unidad; su número es ${quien}.`;
   const leyenda = el('ul', { class: 'camion-leyenda', 'aria-label': 'Leyenda de la carga' },
     itemLeyenda('var(--a)', '<strong>y</strong> entrega'),

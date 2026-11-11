@@ -1,0 +1,242 @@
+{
+  "formato": "trppdh3-salida/1",
+  "generado": "2026-11-11T15:50:44",
+  "algoritmo": {
+    "clave": "dos_fases",
+    "nombre": "2 fases · TSP + Algoritmo 2.1 adaptado",
+    "parametros": {
+      "familia": "erdogan",
+      "evaluacion": "exacta",
+      "metodo": null,
+      "direcciones": 2,
+      "iteraciones": null,
+      "iteraciones_tabu": null,
+      "tenencia_tabu": null,
+      "movimientos_aleatorios": null,
+      "semilla": null,
+      "motor": "Node.js v24.20.0"
+    }
+  },
+  "instancia": {
+    "nombre": "vigo_n5_id10_h0.1",
+    "origen": "e_vigo (Gendreau, Laporte y Vigo, 1999) con la regla (79) de Battarra et al. (2010)",
+    "n": 5,
+    "id": 10,
+    "h": 0.1,
+    "Q": 30,
+    "ua": 0.05,
+    "la": 0.05,
+    "ub": 0.05,
+    "lb": 0.05,
+    "alpha": [
+      0,
+      5,
+      9,
+      4,
+      1,
+      11
+    ],
+    "beta": [
+      0,
+      1,
+      5,
+      4,
+      2,
+      0
+    ],
+    "c": [
+      [
+        0,
+        50,
+        49,
+        34,
+        76,
+        74
+      ],
+      [
+        50,
+        0,
+        29,
+        18,
+        50,
+        54
+      ],
+      [
+        49,
+        29,
+        0,
+        22,
+        27,
+        28
+      ],
+      [
+        34,
+        18,
+        22,
+        0,
+        49,
+        50
+      ],
+      [
+        76,
+        50,
+        27,
+        49,
+        0,
+        8
+      ],
+      [
+        74,
+        54,
+        28,
+        50,
+        8,
+        0
+      ]
+    ],
+    "coords": [
+      [
+        19.67,
+        27.36
+      ],
+      [
+        -1.23,
+        -18.18
+      ],
+      [
+        -22.57,
+        1.94
+      ],
+      [
+        -0.75,
+        -0.43
+      ],
+      [
+        -49.27,
+        -4.29
+      ],
+      [
+        -50.11,
+        3.69
+      ]
+    ]
+  },
+  "solucion": {
+    "ruta": [
+      0,
+      3,
+      2,
+      5,
+      4,
+      1,
+      0
+    ],
+    "politica": {
+      "1": 1,
+      "2": 1,
+      "3": 1,
+      "4": 1,
+      "5": 0
+    },
+    "estado": "HEURISTICA",
+    "objetivo": 419.4,
+    "gap": 0.043157,
+    "gap_entera": null,
+    "desviacion_gurobi": 0.045103,
+    "referencia": {
+      "fuente": "gurobi",
+      "cota": 401.3,
+      "relajacion_lineal": null,
+      "objetivo": 401.3,
+      "variantes": 4
+    },
+    "segundos": 0.00004,
+    "segundos_inicial": 0.000034,
+    "segundos_total": 0.00004,
+    "segundos_busqueda": 0.000006,
+    "iteraciones": 0,
+    "segundos_por_iteracion": null,
+    "iteracion_mejor": 0,
+    "segundos_mejor": 0.000034,
+    "evaluaciones": {
+      "exactas": 0,
+      "heuristicas": 0
+    },
+    "tsp": {
+      "tour": [
+        0,
+        3,
+        1,
+        4,
+        5,
+        2
+      ],
+      "costo": 187
+    },
+    "corridas": [
+      {
+        "direccion": "tsp",
+        "inicial": 444.9,
+        "final": 444.9,
+        "ruta": [
+          0,
+          3,
+          1,
+          4,
+          5,
+          2,
+          0
+        ],
+        "traza": [],
+        "tiempos": []
+      },
+      {
+        "direccion": "inversa",
+        "inicial": 419.4,
+        "final": 419.4,
+        "ruta": [
+          0,
+          3,
+          2,
+          5,
+          4,
+          1,
+          0
+        ],
+        "traza": [],
+        "tiempos": []
+      }
+    ],
+    "T": {
+      "1": 145.7,
+      "2": 56.4,
+      "3": 34,
+      "4": 95.55,
+      "5": 85.5
+    },
+    "D": {
+      "1": 146.05,
+      "2": 57.05,
+      "3": 34.2,
+      "4": 95.6,
+      "5": 86.5
+    },
+    "F": {
+      "1": 146.2,
+      "2": 57.5,
+      "3": 34.4,
+      "4": 95.7,
+      "5": 87.55
+    },
+    "q": {
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0.6
+    },
+    "viaje": 192,
+    "manipulacion_adicional": 2.1,
+    "regreso": 196.2
+  }
+}
