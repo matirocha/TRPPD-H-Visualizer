@@ -1,0 +1,1146 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pseudocódigos TSPPD-H y TRPPD-H</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<style>
+:root{
+  --sans:'Source Sans 3',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,Consolas,monospace;
+  --bg:#e4e6ea; --bar:rgba(250,250,251,.9); --bar-ink:#1c212b; --bar-mute:#5f6674; --bar-line:#d3d6dc;
+  --paper:#ffffff; --ink:#1b1f27; --muted:#5b6270; --rule:#1b1f27; --hair:#e2e4e8; --code-bg:#f6f7f9;
+  --tsp:#1f5c99; --trp:#a32638;
+  --tsp-bg:rgba(31,92,153,.085); --trp-bg:rgba(163,38,56,.075);
+  --tsp-bg2:rgba(31,92,153,.2);  --trp-bg2:rgba(163,38,56,.17);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){ --bg:#15171b; --bar:rgba(28,31,36,.92); --bar-ink:#e9ebef; --bar-mute:#a3a9b5; --bar-line:#343841; }
+}
+:root[data-theme="dark"]{ --bg:#15171b; --bar:rgba(28,31,36,.92); --bar-ink:#e9ebef; --bar-mute:#a3a9b5; --bar-line:#343841; }
+
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);font-family:var(--sans);color:var(--ink);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+
+/* ---------- Barra superior ---------- */
+.bar{position:sticky;top:0;z-index:10;background:var(--bar);-webkit-backdrop-filter:saturate(1.4) blur(10px);backdrop-filter:saturate(1.4) blur(10px);border-bottom:1px solid var(--bar-line);color:var(--bar-ink)}
+.bar-in{max-width:1120px;margin:0 auto;padding:8px 16px;display:flex;align-items:center;gap:10px 16px;flex-wrap:wrap}
+.brand{font-weight:700;font-size:15px;color:inherit;text-decoration:none;white-space:nowrap}
+.brand span{font-weight:400;color:var(--bar-mute);margin-left:4px}
+.toc{display:flex;gap:2px;overflow-x:auto;flex:1 1 auto;min-width:0;scrollbar-width:none}
+.toc::-webkit-scrollbar{display:none}
+.toc a{font-size:13px;color:var(--bar-ink);text-decoration:none;padding:4px 9px;border-radius:7px;white-space:nowrap;border:1px solid transparent}
+.toc a:hover,.toc a:focus-visible{border-color:var(--bar-line);outline:none}
+.toc a b{font-weight:700;margin-right:3px}
+.all{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--bar-mute)}
+.btn{font:600 13px var(--sans);border:1px solid var(--bar-line);background:transparent;color:var(--bar-ink);padding:6px 11px;border-radius:8px;cursor:pointer}
+.btn:hover{background:rgba(127,127,127,.1)}
+
+/* ---------- Interruptor ---------- */
+.sw{position:relative;display:inline-grid;grid-template-columns:1fr 1fr;padding:3px;border-radius:12px;background:#eef0f3;border:1px solid #d5d8de;min-width:300px}
+.sw .thumb{position:absolute;top:3px;bottom:3px;left:3px;width:calc(50% - 3px);border-radius:9px;background:var(--tsp);box-shadow:0 1px 3px rgba(0,0,0,.22);transition:transform .28s cubic-bezier(.3,.7,.2,1),background-color .28s,opacity .2s}
+.sw[data-ver="trp"] .thumb{transform:translateX(100%);background:var(--trp)}
+.sw[data-ver="mix"] .thumb{opacity:0}
+.sw button{position:relative;z-index:1;border:0;background:transparent;padding:6px 14px;border-radius:9px;cursor:pointer;color:#3a404c;display:grid;text-align:center;font:inherit;line-height:1.15;transition:color .2s}
+.sw button b{font-size:14px;letter-spacing:.02em}
+.sw button small{font-size:11px;opacity:.85}
+.sw button[aria-pressed="true"]{color:#fff}
+.sw button:focus-visible{outline:2px solid #111;outline-offset:1px}
+.sw.sm{min-width:0}
+.sw.sm button{padding:4px 11px}
+.sw.sm button b{font-size:12.5px}
+
+/* ---------- Hojas ---------- */
+main{padding:22px 16px 40px}
+.page{width:210mm;max-width:100%;min-height:297mm;margin:0 auto 24px;background:var(--paper);color:var(--ink);padding:13mm 16mm 10mm;box-shadow:0 1px 2px rgba(0,0,0,.1),0 10px 30px rgba(0,0,0,.09);display:flex;flex-direction:column;scroll-margin-top:64px}
+.runhead{display:flex;justify-content:space-between;gap:12px;font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--hair);padding-bottom:6px;margin-bottom:18px}
+.pagefoot{margin-top:auto;padding-top:18px;text-align:center;font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+
+.titleblock{margin-bottom:24px;padding-bottom:18px;border-bottom:1px solid var(--hair)}
+.eyebrow{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.titleblock h1{font-size:29px;line-height:1.14;margin:6px 0 0;letter-spacing:-.015em}
+.titleblock h1 .t{color:var(--tsp)} .titleblock h1 .r{color:var(--trp)}
+.legend{display:flex;flex-wrap:wrap;gap:8px 20px;padding:0;margin:14px 0 0;list-style:none;font-size:13px;color:var(--muted)}
+.legend li{display:flex;align-items:center;gap:7px}
+.legend .sample{width:24px;height:15px;border-radius:2px}
+.legend .sample.tsp{background:var(--tsp-bg);box-shadow:inset 3px 0 0 var(--tsp)}
+.legend .sample.trp{background:var(--trp-bg);box-shadow:inset 3px 0 0 var(--trp)}
+.legend .b{background:#5b6270}
+
+.head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px 20px;flex-wrap:wrap}
+.kicker{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.head h2{margin:2px 0 0;font-size:26px;line-height:1.15;font-weight:700;letter-spacing:-.01em}
+.sub{margin:8px 0 0;font-size:13.5px;color:var(--muted);max-width:62ch}
+
+/* ---------- Algoritmo (estilo algorithm + algpseudocode) ---------- */
+.alg{margin:16px 0 12px;border-top:1.5px solid var(--rule);border-bottom:1.5px solid var(--rule);font-size:15px;line-height:1.5}
+.cap{display:flex;justify-content:space-between;align-items:baseline;gap:6px 12px;flex-wrap:wrap;padding:5px 2px;border-bottom:.8px solid var(--rule)}
+.vtag{font-size:11px;font-weight:700;letter-spacing:.05em;color:#fff;background:var(--mark);padding:2px 9px;border-radius:999px;white-space:nowrap}
+.alg-body{padding:6px 0 8px;overflow-x:auto}
+.alg-body.fade{animation:fadein .24s ease}
+@keyframes fadein{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+.ln{display:grid;grid-template-columns:38px 24px minmax(0,1fr);column-gap:8px;align-items:baseline;padding:1px 8px 1px 0;border-radius:3px;transition:background-color .15s}
+.ln .marks{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:2px;align-self:start;padding-top:3px}
+.ln .no{text-align:right;font-size:11.5px;color:#2d323c;font-variant-numeric:tabular-nums}
+.ln .code{padding-left:calc(var(--ind,0) * 1.5em);display:flex;flex-wrap:wrap;align-items:baseline;column-gap:18px;min-width:0}
+.ln .stmt{min-width:0}
+.ln .cmt{margin-left:auto;font-size:.86em;color:var(--muted);text-align:right}
+.ln.req .code{display:block}
+.ln.req{margin-bottom:3px}
+.ln.blank{height:10px}
+.ln.chg{background:var(--mark-bg);box-shadow:inset 3px 0 0 var(--mark)}
+.ln.focus{background:var(--mark-bg2)}
+
+.b{display:inline-grid;place-items:center;width:17px;height:17px;border-radius:50%;background:var(--mark,#5b6270);color:#fff;font:700 10.5px/1 var(--sans);font-style:normal;flex:none}
+.cambio{color:var(--mark)}
+.proc{font-variant:small-caps;letter-spacing:.02em}
+.katex{font-size:1.06em}
+.katex .proc,.katex .proc *{font-family:var(--sans)!important;font-style:normal!important}
+
+.page[data-ver="tsp"]{--mark:var(--tsp);--mark-bg:var(--tsp-bg);--mark-bg2:var(--tsp-bg2)}
+.page[data-ver="trp"]{--mark:var(--trp);--mark-bg:var(--trp-bg);--mark-bg2:var(--trp-bg2)}
+
+/* ---------- Cuadro de cambios ---------- */
+.cambios-h{font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:8px 0 2px}
+table.cambios{width:100%;border-collapse:collapse;font-size:13.5px;line-height:1.4}
+.cambios th{font-size:12px;text-align:left;padding:6px 8px;border-bottom:1.2px solid var(--rule);font-weight:700}
+.cambios th.c-tsp{color:var(--tsp)} .cambios th.c-trp{color:var(--trp)}
+.cambios td{padding:6px 8px;vertical-align:top;border-bottom:1px solid var(--hair);transition:background-color .15s}
+.cambios td.k{width:24%;font-weight:600}
+.cambios td.k .kin{display:flex;gap:7px;align-items:flex-start}
+.cambios td.k .b{margin-top:1px}
+.cambios .where{display:block;font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.03em;margin-bottom:1px;font-variant-numeric:tabular-nums}
+.page[data-ver="tsp"] .cambios .c-tsp,.page[data-ver="trp"] .cambios .c-trp{background:var(--mark-bg)}
+.cambios tr.focus td{background:var(--mark-bg2)!important}
+
+/* ---------- LaTeX ---------- */
+details.tex{margin-top:12px;font-size:13px}
+details.tex summary{cursor:pointer;color:var(--muted);font-weight:600;width:max-content;max-width:100%}
+.texbar{display:flex;justify-content:flex-end;margin-top:6px}
+.copy{font:600 12px var(--sans);border:1px solid var(--hair);background:#fff;color:var(--ink);padding:4px 10px;border-radius:6px;cursor:pointer}
+details.tex pre{background:var(--code-bg);border:1px solid var(--hair);border-radius:6px;padding:10px 12px;overflow:auto;max-height:420px;font:12px/1.5 var(--mono);white-space:pre;margin:6px 0 0;color:#22262e}
+
+.nokatex{background:#fff4d6;color:#5a4300;border:1px solid #e9cf86;border-radius:8px;padding:10px 14px;max-width:210mm;margin:0 auto 16px;font-size:14px}
+
+@media (max-width:720px){
+  .bar{position:static}
+  main{padding:0 0 24px}
+  .page{width:100%;min-height:0;margin:0 0 10px;padding:22px 16px 14px;box-shadow:none}
+  .titleblock h1{font-size:24px}
+  .head h2{font-size:22px}
+  .sw{min-width:0;width:100%}
+  .all .sw{width:auto}
+  .alg{font-size:14px}
+  .ln{grid-template-columns:20px 22px minmax(0,1fr);column-gap:5px;padding-right:4px}
+  .ln .marks{flex-direction:column;align-items:flex-end}
+  .toc{order:3;flex-basis:100%}
+  table.cambios thead{display:none}
+  table.cambios,.cambios tbody{display:block}
+  .cambios tr{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--hair)}
+  .cambios td{border:0}
+  .cambios td.k{grid-column:1/-1;width:auto;padding-bottom:0}
+  .cambios td.c-tsp::before,.cambios td.c-trp::before{display:block;font-size:10.5px;font-weight:700;letter-spacing:.05em}
+  .cambios td.c-tsp::before{content:'TSPPD-H';color:var(--tsp)}
+  .cambios td.c-trp::before{content:'TRPPD-H';color:var(--trp)}
+}
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  .alg-body.fade{animation:none}
+  .sw .thumb{transition:none}
+}
+@media print{
+  @page{size:A4;margin:0}
+  body{background:#fff}
+  .bar,.sw,details.tex,.nokatex{display:none!important}
+  main{padding:0}
+  .page{box-shadow:none;margin:0;width:210mm;min-height:297mm;break-after:page;page-break-after:always}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <div class="bar-in">
+    <a class="brand" href="#a1">Pseudocódigos <span>TSPPD-H · TRPPD-H</span></a>
+    <nav class="toc" id="toc" aria-label="Algoritmos"></nav>
+    <div class="all">
+      <span>Todos:</span>
+      <div class="sw sm" id="sw-all" data-ver="tsp" role="group" aria-label="Versión de todos los pseudocódigos">
+        <span class="thumb" aria-hidden="true"></span>
+        <button type="button" data-ver="tsp" aria-pressed="true"><b>TSPPD-H</b></button>
+        <button type="button" data-ver="trp" aria-pressed="false"><b>TRPPD-H</b></button>
+      </div>
+      <button type="button" class="btn" id="imprimir" title="Imprimir o guardar como PDF">PDF</button>
+    </div>
+  </div>
+</header>
+
+<main id="doc"></main>
+
+<!-- =====================================================================
+     Pseudocódigos en LaTeX (algorithm + algpseudocode, formato "Algoritmo X.Y").
+     Al final de una línea, %@k marca el cambio n.º k del cuadro de esa página.
+     ===================================================================== -->
+
+<!-- ================= Algoritmo 1 · Heurística de 2 fases ================= -->
+<script type="text/x-latex" id="src-a1-tsp">
+\renewcommand{\thealgorithm}{1}
+\begin{algorithm}[H]
+\caption{$\textsc{DosFases}(V, c)$}
+\label{alg:dosfases-tsppdh}
+\begin{algorithmic}[1]
+\Require nodos $V = \{0,\dots,n\}$ ($0$: depósito); $c_{ij}$: tiempos de viaje;
+         $\alpha_j, \beta_j$: entregas y recogidas del cliente $j$; $Q$: capacidad;
+         \cambio{$h_a, h_b$: costos de mover una entrega y una recogida}. %@4
+\Ensure \cambio{tour inicial $\pi^d$ de TS, ILS e ITS para cada sentido $d \in D$}. %@4
+\State \cambio{$C \gets \textsc{LinKernighan}(V, c)$} \Comment{fase 1: Concorde, sin ajustes} %@1
+\State $\sigma \gets$ clientes de $C$ en su orden, sin el depósito
+\ForAll{$d \in \cambio{D}$} \Comment{\cambio{$D = \{\mathrm{LK}\}$ (1dir) o $\{\mathrm{LK}, \mathrm{inv}\}$ (2dir)}} %@2
+    \State $(\sigma_1,\dots,\sigma_n) \gets \sigma$ en el sentido $d$;\ \ $z^d \gets \infty$
+    \For{$r \gets 0$ \textbf{to} $n-1$} \Comment{fase 2: reubicar el depósito}
+        \State $\pi \gets (\sigma_{r+1},\dots,\sigma_n,\sigma_1,\dots,\sigma_r)$ \Comment{el depósito va antes de $\sigma_{r+1}$}
+        \State $z \gets \EvalE(\pi)$ \Comment{\cambio{viaje $+$ manipulación óptima}; $\infty$ si no respeta $Q$} %@3
+        \If{$z < z^d$}
+            \State $\pi^d \gets \pi$;\ \ $z^d \gets z$
+        \EndIf
+    \EndFor
+\EndFor
+\State \Return $\pi^d$, $\forall\, d \in \cambio{D}$ %@2
+\end{algorithmic}
+\end{algorithm}
+</script>
+
+<script type="text/x-latex" id="src-a1-trp">
+\renewcommand{\thealgorithm}{1}
+\begin{algorithm}[H]
+\caption{$\textsc{DosFases}(V, c)$}
+\label{alg:dosfases-trppdh}
+\begin{algorithmic}[1]
+\Require nodos $V = \{0,\dots,n\}$ ($0$: depósito); $c_{ij}$: tiempos de viaje;
+         $\alpha_j, \beta_j$: entregas y recogidas del cliente $j$; $Q$: capacidad;
+         \cambio{$u_a, \ell_a, u_b, \ell_b$: tiempos de descargar y cargar una entrega y una recogida}. %@4
+\Ensure \cambio{soluciones iniciales $\pi^{\mathrm{tsp}}, \pi^{\mathrm{inv}}$ de ILS e ITS; la mejor es la solución de la heurística}. %@4
+\State \cambio{$C \gets \emptyset$;\ \ $L(C) \gets \infty$} \Comment{fase 1} %@1
+\ForAll{\cambio{$v \in V$}} %@1
+    \State \cambio{$C' \gets$ ciclo del vecino más cercano que parte en $v$} %@1
+    \State \cambio{mejorar $C'$ con 2-opt y Or-opt (tramos de 1 a 3 nodos)} \Comment{primera mejora} %@1
+    \If{\cambio{$L(C') < L(C)$}} %@1
+        \State \cambio{$C \gets C'$} %@1
+    \EndIf %@1
+\EndFor %@1
+\State $\sigma \gets$ clientes de $C$ en su orden, sin el depósito
+\ForAll{$d \in \cambio{\{\mathrm{tsp}, \mathrm{inv}\}}$} \Comment{\cambio{siempre los dos sentidos}} %@2
+    \State $(\sigma_1,\dots,\sigma_n) \gets \sigma$ en el sentido $d$;\ \ $z^d \gets \infty$
+    \For{$r \gets 0$ \textbf{to} $n-1$} \Comment{fase 2: reubicar el depósito}
+        \State $\pi \gets (\sigma_{r+1},\dots,\sigma_n,\sigma_1,\dots,\sigma_r)$ \Comment{el depósito va antes de $\sigma_{r+1}$}
+        \State $z \gets \EvalE(\pi)$ \Comment{\cambio{$\sum_i D_i$ con políticas óptimas}; $\infty$ si no respeta $Q$} %@3
+        \If{$z < z^d$}
+            \State $\pi^d \gets \pi$;\ \ $z^d \gets z$
+        \EndIf
+    \EndFor
+\EndFor
+\State \Return $\pi^{\mathrm{tsp}}, \pi^{\mathrm{inv}}$ %@2
+\end{algorithmic}
+\end{algorithm}
+</script>
+
+<!-- ================= Algoritmo 2 · ILS exacto ================= -->
+<script type="text/x-latex" id="src-a2-tsp">
+\renewcommand{\thealgorithm}{2}
+\begin{algorithm}[H]
+\caption{$\textsc{ILS-Exacto}(\pi^0, \Niter, \Nrand)$}
+\label{alg:ilse-tsppdh}
+\begin{algorithmic}[1]
+\Require $\pi^0$: tour inicial de 2 fases \cambio{(1dir; en 2dir se corre también desde el sentido inverso)}; %@1
+         $\Niter = 200$: iteraciones; $\Nrand = \cambio{0{,}1\,n}$: movimientos al azar por perturbación; %@2
+         $\mathcal{N}(\pi)$: tours factibles que se obtienen con relocate o con \cambio{2-opt sobre el ciclo}. %@4
+\Ensure mejor tour $\pi^*$ y su costo $z^*$ \cambio{(viaje $+$ manipulación)}. %@6
+\State $\pi^* \gets \pi^0$;\ \ $z^* \gets \EvalE(\pi^0)$
+\For{$it \gets 1$ \textbf{to} $\Niter$}
+    \State $\pi \gets \pi^*$ \Comment{\textsc{Perturbar}$(\pi^*, \Nrand)$}
+    \For{$r \gets 1$ \textbf{to} $\Nrand$}
+        \State $i, j \gets$ al azar en $\{1,\dots,n\}$ \Comment{\cambio{no se detalla la factibilidad}} %@3
+        \If{$i = j$}
+            \State $p \gets$ al azar en $\{1,\dots,n\} \setminus \{i\}$;\ \ $\cambio{\pi} \gets \textsc{Relocate}(\pi, i, p)$ %@3
+        \Else
+            \State $\cambio{\pi} \gets \textsc{DosOpt}(\pi, i, j)$ \Comment{invierte el tramo entre $i$ y $j$} %@3
+        \EndIf
+    \EndFor
+    \State $z \gets \EvalE(\pi)$
+    \Repeat \Comment{búsqueda local de mejor mejora}
+        \State $\pi' \gets \arg\min_{\sigma \in \mathcal{N}(\pi)} \EvalE(\sigma)$ \Comment{\cambio{viaje $\Delta$ en $O(1)$} $+$ DP $O(n^2)$} %@5
+        \State $z' \gets \EvalE(\pi')$ \Comment{ya calculado}
+        \State $\mathit{mejora} \gets (z' < z)$
+        \If{$\mathit{mejora}$}
+            \State $\pi \gets \pi'$;\ \ $z \gets z'$
+        \EndIf
+    \Until{\textbf{not} $\mathit{mejora}$}
+    \If{$z < z^*$}
+        \State $\pi^* \gets \pi$;\ \ $z^* \gets z$
+    \EndIf
+\EndFor
+\State \Return $\pi^*, z^*$
+\end{algorithmic}
+\end{algorithm}
+</script>
+
+<script type="text/x-latex" id="src-a2-trp">
+\renewcommand{\thealgorithm}{2}
+\begin{algorithm}[H]
+\caption{$\textsc{ILS-Exacto}(\pi^0, \Niter, \Nrand)$}
+\label{alg:ilse-trppdh}
+\begin{algorithmic}[1]
+\Require \cambio{$\pi^0 \in \{\pi^{\mathrm{tsp}}, \pi^{\mathrm{inv}}\}$: se corre desde las dos soluciones de 2 fases (siempre 2dir)}; %@1
+         $\Niter = 200$: iteraciones; $\Nrand = \cambio{\max\{1, \mathrm{round}(0{,}1\,n)\}}$: movimientos al azar por perturbación; \cambio{semilla del generador al azar}; %@2
+         $\mathcal{N}(\pi)$: rutas factibles que se obtienen con relocate o con \cambio{2-opt sobre posiciones $i < j$ (incluye invertir toda la ruta)}. %@4
+\Ensure mejor ruta $\pi^*$ y su \cambio{$\sum_i D_i$}, $z^*$. %@6
+\State $\pi^* \gets \pi^0$;\ \ $z^* \gets \EvalE(\pi^0)$
+\For{$it \gets 1$ \textbf{to} $\Niter$}
+    \State $\pi \gets \pi^*$ \Comment{\textsc{Perturbar}$(\pi^*, \Nrand)$}
+    \For{$r \gets 1$ \textbf{to} $\Nrand$}
+        \Repeat \Comment{\cambio{a lo más 100 intentos}} %@3
+            \State $i, j \gets$ al azar en $\{1,\dots,n\}$
+            \If{$i = j$}
+                \State $p \gets$ al azar en $\{1,\dots,n\} \setminus \{i\}$;\ \ $\cambio{\pi'} \gets \textsc{Relocate}(\pi, i, p)$ %@3
+            \Else
+                \State $\cambio{\pi'} \gets \textsc{DosOpt}(\pi, i, j)$ \Comment{invierte el tramo entre $i$ y $j$} %@3
+            \EndIf
+        \Until{\cambio{$\pi'$ respeta $Q$}} %@3
+        \State \cambio{$\pi \gets \pi'$ si respeta $Q$} %@3
+    \EndFor
+    \State $z \gets \EvalE(\pi)$
+    \Repeat \Comment{búsqueda local de mejor mejora}
+        \State $\pi' \gets \arg\min_{\sigma \in \mathcal{N}(\pi)} \EvalE(\sigma)$ \Comment{\cambio{parte fija $F(\sigma)$ en $O(n)$} $+$ DP $O(n^2)$} %@5
+        \State $z' \gets \EvalE(\pi')$ \Comment{ya calculado}
+        \State $\mathit{mejora} \gets (z' < z)$
+        \If{$\mathit{mejora}$}
+            \State $\pi \gets \pi'$;\ \ $z \gets z'$
+        \EndIf
+    \Until{\textbf{not} $\mathit{mejora}$}
+    \If{$z < z^*$}
+        \State $\pi^* \gets \pi$;\ \ $z^* \gets z$
+    \EndIf
+\EndFor
+\State \Return $\pi^*, z^*$
+\end{algorithmic}
+\end{algorithm}
+</script>
+
+<!-- ================= Algoritmo 3 · ILS heurístico ================= -->
+<script type="text/x-latex" id="src-a3-tsp">
+\renewcommand{\thealgorithm}{3}
+\begin{algorithm}[H]
+\caption{$\textsc{ILS-Heur}(\pi^0, \Niter, \Nrand)$}
+\label{alg:ilsh-tsppdh}
+\begin{algorithmic}[1]
+\Require $\pi^0$: tour inicial de 2 fases \cambio{(1dir; en 2dir se corre también desde el sentido inverso)}; %@1
+         $\Niter = 200$; $\Nrand$: como en el Algoritmo~2;
+         $\mathcal{N}(\pi)$: tours factibles que se obtienen con relocate o con \cambio{2-opt sobre el ciclo}. %@2
+\Ensure mejor tour $\pi^*$ y su costo exacto $z^*$ \cambio{(viaje $+$ manipulación)}. %@4
+\State $\pi^* \gets \pi^0$;\ \ $z^* \gets \EvalE(\pi^0)$
+\For{$it \gets 1$ \textbf{to} $\Niter$}
+    \State $\pi \gets$ \Call{Perturbar}{$\pi^*, \Nrand$};\ \ $z \gets \EvalE(\pi)$ \Comment{como en el Alg.~2}
+    \Repeat \Comment{búsqueda local de mejor mejora}
+        \State $\pi' \gets \arg\min_{\sigma \in \mathcal{N}(\pi)} \EvalH(\sigma)$ \Comment{\cambio{viaje $\Delta$ en $O(1)$} $+$ umbral $O(n)$} %@3
+        \State $z' \gets \EvalE(\pi')$ \Comment{reevaluar solo el vecino elegido}
+        \State $\mathit{mejora} \gets (z' < z)$
+        \If{$\mathit{mejora}$}
+            \State $\pi \gets \pi'$;\ \ $z \gets z'$
+        \EndIf
+    \Until{\textbf{not} $\mathit{mejora}$}
+    \If{$z < z^*$}
+        \State $\pi^* \gets \pi$;\ \ $z^* \gets z$
+    \EndIf
+\EndFor
+\State \Return $\pi^*, z^*$
+\end{algorithmic}
+\end{algorithm}
+</script>
+
+<script type="text/x-latex" id="src-a3-trp">
+\renewcommand{\thealgorithm}{3}
+\begin{algorithm}[H]
+\caption{$\textsc{ILS-Heur}(\pi^0, \Niter, \Nrand)$}
+\label{alg:ilsh-trppdh}
+\begin{algorithmic}[1]
+\Require \cambio{$\pi^0 \in \{\pi^{\mathrm{tsp}}, \pi^{\mathrm{inv}}\}$: se corre desde las dos soluciones de 2 fases (siempre 2dir)}; %@1
+         $\Niter = 200$; $\Nrand$: como en el Algoritmo~2;
+         $\mathcal{N}(\pi)$: rutas factibles que se obtienen con relocate o con \cambio{2-opt sobre posiciones $i < j$ (incluye invertir toda la ruta)}. %@2
+\Ensure mejor ruta $\pi^*$ y su \cambio{$\sum_i D_i$} exacto, $z^*$. %@4
+\State $\pi^* \gets \pi^0$;\ \ $z^* \gets \EvalE(\pi^0)$
+\For{$it \gets 1$ \textbf{to} $\Niter$}
+    \State $\pi \gets$ \Call{Perturbar}{$\pi^*, \Nrand$};\ \ $z \gets \EvalE(\pi)$ \Comment{como en el Alg.~2}
+    \Repeat \Comment{búsqueda local de mejor mejora}
+        \State $\pi' \gets \arg\min_{\sigma \in \mathcal{N}(\pi)} \EvalH(\sigma)$ \Comment{\cambio{parte fija $F(\sigma)$ en $O(n)$} $+$ umbral $O(n)$} %@3
+        \State $z' \gets \EvalE(\pi')$ \Comment{reevaluar solo el vecino elegido}
+        \State $\mathit{mejora} \gets (z' < z)$
+        \If{$\mathit{mejora}$}
+            \State $\pi \gets \pi'$;\ \ $z \gets z'$
+        \EndIf
+    \Until{\textbf{not} $\mathit{mejora}$}
+    \If{$z < z^*$}
+        \State $\pi^* \gets \pi$;\ \ $z^* \gets z$
+    \EndIf
+\EndFor
+\State \Return $\pi^*, z^*$
+\end{algorithmic}
+\end{algorithm}
+</script>
+
+<!-- ================= Algoritmo 4 · ITS exacto ================= -->
+<script type="text/x-latex" id="src-a4-tsp">
+\renewcommand{\thealgorithm}{4}
+\begin{algorithm}[H]
+\caption{$\textsc{ITS-Exacto}(\pi^0, \Niter, \Nrand)$}
+\label{alg:itse-tsppdh}
+\begin{algorithmic}[1]
+\Require $\pi^0$: tour inicial de 2 fases \cambio{(1dir; en 2dir se corre también desde el sentido inverso)}; %@1
+         $\Niter = 200$; $\Nrand$: como en el Algoritmo~2;
+         $\mathcal{N}(\pi)$: vecinos factibles por relocate y con \cambio{2-opt sobre el ciclo}; %@2
+         $L = \cambio{0{,}5\,n}$: largo de la lista tabú $T$. %@3
+\Ensure mejor tour $\pi^*$ y su costo $z^*$ \cambio{(viaje $+$ manipulación)}. %@9
+\State $N^* \gets \lfloor \sqrt{\Niter} \rfloor$ \Comment{iteraciones externas e internas}
+\State $\pi^* \gets \pi^0$;\ \ $z^* \gets \EvalE(\pi^0)$
+\For{$it \gets 1$ \textbf{to} $N^*$}
+    \State $\pi \gets$ \Call{Perturbar}{$\pi^*, \Nrand$};\ \ $z \gets \EvalE(\pi)$ \Comment{como en el Alg.~2}
+    \For{$t \gets 1$ \textbf{to} $N^*$} \Comment{búsqueda tabú (Alg.~4.1); \cambio{no se indica si $T$ se vacía}} %@3
+        \State $(i, p, z_1) \gets$ mejor relocate $\sigma$ con $\cambio{(i,i)} \notin T$ o $\EvalE(\sigma) < \cambio{z}$ \Comment{no tabú o aspiración} %@4,5
+        \State $(i, j, z_2) \gets$ mejor 2-opt $\sigma$ con $(i,j) \notin T$ o $\EvalE(\sigma) < \cambio{z}$ \Comment{vecino: \cambio{viaje $\Delta$ en $O(1)$} $+$ DP $O(n^2)$} %@5,8
+        \If{$z_1 \cambio{<} z_2$} \Comment{\cambio{empate: 2-opt}} %@6
+            \State $\pi \gets \textsc{Relocate}(\pi, i, p)$;\ \ agregar $\cambio{(i,i)}$ a $T$ \Comment{\cambio{$i$: posición del cliente}} %@4
+        \Else
+            \State $\pi \gets \textsc{DosOpt}(\pi, i, j)$;\ \ agregar $(i,j)$ a $T$
+        \EndIf
+        \State si $|T| > L$, quitar de $T$ el atributo más antiguo
+        \State $z \gets \EvalE(\pi)$ \Comment{se mueve aunque empeore}
+    \EndFor
+    \If{$z < z^*$} \Comment{\cambio{tour con que termina la búsqueda tabú}} %@7
+        \State $\pi^* \gets \cambio{\pi}$;\ \ $z^* \gets \cambio{z}$ %@7
+    \EndIf
+\EndFor
+\State \Return $\pi^*, z^*$
+\end{algorithmic}
+\end{algorithm}
+</script>
+
+<script type="text/x-latex" id="src-a4-trp">
+\renewcommand{\thealgorithm}{4}
+\begin{algorithm}[H]
+\caption{$\textsc{ITS-Exacto}(\pi^0, \Niter, \Nrand)$}
+\label{alg:itse-trppdh}
+\begin{algorithmic}[1]
+\Require \cambio{$\pi^0 \in \{\pi^{\mathrm{tsp}}, \pi^{\mathrm{inv}}\}$: se corre desde las dos soluciones de 2 fases (siempre 2dir)}; %@1
+         $\Niter = 200$; $\Nrand$: como en el Algoritmo~2;
+         $\mathcal{N}(\pi)$: vecinos factibles por relocate y con \cambio{2-opt sobre posiciones $i < j$ (incluye invertir toda la ruta)}; %@2
+         $L = \cambio{\max\{1, \lfloor 0{,}5\,n \rfloor\}}$: largo de la lista tabú $T$. %@3
+\Ensure mejor ruta $\pi^*$ y su \cambio{$\sum_i D_i$}, $z^*$. %@9
+\State $N^* \gets \lfloor \sqrt{\Niter} \rfloor$ \Comment{iteraciones externas e internas}
+\State $\pi^* \gets \pi^0$;\ \ $z^* \gets \EvalE(\pi^0)$
+\For{$it \gets 1$ \textbf{to} $N^*$}
+    \State $\pi \gets$ \Call{Perturbar}{$\pi^*, \Nrand$};\ \ $z \gets \EvalE(\pi)$ \Comment{como en el Alg.~2}
+    \State \cambio{$\pi^b \gets \pi$;\ \ $z^b \gets z$;\ \ $T \gets ()$} \Comment{\cambio{mejor ruta de la búsqueda tabú; lista vacía}} %@3,7
+    \For{$t \gets 1$ \textbf{to} $N^*$} \Comment{búsqueda tabú (Alg.~4.1)}
+        \State $(i, p, z_1) \gets$ mejor relocate $\sigma$ con $\cambio{\pi_i} \notin T$ o $\EvalE(\sigma) < \cambio{z^b}$ \Comment{no tabú o aspiración} %@4,5
+        \State $(i, j, z_2) \gets$ mejor 2-opt $\sigma$ con $(i,j) \notin T$ o $\EvalE(\sigma) < \cambio{z^b}$ \Comment{vecino: \cambio{$F(\sigma)$ en $O(n)$} $+$ DP $O(n^2)$} %@5,8
+        \If{$z_1 \cambio{\le} z_2$} \Comment{\cambio{empate: relocate}} %@6
+            \State $\pi \gets \textsc{Relocate}(\pi, i, p)$;\ \ agregar $\cambio{\pi_p}$ a $T$ \Comment{\cambio{el cliente reubicado}} %@4
+        \Else
+            \State $\pi \gets \textsc{DosOpt}(\pi, i, j)$;\ \ agregar $(i,j)$ a $T$
+        \EndIf
+        \State si $|T| > L$, quitar de $T$ el atributo más antiguo
+        \State $z \gets \EvalE(\pi)$ \Comment{se mueve aunque empeore}
+        \If{\cambio{$z < z^b$}} %@7
+            \State \cambio{$\pi^b \gets \pi$;\ \ $z^b \gets z$} %@7
+        \EndIf %@7
+    \EndFor
+    \If{$\cambio{z^b} < z^*$} %@7
+        \State $\pi^* \gets \cambio{\pi^b}$;\ \ $z^* \gets \cambio{z^b}$ %@7
+    \EndIf
+\EndFor
+\State \Return $\pi^*, z^*$
+\end{algorithmic}
+\end{algorithm}
+</script>
+
+<!-- ================= Algoritmo 5 · ITS heurístico ================= -->
+<script type="text/x-latex" id="src-a5-tsp">
+\renewcommand{\thealgorithm}{5}
+\begin{algorithm}[H]
+\caption{$\textsc{ITS-Heur}(\pi^0, \Niter, \Nrand)$}
+\label{alg:itsh-tsppdh}
+\begin{algorithmic}[1]
+\Require $\pi^0$: tour inicial de 2 fases \cambio{(1dir; en 2dir se corre también desde el sentido inverso)}; %@1
+         $\Niter = 200$; $\Nrand$: como en el Algoritmo~2;
+         $\mathcal{N}(\pi)$: vecinos factibles por relocate y con \cambio{2-opt sobre el ciclo}; %@2
+         $L = \cambio{0{,}5\,n}$: largo de la lista tabú $T$. %@3
+\Ensure mejor tour $\pi^*$ y su costo exacto $z^*$ \cambio{(viaje $+$ manipulación)}. %@9
+\State $N^* \gets \lfloor \sqrt{\Niter} \rfloor$ \Comment{iteraciones externas e internas}
+\State $\pi^* \gets \pi^0$;\ \ $z^* \gets \EvalE(\pi^0)$
+\For{$it \gets 1$ \textbf{to} $N^*$}
+    \State $\pi \gets$ \Call{Perturbar}{$\pi^*, \Nrand$};\ \ $z \gets \EvalE(\pi)$ \Comment{como en el Alg.~2}
+    \For{$t \gets 1$ \textbf{to} $N^*$} \Comment{búsqueda tabú (Alg.~4.1); \cambio{no se indica si $T$ se vacía}} %@3
+        \State $(i, p, z_1) \gets$ mejor relocate $\sigma$ con $\cambio{(i,i)} \notin T$ o $\EvalH(\sigma) < \cambio{z}$ \Comment{no tabú o aspiración} %@4,5
+        \State $(i, j, z_2) \gets$ mejor 2-opt $\sigma$ con $(i,j) \notin T$ o $\EvalH(\sigma) < \cambio{z}$ \Comment{vecino: \cambio{viaje $\Delta$ en $O(1)$} $+$ umbral $O(n)$} %@5,8
+        \If{$z_1 \cambio{<} z_2$} \Comment{\cambio{empate: 2-opt}} %@6
+            \State $\pi \gets \textsc{Relocate}(\pi, i, p)$;\ \ agregar $\cambio{(i,i)}$ a $T$ \Comment{\cambio{$i$: posición del cliente}} %@4
+        \Else
+            \State $\pi \gets \textsc{DosOpt}(\pi, i, j)$;\ \ agregar $(i,j)$ a $T$
+        \EndIf
+        \State si $|T| > L$, quitar de $T$ el atributo más antiguo
+        \State $z \gets \EvalE(\pi)$ \Comment{reevaluar solo el movimiento elegido}
+    \EndFor
+    \If{$z < z^*$} \Comment{\cambio{tour con que termina la búsqueda tabú}} %@7
+        \State $\pi^* \gets \cambio{\pi}$;\ \ $z^* \gets \cambio{z}$ %@7
+    \EndIf
+\EndFor
+\State \Return $\pi^*, z^*$
+\end{algorithmic}
+\end{algorithm}
+</script>
+
+<script type="text/x-latex" id="src-a5-trp">
+\renewcommand{\thealgorithm}{5}
+\begin{algorithm}[H]
+\caption{$\textsc{ITS-Heur}(\pi^0, \Niter, \Nrand)$}
+\label{alg:itsh-trppdh}
+\begin{algorithmic}[1]
+\Require \cambio{$\pi^0 \in \{\pi^{\mathrm{tsp}}, \pi^{\mathrm{inv}}\}$: se corre desde las dos soluciones de 2 fases (siempre 2dir)}; %@1
+         $\Niter = 200$; $\Nrand$: como en el Algoritmo~2;
+         $\mathcal{N}(\pi)$: vecinos factibles por relocate y con \cambio{2-opt sobre posiciones $i < j$ (incluye invertir toda la ruta)}; %@2
+         $L = \cambio{\max\{1, \lfloor 0{,}5\,n \rfloor\}}$: largo de la lista tabú $T$. %@3
+\Ensure mejor ruta $\pi^*$ y su \cambio{$\sum_i D_i$} exacto, $z^*$. %@9
+\State $N^* \gets \lfloor \sqrt{\Niter} \rfloor$ \Comment{iteraciones externas e internas}
+\State $\pi^* \gets \pi^0$;\ \ $z^* \gets \EvalE(\pi^0)$
+\For{$it \gets 1$ \textbf{to} $N^*$}
+    \State $\pi \gets$ \Call{Perturbar}{$\pi^*, \Nrand$};\ \ $z \gets \EvalE(\pi)$ \Comment{como en el Alg.~2}
+    \State \cambio{$\pi^b \gets \pi$;\ \ $z^b \gets z$;\ \ $T \gets ()$} \Comment{\cambio{mejor ruta de la búsqueda tabú; lista vacía}} %@3,7
+    \For{$t \gets 1$ \textbf{to} $N^*$} \Comment{búsqueda tabú (Alg.~4.1)}
+        \State $(i, p, z_1) \gets$ mejor relocate $\sigma$ con $\cambio{\pi_i} \notin T$ o $\EvalH(\sigma) < \cambio{z^b}$ \Comment{no tabú o aspiración} %@4,5
+        \State $(i, j, z_2) \gets$ mejor 2-opt $\sigma$ con $(i,j) \notin T$ o $\EvalH(\sigma) < \cambio{z^b}$ \Comment{vecino: \cambio{$F(\sigma)$ en $O(n)$} $+$ umbral $O(n)$} %@5,8
+        \If{$z_1 \cambio{\le} z_2$} \Comment{\cambio{empate: relocate}} %@6
+            \State $\pi \gets \textsc{Relocate}(\pi, i, p)$;\ \ agregar $\cambio{\pi_p}$ a $T$ \Comment{\cambio{el cliente reubicado}} %@4
+        \Else
+            \State $\pi \gets \textsc{DosOpt}(\pi, i, j)$;\ \ agregar $(i,j)$ a $T$
+        \EndIf
+        \State si $|T| > L$, quitar de $T$ el atributo más antiguo
+        \State $z \gets \EvalE(\pi)$ \Comment{reevaluar solo el movimiento elegido}
+        \If{\cambio{$z < z^b$}} %@7
+            \State \cambio{$\pi^b \gets \pi$;\ \ $z^b \gets z$} %@7
+        \EndIf %@7
+    \EndFor
+    \If{$\cambio{z^b} < z^*$} %@7
+        \State $\pi^* \gets \cambio{\pi^b}$;\ \ $z^* \gets \cambio{z^b}$ %@7
+    \EndIf
+\EndFor
+\State \Return $\pi^*, z^*$
+\end{algorithmic}
+\end{algorithm}
+</script>
+
+<!-- ================= Rutina A.1 · Evaluación exacta ================= -->
+<script type="text/x-latex" id="src-x1-tsp">
+\renewcommand{\thealgorithm}{A.1}
+\begin{algorithm}[H]
+\caption{$\EvalE(\pi)$ \quad (Algoritmo~2.1 y DP)}
+\label{alg:exacta-tsppdh}
+\begin{algorithmic}[1]
+\Require ruta $\pi$ con $n$ clientes; $c_{ij}$; $\alpha_j, \beta_j$; $Q$;
+         \cambio{$h_a, h_b$: costos de mover una entrega y una recogida}. %@1
+\Ensure \cambio{viaje $+$ manipulación} con las políticas óptimas; $\infty$ si $\pi$ no respeta $Q$. %@1
+\If{$\pi$ no respeta $Q$}
+    \State \Return $\infty$
+\EndIf
+\State $\cambio{R} \gets \cambio{\sum_{k=1}^{n+1} c_{\pi_{k-1}\pi_k}}$ \Comment{\cambio{viaje con regreso, $\pi_{n+1} = 0$; en la búsqueda, $\Delta$ en $O(1)$}} %@2
+\For{$i \gets 0$ \textbf{to} $n-1$} \Comment{costos $p_{ij}$ (Alg.~2.1)}
+    \State $\beta' \gets 0$;\ \ $\theta \gets 0$;\ \ $\alpha' \gets \sum_{m=i+1}^{n} \alpha_{\pi_m}$ \Comment{Pol.~2 aplicada en $i$}
+    \For{$j \gets i+1$ \textbf{to} $n$}
+        \State $\alpha' \gets \alpha' - \alpha_{\pi_j}$ \Comment{entregar, con Pol.~1 o 2}
+        \If{$\beta' + \beta_{\pi_j} > 0$}
+            \State $p_{ij} \gets \theta + \cambio{h_a \alpha' + h_b \beta'}$ \Comment{Pol.~1 hasta $j-1$, Pol.~2 en $j$} %@4
+        \Else
+            \State $p_{ij} \gets \theta$ \Comment{sin recogidas, la Pol.~2 equivale a la 1}
+        \EndIf
+        \If{\cambio{$\alpha_{\pi_j} > 0$}} %@5
+            \State $\theta \gets \theta + \cambio{h_b \beta'}$ \Comment{Pol.~1 en $j$} %@5
+        \EndIf %@5
+        \State $\beta' \gets \beta' + \beta_{\pi_j}$ \Comment{recoger como si se usara la Pol.~1}
+    \EndFor
+\EndFor
+\State $f(n) \gets 0$
+\For{$i \gets n-1$ \textbf{downto} $0$} \Comment{DP (1)--(2)}
+    \State $f(i) \gets \min_{j \in \{i+1,\dots,n\}} \{ p_{ij} + f(j) \}$
+\EndFor
+\State \Return $\cambio{R} + f(0)$ \Comment{políticas: los $j$ de cada mínimo} %@2
+\end{algorithmic}
+\end{algorithm}
+</script>
+
+<script type="text/x-latex" id="src-x1-trp">
+\renewcommand{\thealgorithm}{A.1}
+\begin{algorithm}[H]
+\caption{$\EvalE(\pi)$ \quad (Algoritmo~2.1 y DP)}
+\label{alg:exacta-trppdh}
+\begin{algorithmic}[1]
+\Require ruta $\pi$ con $n$ clientes; $c_{ij}$; $\alpha_j, \beta_j$; $Q$;
+         \cambio{$u_a, \ell_a, u_b, \ell_b$: tiempos de descargar y cargar; $h_a = u_a + \ell_a$}; %@1
+         \cambio{$W_k = n - k + 1$: clientes que atrasa una operación en la posición $k$}. %@3
+\Ensure \cambio{$\sum_i D_i$} con las políticas óptimas; $\infty$ si $\pi$ no respeta $Q$. %@1
+\If{$\pi$ no respeta $Q$}
+    \State \Return $\infty$
+\EndIf
+\State $\cambio{F} \gets \cambio{\sum_{k=1}^{n} \big[ W_k (c_{\pi_{k-1}\pi_k} + u_a \alpha_{\pi_k}) + (W_k - 1)\,\ell_b \beta_{\pi_k} \big]}$ \Comment{\cambio{viaje y operaciones obligatorias, sin regreso; $O(n)$}} %@2
+\For{$i \gets 0$ \textbf{to} $n-1$} \Comment{costos $p_{ij}$ (Alg.~2.1)}
+    \State $\beta' \gets 0$;\ \ $\theta \gets 0$;\ \ $\alpha' \gets \sum_{m=i+1}^{n} \alpha_{\pi_m}$ \Comment{Pol.~2 aplicada en $i$}
+    \For{$j \gets i+1$ \textbf{to} $n$}
+        \State \cambio{$W \gets n - j + 1$} \Comment{\cambio{peso de la posición $j$}} %@3
+        \State $\alpha' \gets \alpha' - \alpha_{\pi_j}$ \Comment{entregar, con Pol.~1 o 2}
+        \If{$\beta' + \beta_{\pi_j} > 0$}
+            \State $p_{ij} \gets \theta + \cambio{\big(u_b W + \ell_b (W-1)\big)\beta' + h_a \alpha' (W-1)}$ \Comment{Pol.~1 hasta $j-1$, Pol.~2 en $j$} %@4
+        \Else
+            \State $p_{ij} \gets \theta$ \Comment{sin recogidas, la Pol.~2 equivale a la 1}
+        \EndIf
+        \State $\theta \gets \theta + \cambio{\big(u_b W + \ell_b (W-1)\big)\beta'}$ \Comment{Pol.~1 en $j$; \cambio{siempre $\alpha_{\pi_j} > 0$}} %@5
+        \State $\beta' \gets \beta' + \beta_{\pi_j}$ \Comment{recoger como si se usara la Pol.~1}
+    \EndFor
+\EndFor
+\State $f(n) \gets 0$
+\For{$i \gets n-1$ \textbf{downto} $0$} \Comment{DP (1)--(2)}
+    \State $f(i) \gets \min_{j \in \{i+1,\dots,n\}} \{ p_{ij} + f(j) \}$
+\EndFor
+\State \Return $\cambio{F} + f(0)$ \Comment{políticas: los $j$ de cada mínimo} %@2
+\end{algorithmic}
+\end{algorithm}
+</script>
+
+<!-- ================= Rutina A.2 · Evaluación heurística ================= -->
+<script type="text/x-latex" id="src-x2-tsp">
+\renewcommand{\thealgorithm}{A.2}
+\begin{algorithm}[H]
+\caption{$\EvalH(\pi)$ \quad (Sección~2.2, umbral~2)}
+\label{alg:heur-tsppdh}
+\begin{algorithmic}[1]
+\Require ruta $\pi$; los datos de \EvalE.
+\Ensure \cambio{viaje $+$ manipulación} con las políticas que da el umbral; $\infty$ si $\pi$ no respeta $Q$. %@1
+\If{$\pi$ no respeta $Q$}
+    \State \Return $\infty$
+\EndIf
+\State $\cambio{R} \gets \cambio{\sum_{k=1}^{n+1} c_{\pi_{k-1}\pi_k}}$ \Comment{\cambio{como en el Alg.~A.1}} %@2
+\State $\beta' \gets 0$;\ \ $\theta \gets 0$;\ \ $\alpha' \gets \sum_{m=1}^{n} \alpha_{\pi_m}$;\ \ $\tau \gets$ \Call{Umbral}{$0$}
+\For{$j \gets 1$ \textbf{to} $n$}
+    \State $\alpha' \gets \alpha' - \alpha_{\pi_j}$ \Comment{entregar}
+    \If{$j < n$ \textbf{and} $\beta' + \beta_{\pi_j} > 0$ \textbf{and} $\beta' + \beta_{\pi_j} \ge \tau$}
+        \State $\theta \gets \theta + \cambio{h_a \alpha' + h_b \beta'}$ \Comment{Pol.~2 en $j$} %@4
+        \State $\beta' \gets 0$;\ \ $\tau \gets$ \Call{Umbral}{$j$} \Comment{nuevo umbral}
+    \Else
+        \If{\cambio{$\alpha_{\pi_j} > 0$}} %@5
+            \State $\theta \gets \theta + \cambio{h_b \beta'}$ \Comment{Pol.~1 en $j$} %@5
+        \EndIf %@5
+        \State $\beta' \gets \beta' + \beta_{\pi_j}$
+    \EndIf
+\EndFor
+\State \Return $\cambio{R} + \theta$ %@2
+\Statex
+\Function{Umbral}{$i$} \Comment{fórmulas (13)--(14) del artículo} %@6
+    \State $N \gets n - i$;\ \ $\bar\alpha, \bar\beta \gets$ promedios de $\alpha, \beta$ en $\pi_{i+1},\dots,\pi_n$
+    \If{$N < 2$ \textbf{or} $\bar\beta = 0$}
+        \State \Return $\infty$
+    \EndIf
+    \State $r \gets h_b \bar\beta / (h_a \bar\alpha)$;\ \ $p^* \gets \big\lfloor \big(1 - 2r + \sqrt{(2r-1)^2 + 8Nr}\big)/2 \big\rfloor$ \Comment{(14)}
+    \If{$p^* < 2$}
+        \State \Return $\infty$ \Comment{la Pol.~2 no conviene}
+    \EndIf
+    \State \Return $\bar\beta \cdot \max\{1,\ (p^*-1)/(2r) + N/p^*\}$ \Comment{$k_1^* \bar\beta$, (13)}
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+</script>
+
+<script type="text/x-latex" id="src-x2-trp">
+\renewcommand{\thealgorithm}{A.2}
+\begin{algorithm}[H]
+\caption{$\EvalH(\pi)$ \quad (Sección~2.2, umbral~2)}
+\label{alg:heur-trppdh}
+\begin{algorithmic}[1]
+\Require ruta $\pi$; los datos de \EvalE.
+\Ensure \cambio{$\sum_i D_i$} con las políticas que da el umbral; $\infty$ si $\pi$ no respeta $Q$. %@1
+\If{$\pi$ no respeta $Q$}
+    \State \Return $\infty$
+\EndIf
+\State $\cambio{F} \gets \cambio{\sum_{k=1}^{n} \big[ W_k (c_{\pi_{k-1}\pi_k} + u_a \alpha_{\pi_k}) + (W_k - 1)\,\ell_b \beta_{\pi_k} \big]}$ \Comment{\cambio{como en el Alg.~A.1}} %@2
+\State $\beta' \gets 0$;\ \ $\theta \gets 0$;\ \ $\alpha' \gets \sum_{m=1}^{n} \alpha_{\pi_m}$;\ \ $\tau \gets$ \Call{Umbral}{$0$}
+\For{$j \gets 1$ \textbf{to} $n$}
+    \State \cambio{$W \gets n - j + 1$} \Comment{\cambio{peso de la posición $j$}} %@3
+    \State $\alpha' \gets \alpha' - \alpha_{\pi_j}$ \Comment{entregar}
+    \State $\theta \gets \theta + \cambio{\big(u_b W + \ell_b (W-1)\big)\beta'}$ \Comment{\cambio{recogidas de la puerta, con Pol.~1 o 2}} %@5
+    \If{$j < n$ \textbf{and} $\beta' + \beta_{\pi_j} > 0$ \textbf{and} $\beta' + \beta_{\pi_j} \ge \tau$}
+        \State $\theta \gets \theta + \cambio{h_a \alpha' (W-1)}$ \Comment{Pol.~2 en $j$} %@4
+        \State $\beta' \gets 0$;\ \ $\tau \gets$ \Call{Umbral}{$j$} \Comment{nuevo umbral}
+    \Else
+        \State $\beta' \gets \beta' + \beta_{\pi_j}$ \Comment{Pol.~1 en $j$}
+    \EndIf
+\EndFor
+\State \Return $\cambio{F} + \theta$ %@2
+\Statex
+\Function{Umbral}{$i$} \Comment{fórmulas (13)--(14) del artículo, \cambio{sin volver a deducirlas con $W$}} %@6
+    \State $N \gets n - i$;\ \ $\bar\alpha, \bar\beta \gets$ promedios de $\alpha, \beta$ en $\pi_{i+1},\dots,\pi_n$
+    \If{$N < 2$ \textbf{or} $\bar\beta = 0$}
+        \State \Return $\infty$
+    \EndIf
+    \State $r \gets h_b \bar\beta / (h_a \bar\alpha)$;\ \ $p^* \gets \big\lfloor \big(1 - 2r + \sqrt{(2r-1)^2 + 8Nr}\big)/2 \big\rfloor$ \Comment{(14)}
+    \If{$p^* < 2$}
+        \State \Return $\infty$ \Comment{la Pol.~2 no conviene}
+    \EndIf
+    \State \Return $\bar\beta \cdot \max\{1,\ (p^*-1)/(2r) + N/p^*\}$ \Comment{$k_1^* \bar\beta$, (13)}
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+</script>
+
+<!-- Preámbulo para compilar los bloques (formato de la skill + macros usadas) -->
+<script type="text/x-latex" id="preambulo">
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-noshorthands]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{xcolor}
+
+\renewcommand{\familydefault}{\sfdefault}
+
+% --- Estilo en español ---
+\floatname{algorithm}{Algoritmo}
+\renewcommand{\algorithmicrequire}{\textbf{Entrada:}}
+\renewcommand{\algorithmicensure}{\textbf{Salida:}}
+\algrenewcommand{\algorithmiccomment}[1]{\hfill{\small // #1}}
+
+% --- Marca de cambio y nombres usados en los bloques ---
+\definecolor{carmesi}{HTML}{A32638}
+\newcommand{\cambio}[1]{\textcolor{carmesi}{#1}}
+\newcommand{\EvalE}{\mbox{\textsc{EvalExacta}}}
+\newcommand{\EvalH}{\mbox{\textsc{EvalHeur}}}
+\newcommand{\Niter}{N_{\mathit{iter}}}
+\newcommand{\Nrand}{N_{\mathit{rand}}}
+
+\begin{document}
+% pegar aquí los bloques \renewcommand{\thealgorithm}{...} \begin{algorithm} ... \end{algorithm}
+\end{document}
+</script>
+
+<!-- =====================================================================
+     Cuadros de cambios. "@id" abre una página; cada fila es
+     título | artículo (TSPPD-H) | proyecto (TRPPD-H). La fila k es el cambio %@k.
+     ===================================================================== -->
+<script type="text/plain" id="notas">
+@a1
+Fase 1 | Lin--Kernighan de Concorde, sin ajustes. | Vecino más cercano desde cada nodo, 2-opt y Or-opt; se guarda el ciclo más corto.
+Sentidos | 1dir (el de LK) o 2dir. | Siempre los dos: $\pi^{\mathrm{tsp}}$ y $\pi^{\mathrm{inv}}$.
+Criterio de la fase 2 | Viaje $+$ manipulación: mover el depósito cambia dos arcos del ciclo. | $\sum_i D_i$: la rotación y el sentido cambian el peso de todos los arcos.
+Datos y salida | $h_a, h_b$; tour inicial de TS, ILS e ITS. | $u_a, \ell_a, u_b, \ell_b$; dos soluciones iniciales, y la mejor se informa como método.
+@a2
+Inicio | 1dir: desde el tour de LK; 2dir: también desde el inverso. | Siempre 2dir: una corrida desde $\pi^{\mathrm{tsp}}$ y otra desde $\pi^{\mathrm{inv}}$.
+Azar | $\Nrand = 0{,}1\,n$; no se informa semilla. | $\Nrand = \max\{1, \mathrm{round}(0{,}1\,n)\}$; semilla fija (réplicas $1,\dots,10$).
+Perturbación | Un movimiento al azar; no se detalla qué pasa si no respeta $Q$. | Se sortea otro hasta que respete $Q$ (a lo más 100 intentos).
+Vecindario | 2-opt quita dos arcos no consecutivos del ciclo: $(n+1)(n-2)/2$ vecinos. | 2-opt sobre posiciones $i<j$: $n(n-1)/2$ vecinos; invertir toda la ruta es uno más.
+Costo de un vecino | Viaje por diferencia de arcos en $O(1)$ $+$ DP $O(n^2)$. | Parte fija $F(\sigma)$ en $O(n)$, porque cambian todos los pesos, $+$ DP $O(n^2)$.
+Objetivo | Viaje $+$ manipulación. | $\sum_i D_i$ (latencia).
+@a3
+Inicio | 1dir: desde el tour de LK; 2dir: también desde el inverso. | Siempre 2dir: una corrida desde $\pi^{\mathrm{tsp}}$ y otra desde $\pi^{\mathrm{inv}}$.
+Vecindario | 2-opt quita dos arcos no consecutivos del ciclo: $(n+1)(n-2)/2$ vecinos. | 2-opt sobre posiciones $i<j$: $n(n-1)/2$ vecinos; invertir toda la ruta es uno más.
+Costo de un vecino | Viaje en $O(1)$ $+$ umbral~2 en $O(n)$, con $h_a, h_b$. | $F(\sigma)$ en $O(n)$ $+$ el mismo umbral en $O(n)$, con pesos $W$ (Alg.~A.2).
+Objetivo | Viaje $+$ manipulación. | $\sum_i D_i$ (latencia).
+@a4
+Inicio | 1dir: desde el tour de LK; 2dir: también desde el inverso. | Siempre 2dir: una corrida desde $\pi^{\mathrm{tsp}}$ y otra desde $\pi^{\mathrm{inv}}$.
+Vecindario | 2-opt sobre el ciclo: $(n+1)(n-2)/2$ vecinos. | 2-opt sobre posiciones: $n(n-1)/2$; invertir toda la ruta es uno más.
+Lista tabú | Largo $0{,}5\,n$; no se indica si se vacía al empezar. | Largo $\max\{1, \lfloor 0{,}5\,n \rfloor\}$; vacía al empezar cada búsqueda tabú.
+Atributo del relocate | $(i,i)$, con $i$ la posición del cliente. | El cliente reubicado.
+Aspiración | Un movimiento tabú se acepta si mejora el costo actual $z$ (\emph{costCurrent}). | Se acepta si mejora $z^b$, la mejor ruta de la búsqueda tabú.
+Empate $z_1 = z_2$ | Gana el 2-opt. | Gana el relocate.
+Resultado de la búsqueda tabú | El tour con que termina: el Alg.~4.1 no guarda el mejor visitado. | La mejor ruta visitada, $\pi^b$.
+Costo de un vecino | Viaje en $O(1)$ $+$ DP $O(n^2)$. | $F(\sigma)$ en $O(n)$ $+$ DP $O(n^2)$.
+Objetivo | Viaje $+$ manipulación. | $\sum_i D_i$ (latencia).
+@a5
+Inicio | 1dir: desde el tour de LK; 2dir: también desde el inverso. | Siempre 2dir: una corrida desde $\pi^{\mathrm{tsp}}$ y otra desde $\pi^{\mathrm{inv}}$.
+Vecindario | 2-opt sobre el ciclo: $(n+1)(n-2)/2$ vecinos. | 2-opt sobre posiciones: $n(n-1)/2$; invertir toda la ruta es uno más.
+Lista tabú | Largo $0{,}5\,n$; no se indica si se vacía al empezar. | Largo $\max\{1, \lfloor 0{,}5\,n \rfloor\}$; vacía al empezar cada búsqueda tabú.
+Atributo del relocate | $(i,i)$, con $i$ la posición del cliente. | El cliente reubicado.
+Aspiración | Se acepta un movimiento tabú si su valor heurístico mejora el costo actual $z$. | Se acepta si su valor heurístico mejora $z^b$ (exacto), la mejor de la búsqueda tabú.
+Empate $z_1 = z_2$ | Gana el 2-opt. | Gana el relocate.
+Resultado de la búsqueda tabú | El tour con que termina: el Alg.~4.1 no guarda el mejor visitado. | La mejor ruta visitada, $\pi^b$.
+Costo de un vecino | Viaje en $O(1)$ $+$ umbral~2 en $O(n)$, con $h_a, h_b$. | $F(\sigma)$ en $O(n)$ $+$ el mismo umbral, con pesos $W$ (Alg.~A.2).
+Objetivo | Viaje $+$ manipulación. | $\sum_i D_i$ (latencia).
+@x1
+Datos y objetivo | $h_a, h_b$; viaje $+$ manipulación. | $u_a, \ell_a, u_b, \ell_b$; $\sum_i D_i$.
+Parte fija | Viaje con regreso al depósito; en la búsqueda se actualiza en $O(1)$. | Viaje y operaciones obligatorias ponderados por $W_k$, sin regreso; $O(n)$.
+Peso de la posición | No existe: una operación cuesta lo mismo en cualquier posición. | $W = n - j + 1$: lo que ocurre en $j$ atrasa a $W$ clientes.
+Política 2 en $j$ | $h_a \alpha' + h_b \beta'$. | $(u_b W + \ell_b (W-1))\beta' + h_a \alpha' (W-1)$.
+Política 1 en $j$ | $h_b \beta'$, solo si $\alpha_{\pi_j} > 0$. | $(u_b W + \ell_b (W-1))\beta'$: descarga antes de entregar, recarga después; siempre $\alpha_i > 0$.
+@x2
+Objetivo | Viaje $+$ manipulación. | $\sum_i D_i$.
+Parte fija | $R$: viaje, como en el Alg.~A.1. | $F$: ponderada, como en el Alg.~A.1.
+Peso de la posición | No existe. | $W = n - j + 1$.
+Política 2 en $j$ | $h_a \alpha' + h_b \beta'$. | $h_a \alpha' (W-1)$; las recogidas de la puerta van en el cambio 5.
+Recogidas junto a la puerta | $h_b \beta'$ con la Pol.~1 si $\alpha_{\pi_j} > 0$; con la Pol.~2, en el cambio 4. | $(u_b W + \ell_b (W-1))\beta'$ con cualquiera de las dos políticas.
+Regla del umbral | Fórmulas (13)--(14), deducidas con los costos $h_a, h_b$. | Las mismas: no se volvieron a deducir con los pesos $W$.
+</script>
+
+<script>
+(function () {
+  'use strict';
+
+  const PAGES = [
+    { id: 'a1', kicker: 'Algoritmo 1', title: 'Heurística de 2 fases', nav: '2 fases',
+      sub: 'Artículo: Sección 4, solución inicial de las tres metaheurísticas.' },
+    { id: 'a2', kicker: 'Algoritmo 2', title: 'ILS exacto', nav: 'ILS-E',
+      sub: 'Artículo: Algoritmo 4.2; cada vecino se evalúa con el DP.' },
+    { id: 'a3', kicker: 'Algoritmo 3', title: 'ILS heurístico', nav: 'ILS-H',
+      sub: 'Artículo: Algoritmo 4.2; los vecinos se evalúan con el umbral y el elegido con el DP.' },
+    { id: 'a4', kicker: 'Algoritmo 4', title: 'ITS exacto', nav: 'ITS-E',
+      sub: 'Artículo: Algoritmos 4.3 y 4.1; cada vecino se evalúa con el DP.' },
+    { id: 'a5', kicker: 'Algoritmo 5', title: 'ITS heurístico', nav: 'ITS-H',
+      sub: 'Artículo: Algoritmos 4.3 y 4.1; los vecinos se evalúan con el umbral y el elegido con el DP.' },
+    { id: 'x1', kicker: 'Anexo · rutina A.1', title: 'Evaluación exacta', nav: 'A.1',
+      sub: 'La usan los algoritmos 1 a 5. Aquí está el cambio de objetivo.' },
+    { id: 'x2', kicker: 'Anexo · rutina A.2', title: 'Evaluación heurística', nav: 'A.2',
+      sub: 'La usan los algoritmos 3 y 5. El artículo no da su pseudocódigo: ambas versiones siguen su Sección 2.2.' }
+  ];
+  const VER = {
+    tsp: { name: 'TSPPD-H', who: 'Erdoğan et al. 2012', tag: 'TSPPD-H · artículo' },
+    trp: { name: 'TRPPD-H', who: 'proyecto', tag: 'TRPPD-H · proyecto' }
+  };
+
+  /* ---------------- KaTeX ---------------- */
+  const MACROS = {
+    '\\cambio': '\\htmlClass{cambio}{#1}',
+    '\\textsc': '\\htmlClass{proc}{\\text{#1}}',
+    '\\EvalE': '\\htmlClass{proc}{\\text{EvalExacta}}',
+    '\\EvalH': '\\htmlClass{proc}{\\text{EvalHeur}}',
+    '\\Niter': 'N_{\\mathit{iter}}',
+    '\\Nrand': 'N_{\\mathit{rand}}'
+  };
+  const hasKatex = typeof window.katex !== 'undefined';
+  function esc(s) { return s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+  function math(m) {
+    if (!hasKatex) return '<code>' + esc(m) + '</code>';
+    try {
+      return katex.renderToString(m, {
+        throwOnError: false, strict: 'ignore', macros: Object.assign({}, MACROS),
+        trust: ctx => ctx.command === '\\htmlClass'
+      });
+    } catch (e) { console.error(e); return '<code>' + esc(m) + '</code>'; }
+  }
+
+  /* ---------------- Mini intérprete de LaTeX (modo texto) ---------------- */
+  function readGroup(s, i) {
+    while (i < s.length && s[i] !== '{') i++;
+    let depth = 0;
+    for (let j = i; j < s.length; j++) {
+      const ch = s[j];
+      if (ch === '\\') { j++; continue; }
+      if (ch === '{') depth++;
+      else if (ch === '}' && --depth === 0) return [s.slice(i + 1, j), j + 1];
+    }
+    throw new Error('Llave sin cerrar en: ' + s);
+  }
+  function text(s) {
+    let out = '', i = 0;
+    while (i < s.length) {
+      const ch = s[i];
+      if (ch === '$') {
+        let j = i + 1;
+        while (j < s.length && !(s[j] === '$' && s[j - 1] !== '\\')) j++;
+        out += math(s.slice(i + 1, j)); i = j + 1; continue;
+      }
+      if (ch === '\\') {
+        const m = /^\\([A-Za-z]+)\s*/.exec(s.slice(i));
+        if (!m) {
+          const sym = s[i + 1];
+          out += sym === ' ' ? '&nbsp;' : sym === ',' ? '&thinsp;' : esc(sym || '');
+          i += 2; continue;
+        }
+        const name = m[1]; i += m[0].length;
+        const group = () => { const [g, k] = readGroup(s, i); i = k; return g; };
+        switch (name) {
+          case 'textbf': out += '<b>' + text(group()) + '</b>'; break;
+          case 'emph': case 'textit': out += '<em>' + text(group()) + '</em>'; break;
+          case 'textsc': out += '<span class="proc">' + text(group()) + '</span>'; break;
+          case 'cambio': out += '<span class="cambio">' + text(group()) + '</span>'; break;
+          case 'mbox': case 'text': out += text(group()); break;
+          case 'Call': { const a = group(); const b = group(); out += '<span class="proc">' + text(a) + '</span>(' + text(b) + ')'; break; }
+          case 'Return': out += '<b>return</b> '; break;
+          case 'EvalE': out += '<span class="proc">EvalExacta</span>' + (m[0].length > name.length + 1 ? ' ' : ''); break;
+          case 'EvalH': out += '<span class="proc">EvalHeur</span>' + (m[0].length > name.length + 1 ? ' ' : ''); break;
+          case 'label': group(); break;
+          case 'quad': out += '&emsp;'; break;
+          case 'dots': out += '…'; break;
+          default: out += esc('\\' + name);
+        }
+        continue;
+      }
+      if (ch === '~') { out += '&nbsp;'; i++; continue; }
+      if (ch === '{' || ch === '}') { i++; continue; }
+      if (s.startsWith('---', i)) { out += '—'; i += 3; continue; }
+      if (s.startsWith('--', i)) { out += '–'; i += 2; continue; }
+      out += esc(ch); i++;
+    }
+    return out;
+  }
+
+  /* ---------------- Intérprete de algorithmic (algpseudocode) ---------------- */
+  const START = /^\\(Require|Ensure|Statex|State|ElsIf|Else|EndIf|If|ForAll|EndFor|For|EndWhile|While|Repeat|Until|EndFunction|Function|EndProcedure|Procedure)(?![A-Za-z])/;
+  const kw = w => '<b>' + w + '</b>';
+
+  function parseAlg(src) {
+    const num = (src.match(/\\renewcommand\{\\thealgorithm\}\{([^}]*)\}/) || [])[1] || '';
+    const [caption] = readGroup(src, src.indexOf('\\caption'));
+    const b0 = src.indexOf('\\begin{algorithmic}'), b1 = src.indexOf('\\end{algorithmic}');
+    const body = src.slice(b0, b1).replace(/^\\begin\{algorithmic\}(\[\d+\])?/, '');
+
+    const logical = [];
+    for (const raw of body.split(/\r?\n/)) {
+      let line = raw, tags = [];
+      const t = line.match(/(^|[^\\])%@([\w,]+)\s*$/);
+      if (t) { tags = t[2].split(',').filter(Boolean); line = line.slice(0, t.index + t[1].length); }
+      line = line.replace(/(^|[^\\])%.*$/, '$1').trim();
+      if (!line) { if (tags.length && logical.length) logical[logical.length - 1].tags.push(...tags); continue; }
+      if (START.test(line) || !logical.length) logical.push({ src: line, tags });
+      else { const L = logical[logical.length - 1]; L.src += ' ' + line; L.tags.push(...tags); }
+    }
+
+    let ind = 0, n = 0;
+    const rows = [];
+    for (const L of logical) {
+      let s = L.src.replace(/\\label\{[^}]*\}/g, '');
+      const cmd = s.match(START)[1];
+      s = s.slice(cmd.length + 1);
+      let comment = '';
+      const ci = s.indexOf('\\Comment');
+      if (ci >= 0) { const [g, k] = readGroup(s, ci + 8); comment = g; s = s.slice(0, ci) + s.slice(k); }
+      s = s.trim();
+      const arg = () => { const [g, k] = readGroup(s, 0); s = s.slice(k).trim(); return g; };
+      let html = '', kind = 'st', at = ind, numbered = true, label = null;
+      switch (cmd) {
+        case 'Require': kind = 'req'; numbered = false; label = 'Entrada'; html = kw('Entrada:') + ' ' + text(s); break;
+        case 'Ensure': kind = 'req'; numbered = false; label = 'Salida'; html = kw('Salida:') + ' ' + text(s); break;
+        case 'Statex': kind = 'blank'; numbered = false; break;
+        case 'State': html = text(s); break;
+        case 'If': html = kw('if') + ' ' + text(arg()) + ' ' + kw('then'); ind++; break;
+        case 'ElsIf': at = --ind; html = kw('else if') + ' ' + text(arg()) + ' ' + kw('then'); ind++; break;
+        case 'Else': at = --ind; html = kw('else'); ind++; break;
+        case 'EndIf': at = --ind; html = kw('end if'); break;
+        case 'For': html = kw('for') + ' ' + text(arg()) + ' ' + kw('do'); ind++; break;
+        case 'ForAll': html = kw('for all') + ' ' + text(arg()) + ' ' + kw('do'); ind++; break;
+        case 'EndFor': at = --ind; html = kw('end for'); break;
+        case 'While': html = kw('while') + ' ' + text(arg()) + ' ' + kw('do'); ind++; break;
+        case 'EndWhile': at = --ind; html = kw('end while'); break;
+        case 'Repeat': html = kw('repeat'); ind++; break;
+        case 'Until': at = --ind; html = kw('until') + ' ' + text(arg()); break;
+        case 'Function': case 'Procedure': {
+          const name = arg(), a = arg();
+          html = kw(cmd === 'Function' ? 'function' : 'procedure') + ' <span class="proc">' + text(name) + '</span>(' + text(a) + ')';
+          ind++; break;
+        }
+        case 'EndFunction': at = --ind; html = kw('end function'); break;
+        case 'EndProcedure': at = --ind; html = kw('end procedure'); break;
+      }
+      rows.push({ num: numbered ? ++n : null, kind, ind: at, html, label,
+                  comment: comment ? text(comment) : '', tags: [...new Set(L.tags)] });
+    }
+    if (ind !== 0) console.warn('Bloques sin cerrar en el algoritmo', num);
+    return { num, caption: text(caption), rows, src };
+  }
+
+  function cleanSrc(src) {
+    return src.replace(/[ \t]*%@[\w,]+[ \t]*$/gm, '').replace(/^\s*\n|\n\s*$/g, '');
+  }
+  function compress(a) {
+    a = [...new Set(a)].sort((x, y) => x - y);
+    const out = [];
+    for (let i = 0; i < a.length;) {
+      let j = i;
+      while (j + 1 < a.length && a[j + 1] === a[j] + 1) j++;
+      out.push(j > i ? a[i] + '–' + a[j] : String(a[i]));
+      i = j + 1;
+    }
+    return out.join(', ');
+  }
+  function where(rows, k) {
+    const labels = [], nums = [];
+    for (const r of rows) if (r.tags.includes(k)) { if (r.label) labels.push(r.label); else if (r.num) nums.push(r.num); }
+    const parts = [...new Set(labels)];
+    if (nums.length) parts.push((nums.length > 1 ? 'Líneas ' : 'Línea ') + compress(nums));
+    return parts.length ? parts.join(' · ') : '—';
+  }
+  function rowHTML(r) {
+    if (r.kind === 'blank') return '<div class="ln blank"></div>';
+    const marks = r.tags.map(t => '<i class="b" data-note="' + t + '">' + t + '</i>').join('');
+    return '<div class="ln ' + r.kind + (r.tags.length ? ' chg" data-notes="' + r.tags.join(' ') + '"' : '"') + '>' +
+      '<span class="marks">' + marks + '</span>' +
+      '<span class="no">' + (r.num ? r.num + ':' : '') + '</span>' +
+      '<div class="code" style="--ind:' + r.ind + '"><span class="stmt">' + r.html + '</span>' +
+      (r.comment ? '<span class="cmt">//&nbsp;' + r.comment + '</span>' : '') + '</div></div>';
+  }
+  function switchHTML(cls, label) {
+    return '<div class="sw ' + cls + '" data-ver="tsp" role="group" aria-label="' + label + '">' +
+      '<span class="thumb" aria-hidden="true"></span>' +
+      ['tsp', 'trp'].map(v => '<button type="button" data-ver="' + v + '" aria-pressed="' + (v === 'tsp') + '"><b>' +
+        VER[v].name + '</b><small>' + VER[v].who + '</small></button>').join('') + '</div>';
+  }
+
+  /* ---------------- Cuadros de cambios ---------------- */
+  const NOTAS = {};
+  {
+    let cur = null;
+    for (const line of document.getElementById('notas').textContent.split(/\r?\n/)) {
+      const l = line.trim();
+      if (!l) continue;
+      if (l[0] === '@') { cur = NOTAS[l.slice(1)] = []; continue; }
+      const [t, a, b] = l.split(' | ');
+      cur.push({ t, tsp: a, trp: b });
+    }
+  }
+
+  /* ---------------- Construcción de las hojas ---------------- */
+  const doc = document.getElementById('doc');
+  const STATE = new Map();
+
+  if (!hasKatex) {
+    doc.insertAdjacentHTML('beforebegin', '<div class="nokatex">No se pudo cargar KaTeX (se necesita conexión a internet): las fórmulas se muestran como código LaTeX.</div>');
+  }
+
+  document.getElementById('toc').innerHTML = PAGES.map(p =>
+    '<a href="#' + p.id + '"><b>' + p.kicker.replace(/^Algoritmo |^Anexo · rutina /, '') + '</b>' + (p.id[0] === 'a' ? p.nav : '') + '</a>').join('');
+
+  PAGES.forEach((p, idx) => {
+    const P = {
+      tsp: parseAlg(document.getElementById('src-' + p.id + '-tsp').textContent),
+      trp: parseAlg(document.getElementById('src-' + p.id + '-trp').textContent)
+    };
+    const notas = NOTAS[p.id] || [];
+    // Revisión: toda marca %@k debe tener su fila en el cuadro, y viceversa
+    ['tsp', 'trp'].forEach(v => P[v].rows.forEach(r => r.tags.forEach(k => {
+      if (!notas[k - 1]) console.warn('Marca sin nota', p.id, v, k);
+    })));
+    notas.forEach((_, i) => {
+      const k = String(i + 1);
+      if (!P.tsp.rows.some(r => r.tags.includes(k)) && !P.trp.rows.some(r => r.tags.includes(k))) console.warn('Nota sin líneas', p.id, k);
+    });
+
+    const filas = notas.map((nt, i) => {
+      const k = String(i + 1);
+      return '<tr data-note="' + k + '"><td class="k"><span class="kin"><i class="b">' + k + '</i><span>' + text(nt.t) + '</span></span></td>' +
+        '<td class="c-tsp"><span class="where">' + where(P.tsp.rows, k) + '</span>' + text(nt.tsp) + '</td>' +
+        '<td class="c-trp"><span class="where">' + where(P.trp.rows, k) + '</span>' + text(nt.trp) + '</td></tr>';
+    }).join('');
+
+    const title = idx === 0 ?
+      '<div class="titleblock">' +
+        '<div class="eyebrow">Taller de investigación · Erdoğan, Battarra, Laporte y Vigo (2012)</div>' +
+        '<h1>Heurísticas del <span class="t">TSPPD-H</span> adaptadas al <span class="r">TRPPD-H</span></h1>' +
+        '<ul class="legend">' +
+          '<li><span class="sample tsp"></span>TSPPD-H: línea del artículo que cambia</li>' +
+          '<li><span class="sample trp"></span>TRPPD-H: línea nueva o modificada</li>' +
+          '<li><i class="b">3</i>n.º del cambio en el cuadro</li>' +
+        '</ul></div>' : '';
+
+    const sec = document.createElement('section');
+    sec.className = 'page';
+    sec.id = p.id;
+    sec.dataset.ver = 'tsp';
+    sec.innerHTML =
+      '<div class="runhead"><span>Pseudocódigos · TSPPD-H y TRPPD-H</span><span>' + p.kicker + '</span></div>' + title +
+      '<div class="head"><div><div class="kicker">' + p.kicker + '</div><h2>' + p.title + '</h2></div>' +
+        switchHTML('', 'Versión de ' + p.title) + '</div>' +
+      '<p class="sub">' + p.sub + '</p>' +
+      '<figure class="alg" style="margin-left:0;margin-right:0"><div class="cap"></div><div class="alg-body"></div></figure>' +
+      '<div class="cambios-h">Qué cambia</div>' +
+      '<table class="cambios"><thead><tr><th>Cambio</th><th class="c-tsp">TSPPD-H · Erdoğan et al. (2012)</th><th class="c-trp">TRPPD-H · proyecto</th></tr></thead><tbody>' + filas + '</tbody></table>' +
+      '<details class="tex"><summary>LaTeX de esta versión</summary><div class="texbar"><button type="button" class="copy">Copiar</button></div><pre><code></code></pre></details>' +
+      (idx === PAGES.length - 1 ? '<details class="tex pre"><summary>Preámbulo para compilar los bloques</summary><div class="texbar"><button type="button" class="copy">Copiar</button></div><pre><code></code></pre></details>' : '') +
+      '<div class="pagefoot">' + (idx + 1) + ' / ' + PAGES.length + '</div>';
+    doc.appendChild(sec);
+    STATE.set(sec, P);
+    if (idx === PAGES.length - 1) sec.querySelector('details.pre code').textContent = cleanSrc(document.getElementById('preambulo').textContent);
+    render(sec, 'tsp', false);
+  });
+
+  function render(sec, ver, animate) {
+    const A = STATE.get(sec)[ver];
+    sec.dataset.ver = ver;
+    const sw = sec.querySelector('.head .sw');
+    sw.dataset.ver = ver;
+    sw.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.ver === ver)));
+    sec.querySelector('.cap').innerHTML = '<span><b>Algoritmo ' + A.num + '</b>&ensp;' + A.caption + '</span><span class="vtag">' + VER[ver].tag + '</span>';
+    const body = sec.querySelector('.alg-body');
+    body.innerHTML = A.rows.map(rowHTML).join('');
+    if (animate) { body.classList.remove('fade'); void body.offsetWidth; body.classList.add('fade'); }
+    sec.querySelector('details.tex:not(.pre) code').textContent = cleanSrc(A.src);
+  }
+
+  /* ---------------- Interruptores ---------------- */
+  const swAll = document.getElementById('sw-all');
+  function syncAll() {
+    const vs = new Set([...STATE.keys()].map(s => s.dataset.ver));
+    const v = vs.size === 1 ? [...vs][0] : 'mix';
+    swAll.dataset.ver = v;
+    swAll.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.ver === v)));
+  }
+  doc.addEventListener('click', e => {
+    const b = e.target.closest('.sw button');
+    if (b) { const sec = b.closest('.page'); if (sec.dataset.ver !== b.dataset.ver) { render(sec, b.dataset.ver, true); syncAll(); } return; }
+    const c = e.target.closest('.copy');
+    if (c) {
+      const code = c.closest('details').querySelector('code').textContent;
+      const done = () => { c.textContent = 'Copiado'; setTimeout(() => { c.textContent = 'Copiar'; }, 1400); };
+      try {
+        navigator.clipboard.writeText(code).then(done, () => selectCode(c));
+      } catch (err) { selectCode(c); }
+    }
+  });
+  function selectCode(c) {
+    const r = document.createRange();
+    r.selectNodeContents(c.closest('details').querySelector('code'));
+    const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+  }
+  swAll.addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    STATE.forEach((_, sec) => { if (sec.dataset.ver !== b.dataset.ver) render(sec, b.dataset.ver, true); });
+    syncAll();
+  });
+  document.getElementById('imprimir').addEventListener('click', () => window.print());
+
+  /* ---------------- Enlace entre cuadro y líneas ---------------- */
+  function clearFocus() { doc.querySelectorAll('.focus').forEach(x => x.classList.remove('focus')); }
+  function focusNotes(sec, ks) {
+    ks.forEach(k => {
+      sec.querySelectorAll('.ln[data-notes~="' + k + '"]').forEach(x => x.classList.add('focus'));
+      sec.querySelectorAll('tr[data-note="' + k + '"]').forEach(x => x.classList.add('focus'));
+    });
+  }
+  let lastKey = '';
+  doc.addEventListener('mouseover', e => {
+    const tr = e.target.closest('tr[data-note]');
+    const ln = tr ? null : e.target.closest('.ln.chg');
+    const key = tr ? 'r' + tr.dataset.note + tr.closest('.page').id : ln ? 'l' + ln.dataset.notes + ln.closest('.page').id : '';
+    if (key === lastKey) return;
+    lastKey = key;
+    clearFocus();
+    if (tr) focusNotes(tr.closest('.page'), [tr.dataset.note]);
+    else if (ln) focusNotes(ln.closest('.page'), ln.dataset.notes.split(' '));
+  });
+  doc.addEventListener('mouseleave', () => { lastKey = ''; clearFocus(); });
+
+  /* Sin cambio de versión al imprimir: se imprime lo que está a la vista. */
+})();
+</script>
+</body>
+</html>
