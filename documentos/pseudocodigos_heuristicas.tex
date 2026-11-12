@@ -6,6 +6,11 @@
 \usepackage{algorithm}
 \usepackage{algpseudocode}
 \usepackage[margin=2.3cm]{geometry}
+\usepackage{booktabs,tabularx,array}
+\usepackage[table]{xcolor}
+\usepackage{enumitem}
+\usepackage[font=small,labelfont=bf]{caption}
+\usepackage[hidelinks]{hyperref}
 
 \renewcommand{\familydefault}{\sfdefault}
 
@@ -14,39 +19,207 @@
 \renewcommand{\algorithmicrequire}{\textbf{Entrada:}}
 \renewcommand{\algorithmicensure}{\textbf{Salida:}}
 \algrenewcommand{\algorithmiccomment}[1]{\hfill{\small // #1}}
+% Números de línea únicos para hyperref en varios algoritmos
+\makeatletter
+\def\theHALG@line{\thealgorithm.\arabic{ALG@line}}
+\makeatother
+
+% --- Colores y marcas ---
+\definecolor{carmesi}{HTML}{A32638}
+\definecolor{papel}{HTML}{ECEEF2}
+\definecolor{pizarra}{HTML}{6C7488}
+\newcommand{\cambio}[1]{\textcolor{carmesi}{#1}}
+\newcommand{\marca}{\textcolor{carmesi}{$\blacktriangleright$}}
 
 % Nombres de las rutinas
 \newcommand{\EvalE}{\mbox{\textsc{EvalExacta}}}
 \newcommand{\EvalH}{\mbox{\textsc{EvalHeur}}}
 \newcommand{\Niter}{N_{\mathit{iter}}}
 \newcommand{\Nrand}{N_{\mathit{rand}}}
+\newcommand{\TSPPDH}{TSPPD-H}
+\newcommand{\TRPPDH}{TRPPD-H$_3$}
 
-\title{Pseudocódigos de las heurísticas de Erdoğan et al.\ (2012)\\ adaptadas al TRPPD-H$_3$}
+% Tablas de diferencias: Elemento | Artículo | Proyecto.
+% tabularx busca el \end del entorno actual, por eso se usan \minipage y \captionof
+% (no \begin{table}) dentro de estos entornos.
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\newenvironment{diferencias}[2]{%
+  \par\medskip\noindent\minipage{\linewidth}\centering\small
+  \captionof{table}{#1}\label{#2}
+  \renewcommand{\arraystretch}{1.3}
+  \tabularx{\linewidth}{L{2.9cm} Y Y}
+  \toprule
+  \rowcolor{papel}\textbf{Elemento} & \textbf{Erdoğan et al.\ (2012) · \TSPPDH} & \textbf{Este proyecto · \TRPPDH} \\
+  \midrule}
+ {\bottomrule\endtabularx\endminipage\par\medskip}
+
+% Cambios línea a línea de un algoritmo
+\newenvironment{cambios}[1]{%
+  \par\medskip\noindent\minipage{\linewidth}\centering\small
+  \captionof{table}{#1}
+  \renewcommand{\arraystretch}{1.3}
+  \tabularx{\linewidth}{L{1.2cm} Y Y}
+  \toprule
+  \rowcolor{papel}\textbf{Línea} & \textbf{En el artículo (\TSPPDH)} & \textbf{En el proyecto (\TRPPDH)} \\
+  \midrule}
+ {\bottomrule\endtabularx\endminipage\par\medskip}
+
+\title{Heurísticas de Erdoğan et al.\ (2012):\\ del \TSPPDH\ al \TRPPDH\\[4pt]
+\large Pseudocódigos y diferencias entre el artículo y este proyecto}
 \author{Taller de investigación}
 \date{Noviembre de 2026}
 
 \begin{document}
 \maketitle
 
-\section*{Notación}
+\noindent Erdoğan, Battarra, Laporte y Vigo (2012) proponen una heurística de 2 fases y tres metaheurísticas (TS, ILS e ITS) para el \TSPPDH, cada una con una evaluación \emph{exacta} y otra \emph{heurística} de los vecinos. Este proyecto adapta cinco de esos métodos al \TRPPDH: la heurística de 2 fases, ILS exacto, ILS heurístico, ITS exacto e ITS heurístico. Para cada uno, este documento explica qué hace el artículo, qué cambió en el proyecto y por qué, y da el pseudocódigo de la versión adaptada.
 
-\begin{itemize}
+\medskip
+\noindent\textbf{Convención.} En los pseudocódigos, lo que está en \cambio{carmesí} es distinto del artículo. Debajo de cada algoritmo, un cuadro compara esas líneas con su versión original. Para no mezclar numeraciones, los algoritmos de este documento van numerados $1, 2, \dots$ y sus tablas se llaman \emph{cuadros}; ``Algoritmo~4.2'', ``Tabla~5'', ``Fig.~1'' y ``fórmula~(14)'' se refieren siempre al artículo.
+
+\tableofcontents
+
+% =====================================================================
+\section{Los dos problemas}
+% =====================================================================
+
+En los dos problemas un vehículo con una sola puerta trasera sale del depósito con todas las entregas, visita una vez a cada cliente $i \in V_c$, le entrega $\alpha_i$ unidades y le recoge $\beta_i$, y vuelve al depósito sin superar la capacidad $Q$. Bajo la Política~3 de Battarra et al.\ (2010), en cada cliente se decide si las recogidas quedan junto a la puerta (Política~1, $s_i = 1$) o al fondo (Política~2, $s_i = 0$), lo que obliga a retirar y recargar las entregas que quedan. Lo que cambia es el objetivo:
+
+\begin{itemize}[leftmargin=*]
+  \item \textbf{\TSPPDH} (artículo): minimizar el costo de viaje más el costo de manipulación,
+  \[
+    z^{\mathrm{TSP}}(\pi, s) = \sum_{k=1}^{n+1} c_{\pi_{k-1}\pi_k} + H(\pi, s), \qquad \pi_0 = \pi_{n+1} = 0,
+  \]
+  donde $H$ suma $h_a$ por cada unidad de entrega y $h_b$ por cada unidad de recogida que se mueve en una operación adicional. Las operaciones obligatorias (descargar $\alpha_i$ y cargar $\beta_i$) son constantes y quedan fuera de la evaluación.
+  \item \textbf{\TRPPDH} (proyecto): minimizar la suma de los instantes $D_i$ en que cada cliente termina de recibir su entrega. Cada duración atrasa a todos los clientes que aún no terminan; en la posición $k$ pesa $W_k = n - k + 1$ si ocurre antes de completar la entrega a $\pi_k$, y $W_k - 1$ si ocurre después:
+  \[
+    \sum_{i \in V_c} D_i = \sum_{k=1}^{n} \Big[ W_k \big(c_{\pi_{k-1}\pi_k} + u_a \alpha_{\pi_k} + u_b z_k\big) + (W_k - 1)\big(\ell_b (z_k + \beta_{\pi_k}) + q_{\pi_k}\big) \Big],
+  \]
+  con $z_k$ las recogidas junto a la puerta al llegar a $\pi_k$ y $q_{\pi_k} = h_a \sum_{m > k} \alpha_{\pi_m}$ si en $\pi_k$ se aplica la Política~2 (0 si no).
+\end{itemize}
+
+\begin{diferencias}{Cómo se mide cada componente del costo.}{tab:objetivo}
+Objetivo & viaje $+$ manipulación & $\sum_i D_i$ (latencia) \\
+Arco $(\pi_{k-1}, \pi_k)$ & $c_{\pi_{k-1}\pi_k}$ & $W_k\, c_{\pi_{k-1}\pi_k}$ \\
+Regreso al depósito & $c_{\pi_n 0}$ & no cuenta: ya no atrasa a ningún cliente \\
+Operaciones obligatorias & constantes, fuera de la evaluación & $W_k\, u_a \alpha_{\pi_k} + (W_k - 1)\, \ell_b \beta_{\pi_k}$: dependen de la posición, entran en la parte fija $F(\pi)$ \\
+Recogidas que estorban en $\pi_k$ & $h_b z_k$ (si $\alpha_{\pi_k} > 0$) & $\big(u_b W_k + \ell_b (W_k - 1)\big) z_k$: la descarga ocurre antes de entregar y la recarga después \\
+Política~2 en $\pi_k$ & $h_a \sum_{m>k} \alpha_{\pi_m}$ & $h_a \sum_{m>k} \alpha_{\pi_m} \, (W_k - 1)$ \\
+Tiempos de manipulación & $h_a$, $h_b$ (en los experimentos, $h_a = h_b = h$) & $u_a, \ell_a, u_b, \ell_b$ por separado ($= h/2$ en las instancias); $h_a = u_a + \ell_a$, $h_b = u_b + \ell_b$ \\
+Sentido de la ruta & con $c$ simétrica, la ruta y su inversa tienen el mismo costo de viaje & la ruta y su inversa tienen distinta latencia \\
+\end{diferencias}
+
+\noindent Tres consecuencias guían toda la adaptación:
+\begin{enumerate}[leftmargin=*]
+  \item \textbf{El DP sigue siendo exacto.} Con la ruta fija, los pesos $W_k$ dependen solo de la posición, así que el costo de manipulación se sigue separando en tramos entre dos Políticas~2, y la recursión (1)--(2) del artículo vale con costos $p_{ij}$ ponderados. Se comprobó contra la enumeración de las $2^{10}$ políticas en 120 rutas con $n = 10$.
+  \item \textbf{El viaje ya no se actualiza en $O(1)$.} En el \TSPPDH\ el costo de viaje de un vecino se obtiene sumando los arcos nuevos y restando los quitados. En el \TRPPDH\ un movimiento cambia la posición, y por lo tanto el peso, de todos los clientes que siguen; la parte fija $F(\pi)$ se recalcula en $O(n)$. El orden de la evaluación completa no cambia: $O(n^2)$ exacta y $O(n)$ heurística.
+  \item \textbf{La rotación y el sentido pesan mucho más.} En el \TSPPDH, mover el depósito dentro del ciclo solo cambia los arcos que lo rodean, y con $c$ simétrica recorrer el ciclo al revés no cambia el largo. En el \TRPPDH, elegir con qué cliente empezar y en qué sentido recorrer decide qué clientes se atienden primero, y con eso el peso de todos los arcos.
+\end{enumerate}
+
+% =====================================================================
+\section{Resumen de las diferencias}
+% =====================================================================
+
+El Cuadro~\ref{tab:resumen} reúne las diferencias de los cinco métodos; las secciones siguientes las desarrollan método por método.
+
+\begin{diferencias}{Diferencias entre el artículo y este proyecto, por componente.}{tab:resumen}
+\multicolumn{3}{l}{\textit{Evaluación de una ruta fija}} \\
+Costo de la ruta & viaje $+$ manipulación & $\sum_i D_i$, con pesos $W_k$ (Cuadro~\ref{tab:objetivo}) \\
+Evaluación exacta & Algoritmo~2.1 $+$ DP (1)--(2), $O(n^2)$ & misma estructura, con $p_{ij}$ ponderados (Algoritmos~\ref{alg:P} y \ref{alg:exacta}) \\
+Evaluación heurística & umbral~2 (recogidas a bordo) con (13)--(14), $O(n)$ & misma regla, sin volver a deducirla con los pesos $W_k$; el costo de las decisiones sí se mide con ellos (Algoritmos~\ref{alg:umbral} y \ref{alg:heur}) \\
+\midrule
+\multicolumn{3}{l}{\textit{Heurística de 2 fases}} \\
+Fase 1 & Lin--Kernighan (Concorde) & vecino más cercano desde los $n+1$ nodos, 2-opt y Or-opt \\
+Fase 2 & reubicar el depósito: cambian los arcos que lo rodean y la manipulación & reubicar el depósito en los dos sentidos: cambia la latencia de todo el recorrido \\
+\midrule
+\multicolumn{3}{l}{\textit{Búsqueda}} \\
+Vecindario & relocate y 2-opt (swap descartado, Fig.~3) & igual; invertir toda la ruta es un vecino nuevo \\
+Perturbación & $\Nrand = 0{,}1\,|V_c|$ movimientos al azar & igual, solo factibles, con semilla \\
+ILS & Algoritmo~4.2, $\Niter = 200$ & igual \\
+ITS & Algoritmos~4.3 y 4.1, $N^* = 14$, lista $0{,}5\,|V_c|$ & igual; cambian el atributo tabú del relocate y la aspiración \\
+TS sola & TS-1dir y TS-2dir (el mejor método del artículo) & no se implementó \\
+Sentidos & 1dir o 2dir & siempre 2dir \\
+\midrule
+\multicolumn{3}{l}{\textit{Experimentos}} \\
+Instancias & Battarra et al.\ ($|V_c| \le 25$) y 100 nuevas de 20 a 200 clientes, $h\,|V_c| = 20$ & 270: $n = 5$--$25$ (Battarra) y $n = 30$--$60$ (Erdoğan), $h \in \{0{,}1;\,0{,}5;\,1\}$ \\
+Corridas & una por método y sentido & 10 réplicas con semillas $1,\dots,10$ \\
+Referencia & \emph{Best}: lo mejor de todos los métodos & BKS: lo mejor de Gurobi (3600~s) y de todas las réplicas \\
+Implementación & C, Intel Core 2 Quad 2,83~GHz & JavaScript (Node.js); traducción a Python con los mismos resultados \\
+\end{diferencias}
+
+% =====================================================================
+\section{Notación}
+% =====================================================================
+
+\begin{itemize}[leftmargin=*]
     \item Una ruta es $\pi = (\pi_1,\dots,\pi_n)$, con los clientes en el orden de visita; $\pi_0 = 0$ es el depósito.
     \item En la posición $k$, una operación anterior a completar la entrega retrasa al cliente $\pi_k$ y a los siguientes: pesa $W_k = n - k + 1$ en $\sum_i D_i$. Una operación posterior pesa $W_k - 1$.
     \item $h_a = u_a + \ell_a$ y $h_b = u_b + \ell_b$. La política del cliente $i$ es $s_i = 1$ (Política~1) o $s_i = 0$ (Política~2).
     \item La carga a bordo no depende de las políticas: $\pi$ respeta $Q$ si $\sum_{r \in V_c} \alpha_r + \sum_{m=1}^{k} (\beta_{\pi_m} - \alpha_{\pi_m}) \le Q$ para todo $k \in \{0,\dots,n\}$.
     \item Vecindario $\mathcal{N}(\pi)$ (Sección~3 del artículo): las rutas que respetan $Q$ y se obtienen con
           $\textsc{Relocate}(\pi, i, p)$, que lleva el cliente de la posición $i$ a la posición $p$, o con
-          $\textsc{DosOpt}(\pi, i, j)$, $i < j$, que invierte $\pi_i,\dots,\pi_j$ (cambia los arcos $(\pi_{i-1}, \pi_i)$ y $(\pi_j, \pi_{j+1})$, con $\pi_{n+1} = 0$).
+          $\textsc{DosOpt}(\pi, i, j)$, $i < j$, que invierte $\pi_i,\dots,\pi_j$ (cambia los arcos $(\pi_{i-1}, \pi_i)$ y $(\pi_j, \pi_{j+1})$, con $\pi_{n+1} = 0$). Son $n(n-1)$ relocate y $n(n-1)/2$ 2-opt, unas $1{,}5\,n^2$ rutas.
     \item Atributo tabú $a(\sigma)$ del movimiento que produce $\sigma$: el cliente $v$ en un relocate, $(v, v)$; las posiciones $(i, j)$ en un 2-opt.
     \item Parámetros del artículo: $\Niter = 200$, $\Nrand = \max\{1, \mathrm{round}(0{,}1\,n)\}$, lista tabú de largo $L = \max\{1, \lfloor 0{,}5\,n \rfloor\}$ y $N^* = \lfloor \sqrt{\Niter} \rfloor = 14$ en ITS.
-    \item \emph{Exacto} y \emph{heurístico} se refieren a cómo se evalúan los vecinos: con \EvalE\ (Algoritmo~\ref{alg:exacta}, $O(n^2)$) o con \EvalH\ (Algoritmo~\ref{alg:heur}, $O(n)$). En la versión heurística el vecino elegido se vuelve a evaluar con \EvalE, así que los costos que se comparan son siempre exactos.
+    \item \emph{Exacto} y \emph{heurístico} se refieren a cómo se evalúan los vecinos: con \EvalE\ (Algoritmo~\ref{alg:exacta}, $O(n^2)$) o con \EvalH\ (Algoritmo~\ref{alg:heur}, $O(n)$). La Sección~\ref{sec:exacto} lo explica en detalle.
 \end{itemize}
 
-\section{Evaluación de una ruta}
+% =====================================================================
+\section{Exacto y heurístico}\label{sec:exacto}
+% =====================================================================
+
+En el artículo y en el proyecto, ``exacto'' y ``heurístico'' \textbf{no} describen a la metaheurística: ILS exacto e ITS exacto siguen siendo heurísticas, porque no recorren todas las rutas. Las dos palabras se refieren al \emph{subproblema de manipulación}: dada una ruta fija, decidir la política de cada cliente. Cada vez que la búsqueda mira un vecino, debe resolver ese subproblema para conocer su costo, y puede hacerlo de dos formas.
+
+\begin{table}[H]\centering\small
+\caption{Evaluación exacta y heurística de un vecino.}\label{tab:exacto}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabularx}{\linewidth}{L{3.2cm} Y Y}
+\toprule
+\rowcolor{papel} & \textbf{Exacta} & \textbf{Heurística} \\
+\midrule
+Rutina & \EvalE: Algoritmo~2.1 y DP (1)--(2) & \EvalH: regla del umbral~2 de la Sección~2.2 del artículo \\
+Qué entrega & las políticas óptimas de la ruta y su costo & unas políticas factibles, no siempre óptimas, y su costo \\
+Costo por vecino & $O(n^2)$ & $O(n)$ \\
+Vecindario completo & $O(n^4)$ & $O(n^3)$ \\
+Relación entre valores & $z(\pi)$, el costo exacto & $z_H(\pi) \ge z(\pi)$: cota superior. Se comprobó en 10\,800 rutas al azar del proyecto ($n \ge 10$) \\
+Vecino elegido & su valor ya es exacto & se vuelve a evaluar con \EvalE\ antes de aceptarlo (Sección~4 del artículo, tercer aspecto común) \\
+Fin de la búsqueda local & ningún vecino mejora & el mejor vecino según la heurística no mejora con su valor exacto, aunque otro vecino sí mejoraría \\
+Solución final & políticas del DP & políticas del DP: la ruta final siempre se reevalúa con \EvalE \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\noindent El precio de la versión heurística es elegir a veces un vecino que no es el mejor y detener antes la búsqueda local. En los dos trabajos, el ahorro de tiempo es de un orden de magnitud y la pérdida de calidad es pequeña (Sección~\ref{sec:resultados}):
+
+\begin{table}[H]\centering\small
+\caption{Exacto frente a heurístico. Desviación promedio respecto de la referencia (\emph{Best} en el artículo, BKS en el proyecto) y tiempo promedio por instancia.}\label{tab:exhe}
+\renewcommand{\arraystretch}{1.25}
+\begin{tabular}{l l r r r r r}
+\toprule
+\rowcolor{papel} & Método & \multicolumn{2}{c}{Exacto} & \multicolumn{2}{c}{Heurístico} & Ex./Heur. \\
+\rowcolor{papel} & & Desv. & Tiempo & Desv. & Tiempo & tiempo \\
+\midrule
+Artículo & TS-2dir (Tabla~5) & 0,07\,\% & 1000,7~s & 2,58\,\% & 117,2~s & 8,5 \\
+         & ILS (Tabla~9)     & --- & 1002,5~s & --- & 113,7~s & 8,8 \\
+         & ITS (Tabla~9)     & --- & 471,9~s & --- & 57,4~s & 8,2 \\
+\midrule
+Proyecto & ILS & 0,01\,\% & 43,9~s & 0,13\,\% & 6,7~s & 6,5 \\
+         & ITS & 0,33\,\% & 3,7~s & 0,60\,\% & 0,67~s & 5,5 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent El artículo informa la desviación de las dos evaluaciones solo para TS-2dir; para ILS e ITS da los valores por instancia (Tablas~8--9) y los tiempos. En el proyecto la versión heurística pierde mucho menos que en el artículo (0,1 y 0,3 puntos frente a 2,5). Una explicación posible es el peso de la manipulación: las instancias del artículo se construyeron con $h\,|V_c| = 20$ para que viaje y manipulación pesen parecido, mientras que en las mejores rutas del proyecto la manipulación adicional es el 9,5\,\% ($h = 0{,}1$), 21,4\,\% ($h = 0{,}5$) y 24,9\,\% ($h = 1$) de $\sum_i D_i$. En 10\,800 rutas al azar, el error de \EvalH\ es en promedio 5,9\,\% de la manipulación (máximo 58\,\%; el artículo informa 8,66\,\% y 52,7\,\% para el umbral~2, Fig.~1), pero solo 0,8\,\% del total.
+
+% ---------------------------------------------------------------------
+\subsection{Evaluación exacta}
+% ---------------------------------------------------------------------
+
+El artículo calcula primero los costos $p_{ij}$ (Algoritmo~2.1) y después resuelve el DP $f(i) = \min_{j > i}\{p_{ij} + f(j)\}$, $f(n) = 0$, donde $f(i)$ es el costo mínimo de manipulación de los clientes $i+1,\dots,n$ si en $i$ se aplicó la Política~2. El proyecto conserva las dos piezas y pondera cada costo por la posición en que ocurre.
 
 \begin{algorithm}[H]
-\caption{$P(\pi, \alpha, \beta, u_b, \ell_b, h_a)$ \quad (Algoritmo~2.1 adaptado)}
+\caption{$P(\pi)$: costos $p_{ij}$ \quad (Algoritmo~2.1 adaptado)}
 \label{alg:P}
 \begin{algorithmic}[1]
 \Require ruta $\pi$ con $n$ clientes;
@@ -58,20 +231,26 @@
     \State $\beta' \gets 0$;\ \ $\theta \gets 0$ \Comment{se aplicó la Pol.~2 en $i$}
     \State $\alpha' \gets \sum_{m=i+1}^{n} \alpha_{\pi_m}$ \Comment{entregas que aún quedan a bordo}
     \For{$j \gets i+1$ \textbf{to} $n$}
-        \State $W \gets n - j + 1$ \Comment{peso de latencia en la posición $j$}
+        \State \cambio{$W \gets n - j + 1$} \label{l:P-W} \Comment{peso de latencia en la posición $j$}
         \State $\alpha' \gets \alpha' - \alpha_{\pi_j}$ \Comment{entregar, con Pol.~1 o 2}
-        \State $b \gets \big(u_b W + \ell_b (W-1)\big)\,\beta'$ \Comment{retirar y recargar las recogidas de la puerta}
+        \State $b \gets \cambio{\big(u_b W + \ell_b (W-1)\big)}\,\beta'$ \label{l:P-b} \Comment{retirar y recargar las recogidas de la puerta}
         \If{$\beta' + \beta_{\pi_j} > 0$} \Comment{costo Pol.~1 hasta aquí $+$ costo Pol.~2}
-            \State $p_{ij} \gets \theta + b + h_a\,\alpha'\,(W-1)$
+            \State $p_{ij} \gets \theta + b + h_a\,\alpha'\,\cambio{(W-1)}$ \label{l:P-p}
         \Else
             \State $p_{ij} \gets \theta + b$ \Comment{sin recogidas, la Pol.~2 equivale a la 1}
         \EndIf
-        \State $\theta \gets \theta + b$ \Comment{Política~1 en $j$}
+        \State $\theta \gets \theta + b$ \label{l:P-t} \Comment{Política~1 en $j$}
         \State $\beta' \gets \beta' + \beta_{\pi_j}$ \Comment{recoger como si se usara la Pol.~1}
     \EndFor
 \EndFor
 \end{algorithmic}
 \end{algorithm}
+
+\begin{cambios}{Cambios del Algoritmo~\ref{alg:P} respecto del Algoritmo~2.1 del artículo.}
+\ref{l:P-W} & no existe: cada operación cuesta lo mismo en cualquier posición & $W = n - j + 1$: lo que ocurre en la posición $j$ atrasa a $W$ clientes \\
+\ref{l:P-b}, \ref{l:P-t} & las recogidas de la puerta cuestan $h_b \beta'$, solo si $\alpha_{\pi_j} > 0$ & $(u_b W + \ell_b (W-1))\,\beta'$: se descargan antes de completar la entrega y se recargan después. La condición sobra porque en el \TRPPDH\ $\alpha_i > 0$ \\
+\ref{l:P-p} & $p_{ij} = \theta + h_a \alpha' + h_b \beta'$ & $p_{ij} = \theta + b + h_a \alpha' (W-1)$: las entregas que quedan se mueven después de entregar a $\pi_j$. En $j = n$ la Política~2 no cuesta ($W - 1 = 0$) \\
+\end{cambios}
 
 \begin{algorithm}[H]
 \caption{$\EvalE(\pi)$ \quad (Algoritmo~2.1 y DP (1)--(2))}
@@ -82,7 +261,7 @@
 \If{$\pi$ no respeta $Q$}
     \State \Return $\infty$
 \EndIf
-\State $F \gets \sum_{k=1}^{n} \big[ W_k \,(c_{\pi_{k-1}\pi_k} + u_a \alpha_{\pi_k}) + (W_k - 1)\,\ell_b \beta_{\pi_k} \big]$ \Comment{viaje y operaciones obligatorias}
+\State $F \gets \cambio{\sum_{k=1}^{n} \big[ W_k \,(c_{\pi_{k-1}\pi_k} + u_a \alpha_{\pi_k}) + (W_k - 1)\,\ell_b \beta_{\pi_k} \big]}$ \label{l:E-F} \Comment{viaje y operaciones obligatorias}
 \State calcular $p_{ij}$ con el Algoritmo~\ref{alg:P}
 \State $f(n) \gets 0$
 \For{$i \gets n-1$ \textbf{downto} $0$} \Comment{$f(i)$: Pol.~2 aplicada en $i$}
@@ -99,6 +278,17 @@
 \State \Return $F + f(0)$, $s$
 \end{algorithmic}
 \end{algorithm}
+
+\begin{cambios}{Cambios del Algoritmo~\ref{alg:exacta} respecto del artículo.}
+\ref{l:E-F} & viaje $\sum_{k=1}^{n+1} c_{\pi_{k-1}\pi_k}$, que en la búsqueda local se actualiza en $O(1)$ con los arcos nuevos y quitados. Las operaciones obligatorias no se evalúan & viaje y operaciones obligatorias con sus pesos, sin el regreso al depósito. Se recalcula en $O(n)$ para cada vecino porque cambian los pesos \\
+resto & DP (1)--(2) & sin cambios: la recursión y la reconstrucción de las políticas son las del artículo \\
+\end{cambios}
+
+% ---------------------------------------------------------------------
+\subsection{Evaluación heurística}
+% ---------------------------------------------------------------------
+
+La Sección~2.2 del artículo estudia un caso especial: todos los clientes con $\bar\alpha$ entregas y $\bar\beta$ recogidas, y la Política~2 aplicada $p$ veces. Resolviendo ese problema cuadrático obtiene en forma cerrada el número óptimo de Políticas~2, $p^*$ (fórmula~(14)), y el largo de cada tramo, $k_i^*$ (fórmula~(13)). Con eso prueba cuatro umbrales para decidir cuándo aplicar la Política~2 mientras recorre la ruta, y el mejor es el umbral~2: la cantidad de recogidas a bordo. El artículo no da pseudocódigo de esta evaluación; los Algoritmos~\ref{alg:umbral} y \ref{alg:heur} son la lectura que hace el proyecto de esa sección.
 
 \begin{algorithm}[H]
 \caption{$\textsc{Umbral}(i, \pi)$ \quad (Sección~2.2, umbral~2)}
@@ -121,6 +311,8 @@
 \end{algorithmic}
 \end{algorithm}
 
+\noindent El Algoritmo~\ref{alg:umbral} usa las fórmulas del artículo tal cual. Esas fórmulas resuelven el caso especial con los costos del \TSPPDH; con los pesos $W_k$ del \TRPPDH\ el caso especial tendría otra solución, porque una operación cuesta menos mientras más tarde ocurre. El proyecto \textbf{no volvió a deducir} el umbral: usa la regla del artículo para decidir y mide el costo de esas decisiones con los pesos de latencia (Algoritmo~\ref{alg:heur}). Como el artículo indica, $\bar\alpha$ y $\bar\beta$ se calculan con los clientes que faltan, así que el umbral se renueva después de cada Política~2.
+
 \begin{algorithm}[H]
 \caption{$\EvalH(\pi)$ \quad (evaluación lineal de la Sección~2.2)}
 \label{alg:heur}
@@ -130,13 +322,13 @@
 \If{$\pi$ no respeta $Q$}
     \State \Return $\infty$
 \EndIf
-\State $F \gets$ viaje y operaciones obligatorias, como en el Algoritmo~\ref{alg:exacta}
+\State $F \gets$ \cambio{viaje y operaciones obligatorias con sus pesos}, como en el Algoritmo~\ref{alg:exacta} \label{l:H-F}
 \State $\beta' \gets 0$;\ \ $\theta \gets 0$;\ \ $\tau \gets \textsc{Umbral}(0, \pi)$
 \For{$j \gets 1$ \textbf{to} $n$}
-    \State $W \gets n - j + 1$
-    \State $\theta \gets \theta + \big(u_b W + \ell_b (W-1)\big)\,\beta'$ \Comment{retirar y recargar las recogidas de la puerta}
+    \State \cambio{$W \gets n - j + 1$}
+    \State $\theta \gets \theta + \cambio{\big(u_b W + \ell_b (W-1)\big)}\,\beta'$ \label{l:H-b} \Comment{retirar y recargar las recogidas de la puerta}
     \If{$j < n$ \textbf{and} $\beta' + \beta_{\pi_j} > 0$ \textbf{and} $\beta' + \beta_{\pi_j} \ge \tau$}
-        \State $\theta \gets \theta + h_a\,(W-1) \sum_{m=j+1}^{n} \alpha_{\pi_m}$ \Comment{Política~2 en $j$}
+        \State $\theta \gets \theta + h_a\,\cambio{(W-1)} \sum_{m=j+1}^{n} \alpha_{\pi_m}$ \label{l:H-p} \Comment{Política~2 en $j$}
         \State $s_{\pi_j} \gets 0$;\ \ $\beta' \gets 0$;\ \ $\tau \gets \textsc{Umbral}(j, \pi)$ \Comment{nuevo umbral}
     \Else
         \State $s_{\pi_j} \gets 1$;\ \ $\beta' \gets \beta' + \beta_{\pi_j}$ \Comment{Política~1 en $j$}
@@ -146,7 +338,26 @@
 \end{algorithmic}
 \end{algorithm}
 
+\begin{cambios}{Cambios del Algoritmo~\ref{alg:heur} respecto de la Sección~2.2 del artículo.}
+\ref{l:H-F} & viaje sin ponderar, actualizado en $O(1)$ & parte fija ponderada, en $O(n)$ \\
+\ref{l:H-b}, \ref{l:H-p} & cada decisión cuesta $h_b \beta'$ y $h_a \alpha'$ & la misma decisión se mide con los pesos $W$ y $W - 1$ \\
+regla & umbral~2 con (13)--(14) & sin cambios (Algoritmo~\ref{alg:umbral}) \\
+\end{cambios}
+
+% =====================================================================
 \section{Heurística de 2 fases}
+% =====================================================================
+
+El artículo construye la solución inicial de sus tres metaheurísticas en dos fases: primero un ciclo TSP por el depósito y los clientes, y después la mejor posición del depósito en ese ciclo (Mosheiov, 1994). El proyecto mantiene la idea, pero cambia la herramienta de la fase~1 y, por el objetivo, el papel de la fase~2.
+
+\begin{diferencias}{Heurística de 2 fases.}{tab:dosfases}
+Fase 1 & Lin--Kernighan de Concorde, usado sin ajustes & vecino más cercano desde cada uno de los $n+1$ nodos, mejorado con 2-opt y Or-opt (tramos de 1 a 3 nodos, en los dos sentidos) con primera mejora; se guarda el ciclo más corto. Admite $c$ asimétrica \\
+Fase 2 & entre las posiciones factibles del depósito, la de menor viaje $+$ manipulación óptima & las $n$ rotaciones de cada sentido, evaluadas con \EvalE; la mejor por sentido \\
+Qué decide la fase 2 & la posición del depósito cambia dos arcos del ciclo y la manipulación; con $c$ simétrica, el sentido solo cambia la manipulación & la rotación y el sentido deciden qué clientes se atienden primero, y con eso el peso de todos los arcos \\
+Sentidos & 1dir (el de LK) o 2dir (los dos, y se informa el mejor) & siempre los dos: $\pi^{\mathrm{tsp}}$ y $\pi^{\mathrm{inv}}$ \\
+Uso & solo como solución inicial; su tiempo es despreciable & solución inicial y también un método que se informa por sí solo (a lo más 0,1~s) \\
+Calidad & desviación de la solución inicial: 0,9\,\% (instancias de Battarra, 2dir) y 4,54\,\% (instancias nuevas, 1dir) & 9,4\,\% sobre la BKS; crece con $n$: 4,4\,\% ($n = 5$) a 19,1\,\% ($n = 60$). El ciclo minimiza distancia, no latencia \\
+\end{diferencias}
 
 \begin{algorithm}[H]
 \caption{$\textsc{TSP}(V, c)$ \quad (fase~1)}
@@ -155,13 +366,13 @@
 \Require nodos $V = \{0,\dots,n\}$ ($0$: depósito); tiempos de viaje $c_{ij}$.
 \Ensure Ciclo hamiltoniano $C$ por el depósito y los clientes, de largo $L(C) = \sum_{(i,j) \in C} c_{ij}$.
 \State $C \gets \emptyset$;\ \ $L(C) \gets \infty$
-\ForAll{$v \in V$} \Comment{el artículo usa Lin--Kernighan}
-    \State $C' \gets$ ciclo del vecino más cercano que parte en $v$
+\ForAll{\cambio{$v \in V$}} \label{l:T-v} \Comment{el artículo usa Lin--Kernighan}
+    \State \cambio{$C' \gets$ ciclo del vecino más cercano que parte en $v$} \label{l:T-nn}
     \Repeat \Comment{primera mejora}
         \State $\mathit{mejora} \gets \textbf{false}$
-        \If{invertir un tramo de $C'$ (2-opt) reduce $L(C')$}
+        \If{\cambio{invertir un tramo de $C'$ (2-opt) reduce $L(C')$}} \label{l:T-2o}
             \State aplicar ese 2-opt;\ \ $\mathit{mejora} \gets \textbf{true}$
-        \ElsIf{mover un tramo de 1 a 3 nodos, en cualquier sentido (Or-opt), reduce $L(C')$}
+        \ElsIf{\cambio{mover un tramo de 1 a 3 nodos, en cualquier sentido (Or-opt), reduce $L(C')$}}
             \State aplicar ese Or-opt;\ \ $\mathit{mejora} \gets \textbf{true}$
         \EndIf
     \Until{\textbf{not} $\mathit{mejora}$}
@@ -177,16 +388,16 @@
 \caption{$\textsc{DosFases}(V, c)$ \quad (TSP $+$ Algoritmo~2.1)}
 \label{alg:dosfases}
 \begin{algorithmic}[1]
-\Require instancia del TRPPD-H$_3$: nodos $V$, tiempos $c_{ij}$ y los datos de \EvalE.
+\Require instancia del \TRPPDH: nodos $V$, tiempos $c_{ij}$ y los datos de \EvalE.
 \Ensure Soluciones iniciales $\pi^{\mathrm{tsp}}$ y $\pi^{\mathrm{inv}}$, una por sentido del ciclo TSP; la mejor de las dos es la solución de la heurística de 2 fases.
 \State $C \gets \textsc{TSP}(V, c)$ \Comment{fase~1}
 \State $\sigma^{\mathrm{tsp}} \gets$ clientes de $C$ en su orden, sin el depósito
 \State $\sigma^{\mathrm{inv}} \gets \sigma^{\mathrm{tsp}}$ en orden inverso
-\ForAll{$d \in \{\mathrm{tsp}, \mathrm{inv}\}$}
+\ForAll{\cambio{$d \in \{\mathrm{tsp}, \mathrm{inv}\}$}} \label{l:D-d} \Comment{el artículo: un sentido (1dir) o los dos (2dir)}
     \State $(\sigma_1,\dots,\sigma_n) \gets \sigma^d$;\ \ $z^d \gets \infty$
     \For{$r \gets 0$ \textbf{to} $n-1$} \Comment{fase~2: reubicar el depósito}
         \State $\pi \gets (\sigma_{r+1},\dots,\sigma_n,\sigma_1,\dots,\sigma_r)$ \Comment{el depósito va antes de $\sigma_{r+1}$}
-        \State $z \gets \EvalE(\pi)$ \Comment{$\infty$ si no respeta $Q$}
+        \State $z \gets \cambio{\EvalE(\pi)}$ \label{l:D-z} \Comment{$\sum_i D_i$; $\infty$ si no respeta $Q$}
         \If{$z < z^d$}
             \State $\pi^d \gets \pi$;\ \ $z^d \gets z$
         \EndIf
@@ -196,7 +407,31 @@
 \end{algorithmic}
 \end{algorithm}
 
-\section{Metaheurísticas}
+\begin{cambios}{Cambios de los Algoritmos~\ref{alg:tsp} y \ref{alg:dosfases} respecto del artículo.}
+\ref{l:T-v}--\ref{l:T-2o} & Lin--Kernighan & vecino más cercano desde cada nodo, 2-opt y Or-opt: no depende de Concorde. El ciclo puede ser algo más largo que el de LK \\
+\ref{l:D-d} & el sentido de LK (1dir) o los dos (2dir) & siempre los dos \\
+\ref{l:D-z} & viaje $+$ manipulación óptima & $\sum_i D_i$ con políticas óptimas (Algoritmo~\ref{alg:exacta}) \\
+\end{cambios}
+
+\noindent En la heurística de 2 fases no hay búsqueda: su solución es la mejor entre $\pi^{\mathrm{tsp}}$ y $\pi^{\mathrm{inv}}$, con las políticas que da \EvalE. Como no hay vecinos que evaluar, no tiene versión heurística, ni en el artículo ni en el proyecto.
+
+\medskip
+\noindent\textbf{Ejemplo.} En la instancia vigo\_n10\_id6\_h0.1, el ciclo TSP mide 245 y 12 de sus 20 rotaciones (10 por sentido) respetan $Q$. Con el criterio del artículo, viaje $+$ manipulación, gana la rotación original del ciclo (costo 252,7, $\sum_i D_i = 1534{,}0$). Con $\sum_i D_i$ gana otra rotación, en el sentido inverso y con el depósito entre otros dos clientes (largo 260, $\sum_i D_i = 973{,}9$), que coincide con la mejor solución de ILS exacto. Elegir con el criterio del artículo habría dejado una ruta 57,5\,\% peor en $\sum_i D_i$.
+
+% =====================================================================
+\section{Vecindario y perturbación}
+% =====================================================================
+
+ILS e ITS comparten el vecindario y la perturbación. El artículo eligió relocate y 2-opt después de probar también swap (Fig.~3), y fijó $\Nrand = 0{,}1\,|V_c|$ con un experimento sobre el ILS (Fig.~5). El proyecto usa lo mismo, sin recalibrar los parámetros para el \TRPPDH.
+
+\begin{diferencias}{Vecindario y perturbación.}{tab:vecindario}
+Vecindario & relocate ($|V_c|(|V_c|-1)$) y 2-opt ($(|V_c|+1)(|V_c|-2)/2$) & relocate ($n(n-1)$) y 2-opt sobre posiciones $i < j$ ($n(n-1)/2$) \\
+Inversión completa & el 2-opt quita dos arcos no adyacentes del ciclo, así que invertir toda la ruta no es un vecino (el otro sentido se aprovecha con 2dir) & el 2-opt con $i = 1$, $j = n$ invierte toda la ruta: es el único movimiento que el proyecto tiene de más ($n(n-1)/2 = (n+1)(n-2)/2 + 1$) \\
+Factibilidad & solo movimientos factibles, sin penalizaciones & igual; la carga solo depende de la ruta y se revisa en $O(n)$ \\
+Perturbación & $\Nrand$ pares $(i, j)$ al azar: relocate de $i$ a un $p \ne i$ al azar si $i = j$, 2-opt entre $i$ y $j$ si no & igual, con $\Nrand = \max\{1, \mathrm{round}(0{,}1\,n)\}$ \\
+Movimientos infactibles & no se detalla & se sortea otro par, hasta 100 intentos por movimiento \\
+Azar & no se informa la semilla & generador mulberry32 con semilla fija (réplicas: semillas $1,\dots,10$); cada corrida se puede repetir \\
+\end{diferencias}
 
 \begin{algorithm}[H]
 \caption{$\textsc{Perturbar}(\pi, \Nrand)$}
@@ -205,14 +440,14 @@
 \Require ruta $\pi$; $\Nrand$: número de movimientos al azar.
 \Ensure Ruta perturbada que respeta $Q$.
 \For{$r \gets 1$ \textbf{to} $\Nrand$}
-    \Repeat \Comment{a lo más 100 intentos}
+    \Repeat \Comment{\cambio{a lo más 100 intentos}}
         \State elegir $i, j \in \{1,\dots,n\}$ al azar
         \If{$i = j$}
             \State elegir $p \in \{1,\dots,n\} \setminus \{i\}$ al azar;\ \ $\pi' \gets \textsc{Relocate}(\pi, i, p)$
         \Else
             \State $\pi' \gets \textsc{DosOpt}(\pi, \min\{i,j\}, \max\{i,j\})$
         \EndIf
-    \Until{$\pi'$ respeta $Q$}
+    \Until{\cambio{$\pi'$ respeta $Q$}}
     \If{$\pi'$ respeta $Q$}
         \State $\pi \gets \pi'$
     \EndIf
@@ -220,6 +455,23 @@
 \State \Return $\pi$
 \end{algorithmic}
 \end{algorithm}
+
+% =====================================================================
+\section{ILS exacto e ILS heurístico}
+% =====================================================================
+
+El ILS del artículo (Algoritmo~4.2) repite $\Niter$ veces: tomar la mejor ruta, perturbarla con $\Nrand$ movimientos al azar, mejorarla con la búsqueda local de mejor mejora en relocate $\cup$ 2-opt, y reemplazar la mejor ruta si se encontró una mejor. El proyecto sigue el mismo esquema; las dos versiones solo difieren en cómo se evalúan los vecinos.
+
+\begin{diferencias}{ILS.}{tab:ils}
+Esquema & Algoritmo~4.2 & igual \\
+Búsqueda local & mejor mejora (``Perform Best Move'') mientras mejore & igual, con $\sum_i D_i$ \\
+Evaluar un vecino & viaje $O(1)$ $+$ manipulación $O(n^2)$ u $O(n)$ & parte fija $O(n)$ $+$ manipulación $O(n^2)$ u $O(n)$: mismo orden \\
+Iteraciones & $\Niter = 200$ por sentido (probado con 50, 100 y 200) & $\Niter = 200$ por sentido \\
+Versión heurística & el mejor vecino se reevalúa con el DP & igual; si su valor exacto no mejora, la búsqueda local termina \\
+Desempeño & el más débil de los tres: 3,85\,\% (1dir) y 2,68\,\% (2dir) con evaluación exacta. Con $|V_c| \ge 60$ no mejora la solución inicial (Tablas~8--9) & ILS exacto es el mejor de los cinco: 0,01\,\% sobre la BKS, pero el más lento (43,9~s en promedio, 242~s con $n = 60$). ILS heurístico: 0,13\,\%, 6,7~s \\
+\end{diferencias}
+
+\noindent La diferencia de desempeño puede deberse al punto de partida: en el \TSPPDH\ la solución inicial de LK ya es buena (0,9\,\% a 4,5\,\%), mientras que en el \TRPPDH\ el ciclo TSP queda lejos de una buena ruta de latencia (9,4\,\% en promedio, 19\,\% con $n = 60$) y la búsqueda local tiene mucho que mejorar.
 
 \begin{algorithm}[H]
 \caption{$\textsc{ILS-Exacto}(\pi^0, \Niter, \Nrand)$ \quad (Algoritmo~4.2)}
@@ -231,8 +483,8 @@
 \For{$it \gets 1$ \textbf{to} $\Niter$}
     \State $\pi \gets \textsc{Perturbar}(\pi^*, \Nrand)$;\ \ $z \gets \EvalE(\pi)$
     \Repeat \Comment{búsqueda local con mejor mejora}
-        \State $\pi' \gets \arg\min_{\sigma \in \mathcal{N}(\pi)} \EvalE(\sigma)$ \Comment{todos los vecinos con el DP}
-        \State $z' \gets \EvalE(\pi')$ \Comment{ya calculado al explorar}
+        \State $\pi' \gets \arg\min_{\sigma \in \mathcal{N}(\pi)} \EvalE(\sigma)$ \label{l:IE-a} \Comment{todos los vecinos con el DP}
+        \State $z' \gets \EvalE(\pi')$ \label{l:IE-z} \Comment{ya calculado al explorar}
         \State $\mathit{mejora} \gets (z' < z)$
         \If{$\mathit{mejora}$}
             \State $\pi \gets \pi'$;\ \ $z \gets z'$
@@ -256,8 +508,8 @@
 \For{$it \gets 1$ \textbf{to} $\Niter$}
     \State $\pi \gets \textsc{Perturbar}(\pi^*, \Nrand)$;\ \ $z \gets \EvalE(\pi)$
     \Repeat \Comment{búsqueda local con mejor mejora}
-        \State $\pi' \gets \arg\min_{\sigma \in \mathcal{N}(\pi)} \EvalH(\sigma)$ \Comment{todos los vecinos con el umbral}
-        \State $z' \gets \EvalE(\pi')$ \Comment{reevaluar solo el vecino elegido}
+        \State $\pi' \gets \arg\min_{\sigma \in \mathcal{N}(\pi)} \EvalH(\sigma)$ \label{l:IH-a} \Comment{todos los vecinos con el umbral}
+        \State $z' \gets \EvalE(\pi')$ \label{l:IH-z} \Comment{reevaluar solo el vecino elegido}
         \State $\mathit{mejora} \gets (z' < z)$
         \If{$\mathit{mejora}$}
             \State $\pi \gets \pi'$;\ \ $z \gets z'$
@@ -271,6 +523,37 @@
 \end{algorithmic}
 \end{algorithm}
 
+\begin{table}[H]\centering\small
+\caption{Lo único que distingue a ILS exacto de ILS heurístico.}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabularx}{\linewidth}{L{1.6cm} Y Y}
+\toprule
+\rowcolor{papel}\textbf{Línea} & \textbf{ILS exacto (Alg.~\ref{alg:ilse})} & \textbf{ILS heurístico (Alg.~\ref{alg:ilsh})} \\
+\midrule
+\ref{l:IE-a} / \ref{l:IH-a} & los $\approx 1{,}5\,n^2$ vecinos con \EvalE: $O(n^4)$ por pasada & los mismos vecinos con \EvalH: $O(n^3)$ por pasada \\
+\ref{l:IE-z} / \ref{l:IH-z} & sin costo extra & una evaluación exacta por pasada; con $n = 60$, unas 5900 exactas frente a 29 millones heurísticas \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% =====================================================================
+\section{ITS exacto e ITS heurístico}
+% =====================================================================
+
+El ITS del artículo (Algoritmo~4.3) es un ILS que cambia la búsqueda local por una búsqueda tabú (Algoritmo~4.1) de $N^* = \lfloor\sqrt{\Niter}\rfloor$ iteraciones, y repite el ciclo perturbación--tabú $N^*$ veces. En cada iteración tabú se aplica el mejor movimiento no tabú, aunque empeore. El proyecto mantiene la estructura y los parámetros; los detalles de la lista tabú son los que cambian.
+
+\begin{diferencias}{ITS y su búsqueda tabú.}{tab:its}
+Iteraciones & $N^* = \lfloor\sqrt{\Niter}\rfloor$ externas e internas (7, 10 y 14 para $\Niter = 50, 100, 200$) & $N^* = 14$ y 14: 196 iteraciones tabú por sentido \\
+Movimiento & mejor relocate no tabú y mejor 2-opt no tabú; se aplica el mejor de los dos & igual: el mejor de relocate $\cup$ 2-opt \\
+Atributo tabú & pares $(i, j)$: prohíbe el 2-opt entre los arcos $i$ y $j$; $(i, i)$ prohíbe reubicar al cliente $i$ (en el Algoritmo~4.1, $i$ es su posición) & 2-opt: el par de posiciones $(i, j)$; relocate: el cliente reubicado \\
+Largo de la lista & $0{,}5\,|V_c|$, calibrado en la Fig.~4 & $\max\{1, \lfloor 0{,}5\,n \rfloor\}$, sin recalibrar \\
+Aspiración & un movimiento tabú se acepta si mejora \emph{costCurrent} & se acepta si mejora $z^b$, la mejor ruta de la búsqueda tabú en curso \\
+Lista al empezar & no se detalla & vacía en cada llamada a la búsqueda tabú \\
+Contador & no se reinicia al mejorar & igual: siempre $N^*$ iteraciones \\
+Versión heurística & el movimiento elegido se reevalúa con el DP & igual; la aspiración compara el valor heurístico del vecino con $z^b$, que es exacto \\
+Desempeño & ITS-1dir 0,83\,\%, ITS-2dir 0,66\,\% (exacto) & ITS exacto 0,33\,\% y 3,7~s; ITS heurístico 0,60\,\% y 0,67~s. Con $n \ge 40$ no alcanza a converger (1,2\,\% y 2,0\,\% con $n = 60$) \\
+\end{diferencias}
+
 \begin{algorithm}[H]
 \caption{$\textsc{ITS-Exacto}(\pi^0, \Niter, \Nrand)$ \quad (Algoritmos~4.3 y 4.1)}
 \label{alg:itse}
@@ -281,13 +564,13 @@
 \State $\pi^* \gets \pi^0$;\ \ $z^* \gets \EvalE(\pi^0)$
 \For{$it \gets 1$ \textbf{to} $N^*$}
     \State $\pi \gets \textsc{Perturbar}(\pi^*, \Nrand)$;\ \ $z \gets \EvalE(\pi)$
-    \State $\pi^b \gets \pi$;\ \ $z^b \gets z$;\ \ $T \gets ()$ \Comment{búsqueda tabú desde $\pi$}
+    \State $\pi^b \gets \pi$;\ \ $z^b \gets z$;\ \ \cambio{$T \gets ()$} \label{l:TE-T} \Comment{búsqueda tabú desde $\pi$}
     \For{$t \gets 1$ \textbf{to} $N^*$}
-        \State $\mathcal{A} \gets \{ \sigma \in \mathcal{N}(\pi) : a(\sigma) \notin T \ \lor\ \EvalE(\sigma) < z^b \}$ \Comment{no tabú o aspiración}
+        \State $\mathcal{A} \gets \{ \sigma \in \mathcal{N}(\pi) : \cambio{a(\sigma)} \notin T \ \lor\ \EvalE(\sigma) < \cambio{z^b} \}$ \label{l:TE-A} \Comment{no tabú o aspiración}
         \If{$\mathcal{A} = \emptyset$}
             \State \textbf{break}
         \EndIf
-        \State $\pi \gets \arg\min_{\sigma \in \mathcal{A}} \EvalE(\sigma)$;\ \ $z \gets \EvalE(\pi)$ \Comment{se mueve aunque empeore}
+        \State $\pi \gets \arg\min_{\sigma \in \mathcal{A}} \EvalE(\sigma)$;\ \ $z \gets \EvalE(\pi)$ \label{l:TE-m} \Comment{se mueve aunque empeore}
         \State agregar $a(\pi)$ al final de $T$; si $|T| > L$, quitar el más antiguo
         \If{$z < z^b$}
             \State $\pi^b \gets \pi$;\ \ $z^b \gets z$
@@ -301,6 +584,11 @@
 \end{algorithmic}
 \end{algorithm}
 
+\begin{cambios}{Cambios del Algoritmo~\ref{alg:itse} respecto de los Algoritmos~4.3 y 4.1 del artículo.}
+\ref{l:TE-T} & no se indica si la lista se vacía & se vacía al empezar cada búsqueda tabú \\
+\ref{l:TE-A} & atributo $(i, i)$ con la posición $i$ del cliente reubicado; aspiración contra \emph{costCurrent} & atributo $(v, v)$ con el cliente $v$; aspiración contra $z^b$ \\
+\end{cambios}
+
 \begin{algorithm}[H]
 \caption{$\textsc{ITS-Heur}(\pi^0, \Niter, \Nrand)$ \quad (Algoritmos~4.3 y 4.1 con evaluación heurística)}
 \label{alg:itsh}
@@ -311,14 +599,14 @@
 \State $\pi^* \gets \pi^0$;\ \ $z^* \gets \EvalE(\pi^0)$
 \For{$it \gets 1$ \textbf{to} $N^*$}
     \State $\pi \gets \textsc{Perturbar}(\pi^*, \Nrand)$;\ \ $z \gets \EvalE(\pi)$
-    \State $\pi^b \gets \pi$;\ \ $z^b \gets z$;\ \ $T \gets ()$
+    \State $\pi^b \gets \pi$;\ \ $z^b \gets z$;\ \ \cambio{$T \gets ()$}
     \For{$t \gets 1$ \textbf{to} $N^*$}
-        \State $\mathcal{A} \gets \{ \sigma \in \mathcal{N}(\pi) : a(\sigma) \notin T \ \lor\ \EvalH(\sigma) < z^b \}$ \Comment{aspiración con el umbral}
+        \State $\mathcal{A} \gets \{ \sigma \in \mathcal{N}(\pi) : \cambio{a(\sigma)} \notin T \ \lor\ \EvalH(\sigma) < \cambio{z^b} \}$ \label{l:TH-A} \Comment{aspiración con el umbral}
         \If{$\mathcal{A} = \emptyset$}
             \State \textbf{break}
         \EndIf
-        \State $\pi \gets \arg\min_{\sigma \in \mathcal{A}} \EvalH(\sigma)$ \Comment{vecinos con el umbral}
-        \State $z \gets \EvalE(\pi)$ \Comment{reevaluar solo el movimiento elegido}
+        \State $\pi \gets \arg\min_{\sigma \in \mathcal{A}} \EvalH(\sigma)$ \label{l:TH-m} \Comment{vecinos con el umbral}
+        \State $z \gets \EvalE(\pi)$ \label{l:TH-z} \Comment{reevaluar solo el movimiento elegido}
         \State agregar $a(\pi)$ al final de $T$; si $|T| > L$, quitar el más antiguo
         \If{$z < z^b$}
             \State $\pi^b \gets \pi$;\ \ $z^b \gets z$
@@ -331,6 +619,25 @@
 \State \Return $\pi^*, z^*$
 \end{algorithmic}
 \end{algorithm}
+
+\begin{table}[H]\centering\small
+\caption{Lo único que distingue a ITS exacto de ITS heurístico.}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabularx}{\linewidth}{L{1.6cm} Y Y}
+\toprule
+\rowcolor{papel}\textbf{Línea} & \textbf{ITS exacto (Alg.~\ref{alg:itse})} & \textbf{ITS heurístico (Alg.~\ref{alg:itsh})} \\
+\midrule
+\ref{l:TE-A} / \ref{l:TH-A} & aspiración con el valor exacto del vecino & aspiración con el valor heurístico del vecino \\
+\ref{l:TE-m} / \ref{l:TH-m}--\ref{l:TH-z} & los vecinos con \EvalE & los vecinos con \EvalH; el elegido se reevalúa con \EvalE. En las corridas son siempre $2 + 2 \cdot 14 + 2 \cdot 196 = 422$ evaluaciones exactas \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% =====================================================================
+\section{Ejecución en los dos sentidos}
+% =====================================================================
+
+El artículo comparó correr cada metaheurística desde la solución inicial de LK (1dir) con correrla una vez desde cada sentido del ciclo y quedarse con la mejor (2dir). La versión 2dir mejoró a las tres (Tabla~3), aunque duplica el tiempo. El proyecto usa siempre 2dir, con $\Niter = 200$ en cada sentido.
 
 \begin{algorithm}[H]
 \caption{$\textsc{Resolver}(M, \Niter, \Nrand)$ \quad (versión 2dir)}
@@ -351,6 +658,64 @@
 \end{algorithmic}
 \end{algorithm}
 
-En la heurística de 2 fases no hay búsqueda: su solución es la mejor entre $\pi^{\mathrm{tsp}}$ y $\pi^{\mathrm{inv}}$, con las políticas que da \EvalE. Los movimientos al azar usan un generador con semilla fija por instancia y algoritmo, de modo que cada corrida se puede repetir.
+\noindent Los movimientos al azar usan un generador con semilla, de modo que cada corrida se puede repetir.
+
+% =====================================================================
+\section{Resultados}\label{sec:resultados}
+% =====================================================================
+
+Los números del artículo y del proyecto no se comparan directamente: son problemas, instancias, computadores y referencias distintos. Lo comparable es el comportamiento relativo de los métodos.
+
+\begin{table}[H]\centering\small
+\caption{Artículo: desviación promedio respecto de \emph{Best}, 200 iteraciones, evaluación exacta (Tablas~2, 3 y 5 del artículo; instancias de 20 a 200 clientes).}
+\renewcommand{\arraystretch}{1.25}
+\begin{tabular}{l r r r l}
+\toprule
+\rowcolor{papel} Método & 1dir & 2dir & Tiempo 1dir & Con evaluación heurística (2dir) \\
+\midrule
+TS  & 0,46\,\% & 0,07\,\% & 500,6~s & 2,58\,\% en 117,2~s (Tabla~5) \\
+ILS & 3,85\,\% & 2,68\,\% & 1002,6~s & --- \\
+ITS & 0,83\,\% & 0,66\,\% & 491,8~s & --- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]\centering\small
+\caption{Proyecto: desviación promedio respecto de la BKS y tiempo promedio por corrida (10 réplicas por instancia, 30 instancias por $n$; Battarra para $n \le 25$ y Erdoğan para $n \ge 30$). Tiempos de Node.js con 8 procesos en paralelo.}
+\renewcommand{\arraystretch}{1.2}
+\setlength{\tabcolsep}{4.5pt}
+\begin{tabular}{r r r r r r @{\hspace{14pt}} r r r r}
+\toprule
+\rowcolor{papel} & \multicolumn{5}{c}{Desviación (\%)} & \multicolumn{4}{c}{Tiempo (s)} \\
+\rowcolor{papel} $n$ & 2 fases & ILS-H & ILS-E & ITS-H & ITS-E & ILS-H & ILS-E & ITS-H & ITS-E \\
+\midrule
+5  & 4,44  & 0,00 & 0,00 & 0,00 & 0,00 & 0,002 & 0,002 & 0,001 & 0,001 \\
+10 & 4,69  & 0,04 & 0,03 & 0,04 & 0,04 & 0,026 & 0,041 & 0,016 & 0,023 \\
+15 & 6,61  & 0,00 & 0,00 & 0,04 & 0,03 & 0,146 & 0,313 & 0,048 & 0,096 \\
+20 & 4,39  & 0,03 & 0,00 & 0,17 & 0,09 & 0,363 & 0,985 & 0,116 & 0,286 \\
+25 & 6,96  & 0,06 & 0,01 & 0,23 & 0,16 & 1,03  & 3,54  & 0,217 & 0,664 \\
+30 & 9,16  & 0,14 & 0,00 & 0,60 & 0,25 & 1,80  & 6,86  & 0,361 & 1,26 \\
+40 & 12,79 & 0,19 & 0,02 & 0,88 & 0,55 & 6,14  & 29,8  & 0,855 & 3,88 \\
+50 & 16,27 & 0,29 & 0,03 & 1,47 & 0,64 & 15,7  & 111,5 & 1,61  & 9,09 \\
+60 & 19,08 & 0,43 & 0,02 & 2,01 & 1,17 & 35,3  & 242,4 & 2,83  & 17,9 \\
+\midrule
+Prom. & 9,38 & 0,13 & 0,01 & 0,60 & 0,33 & 6,72 & 43,9 & 0,673 & 3,70 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent La BKS de cada instancia es el mínimo entre la mejor solución de las cuatro variantes de Gurobi (límite de 3600~s) y la mejor de todas las réplicas de las cinco heurísticas. Las lecturas principales:
+\begin{itemize}[leftmargin=*]
+  \item En los dos trabajos la versión heurística es entre 5 y 9 veces más rápida que la exacta. En el proyecto pierde poca calidad: 0,12 puntos en ILS y 0,27 en ITS.
+  \item El orden de los métodos cambia: en el artículo ILS es el más débil y la búsqueda tabú la más fuerte; en el proyecto ILS exacto es el más preciso e ITS heurístico el más rápido.
+  \item La heurística de 2 fases empeora con $n$ en el \TRPPDH\ porque el ciclo TSP no considera la latencia; las metaheurísticas corrigen casi toda esa diferencia.
+\end{itemize}
+
+\section*{Referencias}
+\begin{itemize}[leftmargin=*,label={}]
+  \item Battarra, M., Erdoğan, G., Laporte, G. y Vigo, D. (2010). The traveling salesman problem with pickups, deliveries, and handling costs. \emph{Transportation Science}, 44(3), 383--399.
+  \item Erdoğan, G., Battarra, M., Laporte, G. y Vigo, D. (2012). Metaheuristics for the traveling salesman problem with pickups, deliveries and handling costs. \emph{Computers \& Operations Research}, 39(5), 1074--1086.
+  \item Mosheiov, G. (1994). The travelling salesman problem with pick-up and delivery. \emph{European Journal of Operational Research}, 79(2), 299--310.
+\end{itemize}
 
 \end{document}
