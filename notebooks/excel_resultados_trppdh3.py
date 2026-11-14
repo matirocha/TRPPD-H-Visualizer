@@ -7,6 +7,9 @@ Lee
     Outputs/gurobi/<variante>/<instancia>.json         las corridas de Gurobi (n = 5 a 60)
     Outputs/resumenes/heuristicas_replicas.csv         las réplicas de las heurísticas
                                                        (npm run heuristicas -- --replicas 10 ...)
+    Outputs/resumenes/heuristicas/**/*.xlsx            las réplicas de lote_heuristicas_trppdh3.py
+                                                       (n = 80 a 200, sin Gurobi): se copian aquí
+                                                       los heuristicas_<banco>.xlsx de cada corrida
 y escribe cinco hojas:
     Resumen                          promedios por banco y N (fórmulas sobre Resultados y Detalle)
     Resultados                       una fila por instancia: BKS, su origen, las 4 variantes de
@@ -16,8 +19,8 @@ y escribe cinco hojas:
     Definiciones                     parámetros y definición de cada columna
 
 BKS (best known solution) = menor Σ Dᵢ entre las cotas superiores de las 4 variantes de Gurobi
-y el mejor costo (en sus réplicas) de cada heurística. GAP sol. entera = (Cota superior − BKS)
-/ BKS. Las fórmulas se recalculan al abrir el archivo en Excel (MINIFS: Excel 2019 o 365).
+y el mejor costo (en sus réplicas) de cada heurística; en las instancias sin Gurobi (n ≥ 80),
+solo de las heurísticas. GAP sol. entera = (Cota superior − BKS) / BKS. Las fórmulas se recalculan al abrir el archivo en Excel (MINIFS: Excel 2019 o 365).
 Si faltan réplicas, las celdas de esa heurística quedan vacías y el BKS usa lo que haya.
 """
 
@@ -29,7 +32,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-from openpyxl import Workbook
+from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter as L
 from openpyxl.workbook.properties import CalcProperties
@@ -37,6 +40,8 @@ from openpyxl.workbook.properties import CalcProperties
 RAIZ = Path(__file__).resolve().parent.parent
 GUROBI = RAIZ / "Outputs" / "gurobi"
 CSV_REPLICAS = RAIZ / "Outputs" / "resumenes" / "heuristicas_replicas.csv"
+# Excel de lote_heuristicas_trppdh3.py (uno o varios, en subcarpetas si se quiere)
+CARPETA_EXCEL_REPLICAS = RAIZ / "Outputs" / "resumenes" / "heuristicas"
 DESTINO = RAIZ / "Outputs" / "resumenes" / "gurobi_resultados.xlsx"
 
 VARIANTES = [("base", "(1)-(19)"), ("explicitacion", "(1)-(19) + (20)-(23)"),
@@ -140,7 +145,28 @@ def archivos_replicas():
                   if re.fullmatch(r"heuristicas_replicas(_\d+)?\.csv", p.name))
 
 
-def leer_replicas(instancias):
+def leer_excel_replicas():
+    """Filas (con las claves del CSV) de los Excel de lote_heuristicas_trppdh3.py."""
+    from lote_heuristicas_trppdh3 import COLUMNAS, HOJA_REPLICAS
+    claves = {encabezado: clave for clave, encabezado, _, _ in COLUMNAS}
+    filas = []
+    for archivo in sorted(CARPETA_EXCEL_REPLICAS.rglob("*.xlsx")):
+        if archivo.name.startswith("~$") or archivo.stem.endswith("_tmp"):
+            continue   # archivo de bloqueo de Excel o copia a medio escribir
+        wb = load_workbook(archivo, read_only=True)
+        try:
+            hoja = wb[HOJA_REPLICAS].iter_rows(values_only=True)
+            encabezados = [claves.get(e) for e in next(hoja)]
+            filas.extend({k: v for k, v in zip(encabezados, valores) if k} for valores in hoja
+                         if valores and valores[1])
+        finally:
+            wb.close()
+    return filas
+
+
+def leer_replicas():
+    """Réplicas de los CSV (Node, n ≤ 60) y de los Excel de lote_heuristicas_trppdh3.py; si una
+    réplica (instancia, algoritmo, número) aparece dos veces, vale la primera."""
     nombres = {clave: nombre for clave, nombre, _ in ALGORITMOS}
     orden_alg = [a[0] for a in ALGORITMOS]
     filas, vistas = [], set()
@@ -148,13 +174,17 @@ def leer_replicas(instancias):
     for archivo in archivos_replicas():
         with archivo.open(encoding="utf-8") as f:
             leidas.extend(csv.DictReader(f))
+    if CARPETA_EXCEL_REPLICAS.is_dir():
+        leidas.extend(leer_excel_replicas())
     for r in leidas:
-        if (r["instancia"], r["algoritmo"], r["replica"]) in vistas:
+        clave_rep = (r["instancia"], r["algoritmo"], int(r["replica"]))
+        if clave_rep in vistas:
             continue
-        vistas.add((r["instancia"], r["algoritmo"], r["replica"]))
-        if r["instancia"] not in instancias or r["algoritmo"] not in nombres:
+        vistas.add(clave_rep)
+        if int(r["n"]) < N_MIN or r["algoritmo"] not in nombres:
             continue
-        num = lambda k, tipo=float: tipo(r[k]) if r[k] not in ("", None) else None
+        num = lambda k, tipo=float: tipo(r[k]) if r.get(k) not in ("", None) else None
+        fecha = r.get("fecha")
         filas.append({
             "banco": r["banco"], "instancia": r["instancia"], "n": int(r["n"]), "id": int(r["id"]),
             "h": float(r["h"]), "clave": r["algoritmo"], "algoritmo": nombres[r["algoritmo"]],
@@ -166,8 +196,8 @@ def leer_replicas(instancias):
             "evaluaciones_exactas": num("evaluaciones_exactas", int),
             "evaluaciones_heuristicas": num("evaluaciones_heuristicas", int),
             "n_iter": num("n_iter", int), "motor": r["motor"],
-            "fecha": datetime.fromisoformat(r["fecha"]) if r["fecha"] else None,
-            "ruta": r["ruta"], "politica": r["politica"],
+            "fecha": (fecha if isinstance(fecha, datetime) else datetime.fromisoformat(fecha)) if fecha else None,
+            "ruta": r["ruta"], "politica": str(r["politica"]),
         })
     filas.sort(key=lambda f: (f["n"], f["h"], f["id"], f["banco"], orden_alg.index(f["clave"]), f["replica"]))
     return filas
@@ -263,7 +293,7 @@ def hoja_replicas(ws, filas, fila_de):
     return max(len(filas) + 1, 2)
 
 
-def hoja_resultados(ws, gurobi, instancias, n_rep):
+def hoja_resultados(ws, gurobi, bases, instancias, n_rep):
     cg, ch = columnas_resultados()
     bloques = ([("Instancia", [("Banco", 10), ("Instancia", 26), ("N", 6), ("ID", 6), ("h", 6)]),
                 ("Mejor solución conocida", [("BKS", 12), ("Origen BKS", 40)])]
@@ -278,8 +308,8 @@ def hoja_resultados(ws, gurobi, instancias, n_rep):
     fila_de = {}
     for r, nombre in enumerate(instancias, 3):
         fila_de[nombre] = r
-        corridas = gurobi[nombre]
-        base = next(iter(corridas.values()))
+        corridas = gurobi.get(nombre, {})
+        base = bases[nombre]
         for k, clave in enumerate(["banco", "instancia", "n", "id", "h"], 1):
             celda(ws, r, k, base[clave])
         # Gurobi: valores y GAP sol. entera con el BKS
@@ -347,7 +377,7 @@ def hoja_detalle(ws, gurobi, instancias, ultima_res):
     r = 1
     for nombre in instancias:
         for variante, _ in VARIANTES:
-            f = gurobi[nombre].get(variante)
+            f = gurobi.get(nombre, {}).get(variante)
             if f is None:
                 continue
             r += 1
@@ -361,12 +391,13 @@ def hoja_detalle(ws, gurobi, instancias, ultima_res):
     return r
 
 
-def hoja_resumen(ws, grupos, n_inst, n_det, n_rep_total):
+def hoja_resumen(ws, grupos, con_gurobi, n_inst, n_gurobi, n_det, n_rep_total):
     cg, ch = columnas_resultados()
     celda(ws, 1, 1, "TRPPD-H3 · Gurobi 11.0.0, 1 hilo y 3 600 s por modelo (N = 5: corrida previa, ver "
-                    f"Definiciones) · {n_inst} instancias × 4 variantes = {n_det - 1} corridas · 5 heurísticas × "
-                    f"10 réplicas ({n_rep_total} corridas)", TITULO)
-    celda(ws, 2, 1, "Promedios sobre las 30 instancias de cada N (ID 1 a 10 × h 0,1 / 0,5 / 1). "
+                    f"Definiciones) · {n_gurobi} instancias × 4 variantes = {n_det - 1} corridas · 5 heurísticas × "
+                    f"10 réplicas en {n_inst} instancias ({n_rep_total} corridas)", TITULO)
+    celda(ws, 2, 1, "Promedios sobre las instancias de cada N: con N ≤ 60, ID 1 a 10 × h 0,1 / 0,5 / 1 (30); "
+                    "con N ≥ 80, ID 1 a 10 con h = 20/N (10) y solo heurísticas (—: sin Gurobi). "
                     "Fórmulas sobre las hojas Resultados y Detalle.")
     por_variante = [("Óptimos", 9, ENTERO), ("Tiempo prom. (s)", 11, NUM), ("GAP prom.", 10, PCT),
                     ("GAP sol. entera prom.", 11, PCT), ("Nodos prom.", 12, ENTERO),
@@ -388,6 +419,10 @@ def hoja_resumen(ws, grupos, n_inst, n_det, n_rep_total):
         celda(ws, r, 3, f"=COUNTIFS({filtro})", formato=ENTERO)
         cotas = [cg[v]["cota_inferior"] for v, _ in VARIANTES]
         for (variante, _), inicio in zip(VARIANTES, inicios[1:5]):
+            if (banco, n) not in con_gurobi:   # N ≥ 80: Gurobi no se corrió
+                for k in range(len(por_variante)):
+                    celda(ws, r, inicio + k, "—", alineacion=Alignment(horizontal="center"))
+                continue
             col = cg[variante]
             otras = "*".join(f'({res(col["cota_inferior"])}>={res(c)}-{TOL}*ABS({res(c)}))'
                              for c in cotas if c != col["cota_inferior"])
@@ -421,7 +456,11 @@ def hoja_resumen(ws, grupos, n_inst, n_det, n_rep_total):
 
     r = ultima + 2
     celda(ws, r, 1, "Lectura", NEGRITA)
-    for texto in LECTURA:
+    sin_gurobi = sorted(n for g in grupos if g not in con_gurobi for n in [g[1]])
+    extra = ([f"• N = {', '.join(map(str, sin_gurobi))} (Erdoğan et al., 2012, h = 20/N): solo heurísticas, "
+              "sin Gurobi; el BKS es el mejor costo de las 5 y las columnas de Gurobi muestran —."]
+             if sin_gurobi else [])
+    for texto in LECTURA + extra:
         r += 1
         ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=inicios[-1] + len(por_heur) - 1)
         celda(ws, r, 1, texto, alineacion=Alignment(wrap_text=True, vertical="top"))
@@ -441,7 +480,8 @@ def hoja_definiciones(ws, gurobi, replicas):
     parametros = [
         ("Corridas de Gurobi", f"{sum(len(c) for c in gurobi.values())} = {len(gurobi)} instancias × 4 variantes"),
         ("Banco Battarra", "N = 5, 10, 15, 20, 25 (instancias sin sufijo, compartidas con el banco de Erdogan)"),
-        ("Banco Erdogan", "N = 30, 40, 50, 60 (instancias con sufijo _Erdogan)"),
+        ("Banco Erdogan", "N = 30, 40, 50, 60 (instancias con sufijo _Erdogan); N = 80, 100, …, 200 solo con "
+                          "heurísticas, h = 20/N como en Erdoğan et al. (2012)"),
         ("Pendiente", "Battarra N = 30, 40, 50 (sin sufijo) y 60 (_Battarra) no están en estos resultados"),
         ("ID / h", "1 a 10 / 0,1, 0,5 y 1"),
         ("Límite de tiempo", "3 600 s por modelo"),
@@ -461,11 +501,14 @@ def hoja_definiciones(ws, gurobi, replicas):
                                  "de perturbación + búsqueda local. ITS: ⌊√N_iter⌋ = 14 iteraciones de "
                                  "perturbación + búsqueda tabú de 14 pasos, tenencia ⌊0,5·n⌋. N_rand = "
                                  "round(0,1·n) movimientos al azar por perturbación."),
-        ("Heurísticas corridas con", f"{', '.join(motores) or '—'} en el PC del autor: N = 10 a 60 con 8 procesos en paralelo y N = 5 con uno "
-                                     "(npm run heuristicas -- --replicas 10 --sel B:5-25,E:30-60)"),
+        ("Heurísticas corridas con", f"{', '.join(motores) or '—'}. N = 5 a 60: Node.js en el PC del autor, N = 10 a 60 "
+                                     "con 8 procesos en paralelo y N = 5 con uno (npm run heuristicas -- --replicas 10 "
+                                     "--sel B:5-25,E:30-60). N = 80 a 200: Python, notebooks/lote_heuristicas_trppdh3.py "
+                                     "(mismas rutas y costos que Node con la misma semilla)"),
         ("Heurísticas corridas entre", f"{fmt(fechas_rep[0])} y {fmt(fechas_rep[-1])}" if fechas_rep else "—"),
-        ("CSV de réplicas", "Outputs/resumenes/heuristicas_replicas.csv; la mejor réplica de cada instancia "
-                            "queda en Outputs/erdogan/<algoritmo>/<instancia>.json"),
+        ("Réplicas leídas de", "Outputs/resumenes/heuristicas_replicas.csv (N ≤ 60) y los Excel de "
+                               "lote_heuristicas_trppdh3.py en Outputs/resumenes/heuristicas/ (N ≥ 80); la mejor "
+                               "réplica de cada instancia queda en Outputs/erdogan/<algoritmo>/<instancia>.json"),
         ("Generado", datetime.now().replace(microsecond=0)),
     ]
     r = 3
@@ -477,7 +520,8 @@ def hoja_definiciones(ws, gurobi, replicas):
 
     definiciones = [
         ("BKS", "Best known solution: menor Σ Dᵢ entre la cota superior de las 4 variantes de Gurobi y el "
-                "mejor costo (en sus réplicas) de cada una de las 5 heurísticas."),
+                "mejor costo (en sus réplicas) de cada una de las 5 heurísticas. Con N ≥ 80 no hay Gurobi: "
+                "solo las heurísticas."),
         ("Origen BKS", "Métodos que alcanzan el BKS (diferencia relativa ≤ 1E-6); si hay empate se listan "
                        "todos."),
         ("Costo", "Σ Dᵢ de la mejor solución entera encontrada (ObjVal de Gurobi)."),
@@ -532,10 +576,14 @@ def hoja_definiciones(ws, gurobi, replicas):
 
 def main():
     gurobi = leer_gurobi()
+    replicas = leer_replicas()
+    # Instancias: las de Gurobi (N ≤ 60) y las que solo tienen heurísticas (N ≥ 80)
     base = {n: next(iter(c.values())) for n, c in gurobi.items()}
-    instancias = sorted(gurobi, key=lambda n: (base[n]["n"], base[n]["h"], base[n]["id"], base[n]["banco"]))
-    replicas = leer_replicas(set(instancias))
+    for f in replicas:
+        base.setdefault(f["instancia"], f)
+    instancias = sorted(base, key=lambda n: (base[n]["n"], base[n]["h"], base[n]["id"], base[n]["banco"]))
     grupos = sorted({(base[n]["banco"], base[n]["n"]) for n in instancias}, key=lambda g: g[1])
+    con_gurobi = {(base[n]["banco"], base[n]["n"]) for n in gurobi}
 
     wb = Workbook()
     ws_resumen = wb.active
@@ -547,9 +595,9 @@ def main():
 
     fila_de = {n: i for i, n in enumerate(instancias, 3)}
     n_rep = hoja_replicas(ws_rep, replicas, fila_de)
-    hoja_resultados(ws_res, gurobi, instancias, n_rep)
+    hoja_resultados(ws_res, gurobi, base, instancias, n_rep)
     n_det = hoja_detalle(ws_det, gurobi, instancias, len(instancias) + 2)
-    hoja_resumen(ws_resumen, grupos, len(instancias), n_det, len(replicas))
+    hoja_resumen(ws_resumen, grupos, con_gurobi, len(instancias), len(gurobi), n_det, len(replicas))
     hoja_definiciones(ws_def, gurobi, replicas)
     wb.calculation = CalcProperties(fullCalcOnLoad=True)
 

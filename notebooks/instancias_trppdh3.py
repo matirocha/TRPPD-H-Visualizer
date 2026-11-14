@@ -24,6 +24,10 @@ El banco se amplía a |Vc| en {30, 40, 50, 60} de dos maneras (ver BANCOS):
   las instancias de 200 clientes con la misma regla (79). Ellos usan
   h = 20/n; aquí se mantiene h en {0.1, 0.5, 1}.
 
+Para las metaheurísticas se agregan además las instancias grandes de Erdoğan
+et al. (2012): n en {80, 100, ..., 200} de las mismas instancias de 200
+clientes, con su h = 20/n (un solo h por n, de modo que h·n = 20).
+
 Las instancias de e_vigo traen solo la matriz de costos. Como son euclidianas,
 las coordenadas del mapa se recuperan con escalamiento multidimensional
 clásico sobre la matriz completa de la instancia base, de modo que el mapa de
@@ -63,6 +67,11 @@ BANCOS = (
     {"sufijo": "Erdogan", "n_base": 200, "tamanos": (30, 40, 50, 60),
      "origen": "e_vigo (Gendreau, Laporte y Vigo, 1999), instancia de 200 clientes "
                "como en Erdoğan et al. (2012), con la regla (79) de Battarra et al. (2010)"},
+    # Instancias grandes, solo para las metaheurísticas: h = 20/n como en Erdoğan et al.
+    {"sufijo": "Erdogan", "n_base": 200, "tamanos": (80, 100, 120, 140, 160, 180, 200),
+     "h_por_n": lambda n: 20 / n,
+     "origen": "e_vigo (Gendreau, Laporte y Vigo, 1999), instancia de 200 clientes "
+               "como en Erdoğan et al. (2012), con su regla (15) y h = 20/n"},
 )
 
 
@@ -198,7 +207,8 @@ def main():
             costos = leer_costos(id_, banco["n_base"])
             coords = coordenadas_mds(costos)
             for n in banco["tamanos"]:
-                for h in VALORES_H:
+                valores_h = (banco["h_por_n"](n),) if "h_por_n" in banco else VALORES_H
+                for h in valores_h:
                     guardar_instancia(generar_instancia(n, id_, h, banco, costos, coords))
                     total += 1
     print(f"{total} instancias guardadas en {CARPETA_INSTANCIAS}")

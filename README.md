@@ -33,8 +33,9 @@ TRPPD-H Visualizer/
 │   ├── ils_exacto_trppdh3.py       ILS con evaluación exacta
 │   ├── its_heuristico_trppdh3.py   ITS con evaluación heurística
 │   ├── its_exacto_trppdh3.py       ITS con evaluación exacta
+│   ├── lote_heuristicas_trppdh3.py las 5 heurísticas con réplicas: lote_heuristicas_trppdh3.py all|N
 │   └── ejecutables/          N10.bat … N60.bat y all.bat (Battarra y Erdogan)
-├── Instancias/               390 instancias JSON: n ∈ {5, 10, 15, 20, 25, 30, 40, 50, 60}, id 1–10, h ∈ {0,1; 0,5; 1}
+├── Instancias/               460 instancias JSON: n ∈ {5, …, 60} con h ∈ {0,1; 0,5; 1} y n ∈ {80, …, 200} con h = 20/n
 ├── Outputs/                  soluciones en formato trppdh3-salida/1 (ver Outputs/README.md)
 │   ├── gurobi/{base, explicitacion, latencia, completo}/
 │   ├── erdogan/{dos_fases, ils_heuristico, ils_exacto, its_heuristico, its_exacto}/
@@ -73,6 +74,12 @@ h ∈ {0,1; 0,5; 1}:
 Las instancias de distinto tamaño de e_vigo no comparten clientes, así que el
 mapa de una id cambia con la instancia base. Erdoğan et al. usan h = 20/n;
 aquí se mantienen los tres valores de h de Battarra.
+
+Para las heurísticas se agregan las instancias grandes de Erdoğan et al. (2012,
+Sección 5) tal como las definen ellos: n ∈ {80, 100, 120, 140, 160, 180, 200}
+de las instancias de 200 clientes, con un solo h = 20/n (h·n = 20), ids 1–10:
+70 instancias `vigo_n<n>_id<id>_h<20/n>_Erdogan.json` (por ejemplo
+`vigo_n120_id3_h0.166667_Erdogan.json`). Gurobi no se corre en ellas.
 
 Cada instancia queda en `Instancias/vigo_n<n>_id<id>_h<h>[_<sufijo>].json`.
 En `notebooks/modelo_trppdh3.py`, `BANCO` elige el sufijo.
@@ -190,6 +197,46 @@ unas 50 veces más: úsala para leer o modificar los algoritmos, y la de
 JavaScript para las corridas grandes. Guarda cada solución en
 `notebooks/erdogan/<algoritmo>/<instancia>.json` (formato trppdh3-salida/1, sin
 los campos T, D, F y q, que la página recalcula).
+
+### Corridas por lote de las heurísticas (n = 80 a 200)
+
+`notebooks/lote_heuristicas_trppdh3.py` sigue la lógica de `lote_trppdh3.py`
+para las 5 heurísticas: un solo archivo autónomo (solo necesita `Instancias/` y
+`openpyxl`), sin preguntas, con 10 réplicas por instancia y algoritmo (la réplica
+r usa la semilla r), N_iter = 200 y un límite de 1 hora por réplica
+(`LIMITE_TIEMPO`; al cortarse informa la mejor ruta que tenía y lo marca en el Excel):
+
+```bash
+cd notebooks
+python lote_heuristicas_trppdh3.py all        # n = 80, 100, ..., 200 (banco de Erdogan)
+python lote_heuristicas_trppdh3.py 80         # solo n = 80 (también 80,100 o 80-120)
+python lote_heuristicas_trppdh3.py 200 --alg ils_exacto --replicas 3 --id 1
+```
+
+Corre los algoritmos del más barato al más caro y, después de cada réplica,
+reescribe `heuristicas_erdogan.xlsx` junto al script (una fila por instancia con
+el BKS y el costo promedio y mejor, GAP y tiempos de cada algoritmo; una fila
+por réplica; definiciones) y guarda la mejor réplica de cada algoritmo en
+`erdogan/<algoritmo>/<instancia>.json`, que la página lee al copiar esa carpeta
+a `Outputs/erdogan/`. Se reanuda solo, y varios procesos (uno por algoritmo, n,
+id o réplica) pueden escribir el mismo Excel a la vez.
+
+Con la misma semilla da exactamente las mismas rutas, políticas, Σ Dᵢ,
+iteraciones y evaluaciones que `npm run heuristicas` (comprobado con 20
+corridas de n = 10 y 25). Si NumPy está instalado, el DP exacto usa una versión
+vectorizada con idénticos resultados (unas 5 veces más rápida con n = 200).
+Solo corre las metaheurísticas: no lee ni usa Gurobi, y su BKS es el mejor
+costo de las 5.
+
+Para sumar los resultados a `Outputs/resumenes/gurobi_resultados.xlsx` y a la
+página:
+
+1. Copiar `notebooks/erdogan/` sobre `Outputs/erdogan/` (las soluciones).
+2. Copiar el o los `heuristicas_erdogan.xlsx` a `Outputs/resumenes/heuristicas/`
+   (se aceptan subcarpetas, por ejemplo uno por trabajo del clúster).
+3. `python notebooks/excel_resultados_trppdh3.py`: agrega las instancias de
+   n = 80 a 200 a todas las hojas, con las columnas de Gurobi vacías (—) y el
+   BKS calculado solo con las heurísticas.
 
 ## Visualizador web
 
