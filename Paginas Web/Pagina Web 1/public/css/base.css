@@ -428,6 +428,18 @@ code { font-family: var(--f-mono); font-size: 0.88em; background: var(--papel-2)
 .pie { border-top: 1px solid var(--regla); padding-block: 40px 56px; font-size: 13.5px; color: var(--tinta-2); }
 .pie__interior { display: grid; gap: 8px; }
 
+/* --- Logos institucionales (portada y pie) ------------------------------- */
+.logos { display: flex; flex-wrap: wrap; align-items: center; gap: clamp(18px, 3vw, 36px); }
+.logos__img { display: block; width: auto; height: var(--logo-alto, 44px); max-width: 100%; }
+.logos__img + .logos__img { padding-left: clamp(18px, 3vw, 36px); border-left: 1px solid var(--regla); }
+.logos--hero { --logo-alto: clamp(34px, 5.2vh, 52px); margin-bottom: clamp(18px, 3.4vh, 36px); width: fit-content; }
+.logos--pie { --logo-alto: 40px; margin-bottom: 16px; }
+@media (max-width: 480px) {
+  .logos { gap: 14px; }
+  .logos__img + .logos__img { padding-left: 14px; }
+  .logos--hero, .logos--pie { --logo-alto: 30px; }
+}
+
 /* --- Tooltip, avisos y estado de carga ----------------------------------- */
 .tooltip {
   position: fixed; left: 0; top: 0; z-index: 80; pointer-events: none;

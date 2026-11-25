@@ -90,7 +90,7 @@ LECTURA = [
     "en que solo las heurísticas llegan a la BKS, y desde N = 40 son todas: la mejor heurística mejora "
     "la mejor cota superior de Gurobi en 3,9 % (N = 40), 10,6 % (N = 50) y 14,7 % (N = 60) en "
     "promedio, y hasta en 29,8 %.",
-    "• ILS exacto alcanza la BKS en las 270 instancias (con su mejor réplica) y su GAP promedio sobre "
+    "• ILS exacto alcanza la BKS en las 270 instancias de N = 5 a 60 (con su mejor réplica) y su GAP promedio sobre "
     "las 10 réplicas no pasa de 0,03 % en ningún N. Es también la más lenta: 242 s por réplica en N = 60.",
     "• La evaluación heurística, O(n), hace cada iteración unas 7 veces más rápido que la exacta en "
     "N = 60 (0,09 s contra 0,61 s en ILS), pero pierde calidad al crecer N: en N = 60 ILS heurístico "
@@ -103,6 +103,27 @@ LECTURA = [
     "N = 5, con un proceso.",
     "• Las corridas de Gurobi con N = 5 son anteriores (29-10-2026) y no registran límite de tiempo, "
     "hilos ni relajación lineal; todas terminan óptimas, así que su costo no depende de eso.",
+]
+
+# Lectura de N = 80 a 200 (solo heurísticas, clúster, 1 h por réplica). Cifras de las réplicas del
+# 22 al 25-11-2026; si se vuelven a correr, revisar que sigan siendo ciertas.
+LECTURA_GRANDES = [
+    "• N = 80 a 200 (Erdoğan et al., 2012: ID 1 a 10, h = 20/N): solo heurísticas, sin Gurobi (columnas "
+    "—); el BKS es el mejor costo de las 5. Se corrieron en el clúster con Python "
+    "(lote_heuristicas_trppdh3.py), 10 réplicas y un límite de 1 hora por réplica.",
+    "• Con ese límite, ILS exacto e ILS heurístico se cortan en todas sus réplicas desde N = 80, ITS exacto "
+    "desde N = 140 (y 1 réplica en N = 120) e ITS heurístico en N = 180 (90 de 100) y N = 200 (70 de 100). "
+    "ILS exacto hace en promedio 71 de sus 400 iteraciones en N = 80, 10 en N = 120 y 2 en N = 180 y 200.",
+    "• ILS exacto alcanza el BKS en 49 de las 70 instancias: 9 o 10 de 10 hasta N = 160, 3 en N = 180 y "
+    "ninguna en N = 200, donde el corte lo deja con una iteración por solución inicial (GAP promedio "
+    "7,7 %). ILS heurístico, con evaluación O(n), hace más iteraciones en la hora: alcanza el BKS en las "
+    "10 instancias de N = 200 y en 7 de N = 180, con GAP promedio entre 0,9 % (N = 80) y 5,1 % (N = 160).",
+    "• Las ITS no alcanzan el BKS en ninguna instancia de N = 80 a 200 y casi no mejoran la solución de "
+    "2 fases con N grande: su mejor réplica la mejora en las 10 instancias hasta N = 120, en 1 o 2 de "
+    "N = 160 y en ninguna de N = 200 (ITS heurístico, tampoco en N = 180). ILS exacto supera a ITS "
+    "exacto en 69 de las 70 instancias.",
+    "• La heurística de 2 fases queda en promedio 12,7 % sobre el BKS en N = 80 a 200 (de 9,1 % en "
+    "N = 200 a 14,8 % en N = 140).",
 ]
 
 
@@ -198,6 +219,8 @@ def leer_replicas():
             "n_iter": num("n_iter", int), "motor": r["motor"],
             "fecha": (fecha if isinstance(fecha, datetime) else datetime.fromisoformat(fecha)) if fecha else None,
             "ruta": r["ruta"], "politica": str(r["politica"]),
+            # Excel del clúster: Sí / No; las corridas de Node (N ≤ 60) no tenían límite
+            "tiempo_agotado": r.get("tiempo_agotado") or "—",
         })
     filas.sort(key=lambda f: (f["n"], f["h"], f["id"], f["banco"], orden_alg.index(f["clave"]), f["replica"]))
     return filas
@@ -272,7 +295,8 @@ def hoja_replicas(ws, filas, fila_de):
                 ("Iteraciones", 11, ENTERO), ("Tiempo por iteración (s)", 12, SEG_IT),
                 ("Iteración de la mejor", 11, ENTERO), ("Tiempo a la mejor (s)", 11, SEG),
                 ("Evaluaciones exactas", 13, ENTERO), ("Evaluaciones heurísticas", 13, ENTERO),
-                ("Fecha", 17, "yyyy-mm-dd hh:mm"), ("Ruta", 40, None), ("Política (s_i)", 22, None)]
+                ("Fecha", 17, "yyyy-mm-dd hh:mm"), ("Ruta", 40, None), ("Política (s_i)", 22, None),
+                ("Cortada por tiempo", 10, None)]
     for col, (texto, ancho, _) in enumerate(columnas, 1):
         celda(ws, 1, col, texto, BLANCA, relleno=AZUL, alineacion=CENTRO)
         ws.column_dimensions[L(col)].width = ancho
@@ -285,7 +309,7 @@ def hoja_replicas(ws, filas, fila_de):
                    f["segundos_inicial"], f["segundos_busqueda"], f["iteraciones"],
                    f["segundos_por_iteracion"], f["iteracion_mejor"], f["segundos_mejor"],
                    f["evaluaciones_exactas"], f["evaluaciones_heuristicas"], f["fecha"], f["ruta"],
-                   f["politica"]]
+                   f["politica"], f["tiempo_agotado"]]
         for col, (valor, (_, _, formato)) in enumerate(zip(valores, columnas), 1):
             celda(ws, r, col, valor, formato=formato)
     ws.freeze_panes = "C2"
@@ -457,9 +481,7 @@ def hoja_resumen(ws, grupos, con_gurobi, n_inst, n_gurobi, n_det, n_rep_total):
     r = ultima + 2
     celda(ws, r, 1, "Lectura", NEGRITA)
     sin_gurobi = sorted(n for g in grupos if g not in con_gurobi for n in [g[1]])
-    extra = ([f"• N = {', '.join(map(str, sin_gurobi))} (Erdoğan et al., 2012, h = 20/N): solo heurísticas, "
-              "sin Gurobi; el BKS es el mejor costo de las 5 y las columnas de Gurobi muestran —."]
-             if sin_gurobi else [])
+    extra = LECTURA_GRANDES if sin_gurobi else []
     for texto in LECTURA + extra:
         r += 1
         ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=inicios[-1] + len(por_heur) - 1)
@@ -483,8 +505,9 @@ def hoja_definiciones(ws, gurobi, replicas):
         ("Banco Erdogan", "N = 30, 40, 50, 60 (instancias con sufijo _Erdogan); N = 80, 100, …, 200 solo con "
                           "heurísticas, h = 20/N como en Erdoğan et al. (2012)"),
         ("Pendiente", "Battarra N = 30, 40, 50 (sin sufijo) y 60 (_Battarra) no están en estos resultados"),
-        ("ID / h", "1 a 10 / 0,1, 0,5 y 1"),
-        ("Límite de tiempo", "3 600 s por modelo"),
+        ("ID / h", "1 a 10 / 0,1, 0,5 y 1 (N ≤ 60); h = 20/N (N ≥ 80)"),
+        ("Límite de tiempo", "Gurobi: 3 600 s por modelo. Heurísticas: sin límite con N ≤ 60; 3 600 s por "
+                             "réplica con N ≥ 80 (2 fases + búsqueda)"),
         ("Hilos", 1),
         ("Gurobi", "11.0.0 (clúster, arreglos SLURM 18139548 a 18147117), N = 10 a 60. Las 120 corridas de "
                    "N = 5 son anteriores (29-10-2026) y sus JSON no registran límite de tiempo, hilos ni "
@@ -503,8 +526,9 @@ def hoja_definiciones(ws, gurobi, replicas):
                                  "round(0,1·n) movimientos al azar por perturbación."),
         ("Heurísticas corridas con", f"{', '.join(motores) or '—'}. N = 5 a 60: Node.js en el PC del autor, N = 10 a 60 "
                                      "con 8 procesos en paralelo y N = 5 con uno (npm run heuristicas -- --replicas 10 "
-                                     "--sel B:5-25,E:30-60). N = 80 a 200: Python, notebooks/lote_heuristicas_trppdh3.py "
-                                     "(mismas rutas y costos que Node con la misma semilla)"),
+                                     "--sel B:5-25,E:30-60). N = 80 a 200: Python en el clúster, notebooks/lote_heuristicas_trppdh3.py "
+                                     "con 1 hora por réplica (sin corte, mismas rutas y costos que Node con la "
+                                     "misma semilla)"),
         ("Heurísticas corridas entre", f"{fmt(fechas_rep[0])} y {fmt(fechas_rep[-1])}" if fechas_rep else "—"),
         ("Réplicas leídas de", "Outputs/resumenes/heuristicas_replicas.csv (N ≤ 60) y los Excel de "
                                "lote_heuristicas_trppdh3.py en Outputs/resumenes/heuristicas/ (N ≥ 80); la mejor "
@@ -544,6 +568,9 @@ def hoja_definiciones(ws, gurobi, replicas):
         ("GAP Promedio", "(Costo Promedio − BKS) / BKS = promedio de (costo de cada réplica − BKS) / BKS."),
         ("GAP Mejor Costo", "(Mejor Costo − BKS) / BKS."),
         ("Tiempo Promedio (s)", "Tiempo total de la corrida (2 fases + búsqueda), promedio de las 10 réplicas."),
+        ("Cortada por tiempo", f"Hoja {HOJA_REP}: Sí si la réplica llegó al límite de 1 hora antes de "
+                               "completar sus iteraciones (N ≥ 80); informa la mejor ruta encontrada hasta "
+                               "ese momento. — = corrida sin límite (N ≤ 60)."),
         ("Tiempo Promedio Iteraciones (s)", "Tiempo de búsqueda (sin las 2 fases) dividido por el número de "
                                             "iteraciones de la corrida, promedio de las 10 réplicas. ILS: 2 × "
                                             "200 iteraciones (perturbación + búsqueda local); ITS: 2 × 14 "
